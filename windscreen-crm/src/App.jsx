@@ -154,7 +154,8 @@ function Dashboard({ data, setView }) {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div>
                 {job.jobTime && <div style={{ fontSize:13, fontWeight:700, color:"#F59E0B", marginBottom:2 }}>🕐 {job.jobTime}</div>}
-                <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.name||"Unknown"}</div>
+                <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.company||"Unknown Company"}</div>
+                {job.driverName && <div style={{ fontSize:13, color:"#374151", fontWeight:600 }}>Driver: {job.driverName}</div>}
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
@@ -178,8 +179,9 @@ function CustomersList({ data, setView }) {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const filtered = data.customers.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone.includes(search) ||
+    c.company?.toLowerCase().includes(search.toLowerCase()) ||
+    c.companyContact?.toLowerCase().includes(search.toLowerCase()) ||
+    c.phone?.includes(search) ||
     c.postcode?.toLowerCase().includes(search.toLowerCase()) ||
     c.town?.toLowerCase().includes(search.toLowerCase())
   );
@@ -193,8 +195,8 @@ function CustomersList({ data, setView }) {
       {filtered.length === 0 && <p style={{ color:"#9CA3AF", textAlign:"center", fontSize:14 }}>No customers found</p>}
       {filtered.map(c => (
         <Card key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}>
-          <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{c.name}</div>
-          {c.company && <div style={{ fontSize:13, color:"#1E3A5F", fontWeight:600 }}>{c.company}{c.companyContact ? ` · ${c.companyContact}` : ""}</div>}
+          <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{c.company || c.companyContact || "No name"}</div>
+          {c.companyContact && <div style={{ fontSize:13, color:"#1E3A5F", fontWeight:600 }}>{c.companyContact}</div>}
           <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.phone}{c.town ? ` · ${c.town}` : ""}{c.postcode ? ` · ${c.postcode}` : ""}</div>
           {c.email && <div style={{ fontSize:12, color:"#9CA3AF" }}>{c.email}</div>}
         </Card>
@@ -206,7 +208,6 @@ function CustomersList({ data, setView }) {
 
 // ── Customer Form ─────────────────────────────────────────────────────────────
 function CustomerForm({ data, onClose, setView, editCustomer }) {
-  const [name,           setName]           = useState(editCustomer?.name           || "");
   const [company,        setCompany]        = useState(editCustomer?.company        || "");
   const [companyContact, setCompanyContact] = useState(editCustomer?.companyContact || "");
   const [phone,          setPhone]          = useState(editCustomer?.phone          || "");
@@ -221,7 +222,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   function save() {
     if (!name || !phone) return;
     const customers = [...data.customers];
-    const rec = { name, company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
+    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
     if (editCustomer) {
       const idx = customers.findIndex(c => c.id === editCustomer.id);
       customers[idx] = { ...editCustomer, ...rec };
@@ -234,8 +235,8 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
 
   return (
     <Modal title={editCustomer ? "Edit Customer" : "New Customer"} onClose={onClose}>
-      <Field label="Full Name" required><Input value={name} onChange={setName} placeholder="Jane Smith" /></Field>
-      <Field label="Company"><Input value={company} onChange={setCompany} placeholder="Acme Ltd" /></Field>
+      <div style={{ marginTop:8 }} />
+      <Field label="Company Name" required><Input value={company} onChange={setCompany} placeholder="Acme Ltd" /></Field>
       <Field label="Company Contact"><Input value={companyContact} onChange={setCompanyContact} placeholder="Contact name at company" /></Field>
       <Field label="Phone" required><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
       <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
@@ -274,9 +275,8 @@ function CustomerDetail({ data, id, setView }) {
         <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"customers" })}><Icon name="back" size={14} /> Back</Btn>
       </div>
       <Card>
-        <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{customer.name}</div>
-        {customer.company && <div style={{ fontSize:15, fontWeight:600, color:"#374151", marginTop:2 }}>{customer.company}</div>}
-        {customer.companyContact && <div style={{ fontSize:13, color:"#6B7280" }}>Contact: {customer.companyContact}</div>}
+        <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{customer.company || "No company name"}</div>
+        {customer.companyContact && <div style={{ fontSize:14, color:"#374151", marginTop:4 }}>Contact: {customer.companyContact}</div>}
         <div style={{ fontSize:14, color:"#6B7280", marginTop:4 }}>{customer.phone}</div>
         {customer.email && <div style={{ fontSize:14, color:"#6B7280" }}>{customer.email}</div>}
         {addrParts.length > 0 && (
@@ -435,6 +435,7 @@ function LocationPopup({ customerId, data, initial, onSave, onClose }) {
 // ── Job Form ──────────────────────────────────────────────────────────────────
 function JobForm({ data, onClose, editJob }) {
   const [customerId,    setCustomerId]    = useState(editJob?.customerId    || "");
+  const [driverName,    setDriverName]    = useState(editJob?.driverName    || "");
   const [vehicleId,     setVehicleId]     = useState(editJob?.vehicleId     || "");
   const [date,          setDate]          = useState(editJob?.date          || todayISO());
   const [jobTime,       setJobTime]       = useState(editJob?.jobTime       || "");
@@ -462,7 +463,7 @@ function JobForm({ data, onClose, editJob }) {
   function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
-    const rec = { customerId, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo };
+    const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo };
     if (editJob) {
       const idx = jobs.findIndex(j => j.id === editJob.id);
       jobs[idx] = { ...editJob, ...rec };
@@ -480,9 +481,10 @@ function JobForm({ data, onClose, editJob }) {
       <Field label="Customer" required>
         <select style={{ ...inputStyle, appearance:"none" }} value={customerId} onChange={e => { setCustomerId(e.target.value); setVehicleId(""); }}>
           <option value="">Select customer…</option>
-          {data.customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {data.customers.map(c => <option key={c.id} value={c.id}>{c.company || c.companyContact || 'Unnamed'}</option>)}
         </select>
       </Field>
+      <Field label="Driver / Customer Name"><Input value={driverName} onChange={setDriverName} placeholder="Name of the driver or car owner" /></Field>
       {customerId && (
         <Field label="Vehicle">
           <select style={{ ...inputStyle, appearance:"none" }} value={vehicleId} onChange={e => setVehicleId(e.target.value)}>
@@ -598,8 +600,9 @@ function JobDetail({ data, id, setView }) {
         <StatusBadge status={job.status} />
       </div>
       <Card>
-        <Row label="Customer"     value={customer?.name} />
         <Row label="Company"      value={customer?.company || null} />
+        <Row label="Contact"      value={customer?.companyContact || null} />
+        <Row label="Driver"       value={job.driverName || null} />
         <Row label="Phone"        value={customer?.phone} />
         <Row label="Address"      value={[customer?.address1, customer?.town, customer?.postcode].filter(Boolean).join(", ")} />
         <Row label="Vehicle"      value={vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : null} />
@@ -726,7 +729,7 @@ function InvoicesList({ data, setView }) {
         <Card key={inv.id} onClick={() => inv.job && setView({ screen:"jobDetail", id:inv.job.id })}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ fontWeight:700, fontSize:15 }}>{inv.customer?.name||"Unknown"}</div>
+              <div style={{ fontWeight:700, fontSize:15 }}>{inv.customer?.company||"Unknown"}</div>
               <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.createdAt)} · {inv.job?.jobType}</div>
             </div>
             <div style={{ textAlign:"right" }}>
