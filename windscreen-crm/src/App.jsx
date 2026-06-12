@@ -11,7 +11,6 @@ const STATUS_META = {
 };
 
 const DAMAGE_TYPES    = ["Chip", "Crack", "Shatter", "Scratch", "Other"];
-const GLASS_POSITIONS = ["Windscreen", "Side Window", "Rear Window", "Sunroof"];
 const JOB_TYPES       = ["Repair", "Replace"];
 const PAYMENT_TYPES   = ["Private", "Insurance"];
 
@@ -157,7 +156,7 @@ function Dashboard({ data, setView }) {
                 {job.jobTime && <div style={{ fontSize:13, fontWeight:700, color:"#F59E0B", marginBottom:2 }}>🕐 {job.jobTime}</div>}
                 <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.name||"Unknown"}</div>
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
-                <div style={{ fontSize:13, color:"#6B7280" }}>{job.glassPosition} · {job.jobType}</div>
+                <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
               </div>
               <StatusBadge status={job.status} />
@@ -195,6 +194,7 @@ function CustomersList({ data, setView }) {
       {filtered.map(c => (
         <Card key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}>
           <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{c.name}</div>
+          {c.company && <div style={{ fontSize:13, color:"#1E3A5F", fontWeight:600 }}>{c.company}{c.companyContact ? ` · ${c.companyContact}` : ""}</div>}
           <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.phone}{c.town ? ` · ${c.town}` : ""}{c.postcode ? ` · ${c.postcode}` : ""}</div>
           {c.email && <div style={{ fontSize:12, color:"#9CA3AF" }}>{c.email}</div>}
         </Card>
@@ -206,8 +206,10 @@ function CustomersList({ data, setView }) {
 
 // ── Customer Form ─────────────────────────────────────────────────────────────
 function CustomerForm({ data, onClose, setView, editCustomer }) {
-  const [name,     setName]     = useState(editCustomer?.name     || "");
-  const [phone,    setPhone]    = useState(editCustomer?.phone    || "");
+  const [name,           setName]           = useState(editCustomer?.name           || "");
+  const [company,        setCompany]        = useState(editCustomer?.company        || "");
+  const [companyContact, setCompanyContact] = useState(editCustomer?.companyContact || "");
+  const [phone,          setPhone]          = useState(editCustomer?.phone          || "");
   const [email,    setEmail]    = useState(editCustomer?.email    || "");
   const [address1, setAddress1] = useState(editCustomer?.address1 || "");
   const [address2, setAddress2] = useState(editCustomer?.address2 || "");
@@ -219,7 +221,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   function save() {
     if (!name || !phone) return;
     const customers = [...data.customers];
-    const rec = { name, phone, email, address1, address2, town, county, postcode, notes };
+    const rec = { name, company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
     if (editCustomer) {
       const idx = customers.findIndex(c => c.id === editCustomer.id);
       customers[idx] = { ...editCustomer, ...rec };
@@ -232,7 +234,9 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
 
   return (
     <Modal title={editCustomer ? "Edit Customer" : "New Customer"} onClose={onClose}>
-      <Field label="Full Name / Company" required><Input value={name} onChange={setName} placeholder="Jane Smith" /></Field>
+      <Field label="Full Name" required><Input value={name} onChange={setName} placeholder="Jane Smith" /></Field>
+      <Field label="Company"><Input value={company} onChange={setCompany} placeholder="Acme Ltd" /></Field>
+      <Field label="Company Contact"><Input value={companyContact} onChange={setCompanyContact} placeholder="Contact name at company" /></Field>
       <Field label="Phone" required><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
       <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
       <Field label="Address Line 1"><Input value={address1} onChange={setAddress1} placeholder="12 High Street" /></Field>
@@ -271,6 +275,8 @@ function CustomerDetail({ data, id, setView }) {
       </div>
       <Card>
         <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{customer.name}</div>
+        {customer.company && <div style={{ fontSize:15, fontWeight:600, color:"#374151", marginTop:2 }}>{customer.company}</div>}
+        {customer.companyContact && <div style={{ fontSize:13, color:"#6B7280" }}>Contact: {customer.companyContact}</div>}
         <div style={{ fontSize:14, color:"#6B7280", marginTop:4 }}>{customer.phone}</div>
         {customer.email && <div style={{ fontSize:14, color:"#6B7280" }}>{customer.email}</div>}
         {addrParts.length > 0 && (
@@ -302,7 +308,7 @@ function CustomerDetail({ data, id, setView }) {
         <Card key={j.id} onClick={() => setView({ screen:"jobDetail", id:j.id })}>
           <div style={{ display:"flex", justifyContent:"space-between" }}>
             <div>
-              <div style={{ fontWeight:600, fontSize:14 }}>{j.glassPosition} · {j.jobType}</div>
+              <div style={{ fontWeight:600, fontSize:14 }}>{j.jobType}</div>
               <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(j.date)}</div>
             </div>
             <StatusBadge status={j.status} />
@@ -370,7 +376,7 @@ function JobsList({ data, setView }) {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.name||"Unknown"}</div>
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
-                <div style={{ fontSize:13, color:"#6B7280" }}>{job.glassPosition} · {job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
+                <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
                 {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
@@ -439,7 +445,6 @@ function JobForm({ data, onClose, editJob }) {
   const [locPostcode,   setLocPostcode]   = useState(editJob?.locPostcode   || "");
   const [showLocPopup,  setShowLocPopup]  = useState(false);
   const [jobType,       setJobType]       = useState(editJob?.jobType       || "Repair");
-  const [glassPosition, setGlassPosition] = useState(editJob?.glassPosition || "Windscreen");
   const [damageType,    setDamageType]    = useState(editJob?.damageType    || "Chip");
   const [damageSide,    setDamageSide]    = useState(editJob?.damageSide    || "");
   const [damagePosition,setDamagePosition]= useState(editJob?.damagePosition|| "");
@@ -457,7 +462,7 @@ function JobForm({ data, onClose, editJob }) {
   function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
-    const rec = { customerId, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, glassPosition, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo };
+    const rec = { customerId, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo };
     if (editJob) {
       const idx = jobs.findIndex(j => j.id === editJob.id);
       jobs[idx] = { ...editJob, ...rec };
@@ -497,7 +502,6 @@ function JobForm({ data, onClose, editJob }) {
       </Field>
       <div style={{ display:"flex", gap:10 }}>
         <div style={{ flex:1 }}><Field label="Job Type"><Select value={jobType} onChange={setJobType} options={JOB_TYPES} /></Field></div>
-        <div style={{ flex:1 }}><Field label="Glass Position"><Select value={glassPosition} onChange={setGlassPosition} options={GLASS_POSITIONS} /></Field></div>
       </div>
       <div style={{ display:"flex", gap:10 }}>
         <div style={{ flex:1 }}><Field label="Damage Type"><Select value={damageType} onChange={setDamageType} options={DAMAGE_TYPES} /></Field></div>
@@ -595,6 +599,7 @@ function JobDetail({ data, id, setView }) {
       </div>
       <Card>
         <Row label="Customer"     value={customer?.name} />
+        <Row label="Company"      value={customer?.company || null} />
         <Row label="Phone"        value={customer?.phone} />
         <Row label="Address"      value={[customer?.address1, customer?.town, customer?.postcode].filter(Boolean).join(", ")} />
         <Row label="Vehicle"      value={vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : null} />
@@ -602,7 +607,6 @@ function JobDetail({ data, id, setView }) {
         <Row label="Time"         value={job.jobTime || null} />
         <Row label="Location"     value={[job.locAddress1, job.locAddress2, job.locTown, job.locCounty, job.locPostcode].filter(Boolean).join(", ") || null} />
         <Row label="Job Type"     value={job.jobType} />
-        <Row label="Glass"        value={job.glassPosition} />
         <Row label="Damage"       value={job.damageType} />
         <Row label="Damage Side"  value={job.damageSide || null} />
         <Row label="Damage Pos."  value={job.damagePosition || null} />
@@ -723,7 +727,7 @@ function InvoicesList({ data, setView }) {
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
               <div style={{ fontWeight:700, fontSize:15 }}>{inv.customer?.name||"Unknown"}</div>
-              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.createdAt)} · {inv.job?.glassPosition} {inv.job?.jobType}</div>
+              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.createdAt)} · {inv.job?.jobType}</div>
             </div>
             <div style={{ textAlign:"right" }}>
               <div style={{ fontWeight:800, fontSize:16, color:inv.paid?"#059669":"#1E3A5F" }}>£{parseFloat(inv.total).toFixed(2)}</div>
