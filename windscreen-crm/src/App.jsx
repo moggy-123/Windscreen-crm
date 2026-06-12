@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 
 const DB_KEY = "wscrm_data";
@@ -220,7 +221,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
 
   function save() {
-    if (!name || !phone) return;
+    if (!company) return;
     const customers = [...data.customers];
     const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
     if (editCustomer) {
@@ -238,7 +239,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
       <div style={{ marginTop:8 }} />
       <Field label="Company Name" required><Input value={company} onChange={setCompany} placeholder="Acme Ltd" /></Field>
       <Field label="Company Contact"><Input value={companyContact} onChange={setCompanyContact} placeholder="Contact name at company" /></Field>
-      <Field label="Phone" required><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
+      <Field label="Phone"><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
       <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
       <Field label="Address Line 1"><Input value={address1} onChange={setAddress1} placeholder="12 High Street" /></Field>
       <Field label="Address Line 2"><Input value={address2} onChange={setAddress2} placeholder="Clifton" /></Field>
@@ -246,7 +247,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
       <Field label="County"><Input value={county} onChange={setCounty} placeholder="Avon" /></Field>
       <Field label="Postcode"><Input value={postcode} onChange={setPostcode} placeholder="BS1 1AA" /></Field>
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
-      <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!name||!phone}>Save Customer</Btn>
+      <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!company}>Save Customer</Btn>
     </Modal>
   );
 }
