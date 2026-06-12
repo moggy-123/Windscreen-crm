@@ -114,7 +114,14 @@ function Modal({ title, onClose, children }) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function Dashboard({ data, setView }) {
   const todayStr = todayISO();
-  const todayJobs = data.jobs.filter(j => j.date === todayStr);
+  const todayJobs = data.jobs
+    .filter(j => j.date === todayStr)
+    .sort((a, b) => {
+      if (!a.jobTime && !b.jobTime) return 0;
+      if (!a.jobTime) return 1;
+      if (!b.jobTime) return -1;
+      return a.jobTime.localeCompare(b.jobTime);
+    });
   const openJobs = data.jobs.filter(j => !["Paid","Complete"].includes(j.status));
   const unpaidInvoices = data.invoices.filter(i => !i.paid);
   const unpaidTotal = unpaidInvoices.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
@@ -147,9 +154,11 @@ function Dashboard({ data, setView }) {
           <Card key={job.id} onClick={() => setView({ screen:"jobDetail", id:job.id })}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div>
+                {job.jobTime && <div style={{ fontSize:13, fontWeight:700, color:"#F59E0B", marginBottom:2 }}>🕐 {job.jobTime}</div>}
                 <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.name||"Unknown"}</div>
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
-                <div style={{ fontSize:13, color:"#6B7280" }}>{job.glassPosition} · {job.jobType}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
+                <div style={{ fontSize:13, color:"#6B7280" }}>{job.glassPosition} · {job.jobType}</div>
+                {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
               </div>
               <StatusBadge status={job.status} />
             </div>
@@ -362,6 +371,7 @@ function JobsList({ data, setView }) {
                 <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.name||"Unknown"}</div>
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.glassPosition} · {job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
+                {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
                 {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
               <StatusBadge status={job.status} />
@@ -373,38 +383,81 @@ function JobsList({ data, setView }) {
   );
 }
 
-// ── Job Form ──────────────────────────────────────────────────────────────────
-function JobForm({ data, onClose, editJob }) {
-  const [customerId,   setCustomerId]   = useState(editJob?.customerId   || "");
-  const [vehicleId,    setVehicleId]    = useState(editJob?.vehicleId    || "");
-  const [date,         setDate]         = useState(editJob?.date         || todayISO());
-  const [jobTime,      setJobTime]      = useState(editJob?.jobTime      || "");
-  const [location,     setLocation]     = useState(editJob?.location     || "");
-  const [jobType,      setJobType]      = useState(editJob?.jobType      || "Repair");
-  const [glassPosition,setGlassPosition]= useState(editJob?.glassPosition|| "Windscreen");
-  const [damageType,   setDamageType]   = useState(editJob?.damageType   || "Chip");
-  const [adasRequired, setAdasRequired] = useState(editJob?.adasRequired || false);
-  const [status,       setStatus]       = useState(editJob?.status       || "Booked");
-  const [technicianId, setTechnicianId] = useState(editJob?.technicianId || "");
-  const [notes,        setNotes]        = useState(editJob?.notes        || "");
-  const [paymentType,  setPaymentType]  = useState(editJob?.paymentType  || "Private");
-  const [insuranceCo,  setInsuranceCo]  = useState(editJob?.insuranceCo  || "");
-  const [claimNo,      setClaimNo]      = useState(editJob?.claimNo      || "");
+// ── Location Popup ────────────────────────────────────────────────────────────
+function LocationPopup({ customerId, data, initial, onSave, onClose }) {
+  const [addr1,     setAddr1]     = useState(initial?.locAddress1  || "");
+  const [addr2,     setAddr2]     = useState(initial?.locAddress2  || "");
+  const [town,      setTown]      = useState(initial?.locTown      || "");
+  const [county,    setCounty]    = useState(initial?.locCounty    || "");
+  const [postcode,  setPostcode]  = useState(initial?.locPostcode  || "");
 
-  const custVehicles = data.vehicles.filter(v => v.customerId === customerId);
-
-  // Build full address string from selected customer
-  function useCustomerAddress() {
+  function useCustomer() {
     const cust = data.customers.find(c => c.id === customerId);
     if (!cust) return;
-    const parts = [cust.address1, cust.address2, cust.town, cust.county, cust.postcode].filter(Boolean);
-    setLocation(parts.join(", "));
+    setAddr1(cust.address1 || "");
+    setAddr2(cust.address2 || "");
+    setTown(cust.town || "");
+    setCounty(cust.county || "");
+    setPostcode(cust.postcode || "");
   }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:400, padding:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:"#111827" }}>Job Location</h3>
+          <button onClick={onClose} style={{ background:"#F3F4F6", border:"none", borderRadius:99, width:30, height:30, cursor:"pointer", fontSize:16, color:"#6B7280" }}>×</button>
+        </div>
+        {customerId && (
+          <button onClick={useCustomer} style={{ width:"100%", marginBottom:14, fontSize:13, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"8px 12px", cursor:"pointer", fontFamily:"inherit", fontWeight:600, textAlign:"left" }}>
+            📍 Use customer's address
+          </button>
+        )}
+        <Field label="Address Line 1"><Input value={addr1} onChange={setAddr1} placeholder="12 High Street" /></Field>
+        <Field label="Address Line 2"><Input value={addr2} onChange={setAddr2} placeholder="Clifton" /></Field>
+        <Field label="Town / City"><Input value={town} onChange={setTown} placeholder="Bristol" /></Field>
+        <Field label="County"><Input value={county} onChange={setCounty} placeholder="Avon" /></Field>
+        <Field label="Postcode"><Input value={postcode} onChange={setPostcode} placeholder="BS1 1AA" /></Field>
+        <Btn onClick={() => onSave({ locAddress1:addr1, locAddress2:addr2, locTown:town, locCounty:county, locPostcode:postcode })} style={{ width:"100%", justifyContent:"center", marginTop:4 }}>
+          Save Location
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+// ── Job Form ──────────────────────────────────────────────────────────────────
+function JobForm({ data, onClose, editJob }) {
+  const [customerId,    setCustomerId]    = useState(editJob?.customerId    || "");
+  const [vehicleId,     setVehicleId]     = useState(editJob?.vehicleId     || "");
+  const [date,          setDate]          = useState(editJob?.date          || todayISO());
+  const [jobTime,       setJobTime]       = useState(editJob?.jobTime       || "");
+  const [locAddress1,   setLocAddress1]   = useState(editJob?.locAddress1   || "");
+  const [locAddress2,   setLocAddress2]   = useState(editJob?.locAddress2   || "");
+  const [locTown,       setLocTown]       = useState(editJob?.locTown       || "");
+  const [locCounty,     setLocCounty]     = useState(editJob?.locCounty     || "");
+  const [locPostcode,   setLocPostcode]   = useState(editJob?.locPostcode   || "");
+  const [showLocPopup,  setShowLocPopup]  = useState(false);
+  const [jobType,       setJobType]       = useState(editJob?.jobType       || "Repair");
+  const [glassPosition, setGlassPosition] = useState(editJob?.glassPosition || "Windscreen");
+  const [damageType,    setDamageType]    = useState(editJob?.damageType    || "Chip");
+  const [damageSide,    setDamageSide]    = useState(editJob?.damageSide    || "");
+  const [damagePosition,setDamagePosition]= useState(editJob?.damagePosition|| "");
+  const [adasRequired,  setAdasRequired]  = useState(editJob?.adasRequired  || false);
+  const [status,        setStatus]        = useState(editJob?.status        || "Booked");
+  const [technicianId,  setTechnicianId]  = useState(editJob?.technicianId  || "");
+  const [notes,         setNotes]         = useState(editJob?.notes         || "");
+  const [paymentType,   setPaymentType]   = useState(editJob?.paymentType   || "Private");
+  const [insuranceCo,   setInsuranceCo]   = useState(editJob?.insuranceCo   || "");
+  const [claimNo,       setClaimNo]       = useState(editJob?.claimNo       || "");
+
+  const custVehicles = data.vehicles.filter(v => v.customerId === customerId);
+  const locSummary = [locAddress1, locTown, locPostcode].filter(Boolean).join(", ");
 
   function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
-    const rec = { customerId, vehicleId, date, jobTime, location, jobType, glassPosition, damageType, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo };
+    const rec = { customerId, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, glassPosition, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo };
     if (editJob) {
       const idx = jobs.findIndex(j => j.id === editJob.id);
       jobs[idx] = { ...editJob, ...rec };
@@ -417,6 +470,7 @@ function JobForm({ data, onClose, editJob }) {
   }
 
   return (
+    <>
     <Modal title={editJob ? "Edit Job" : "New Job"} onClose={onClose}>
       <Field label="Customer" required>
         <select style={{ ...inputStyle, appearance:"none" }} value={customerId} onChange={e => { setCustomerId(e.target.value); setVehicleId(""); }}>
@@ -434,15 +488,12 @@ function JobForm({ data, onClose, editJob }) {
       )}
       <div style={{ display:"flex", gap:10 }}>
         <div style={{ flex:1 }}><Field label="Date"><Input type="date" value={date} onChange={setDate} /></Field></div>
-        <div style={{ flex:1 }}><Field label="Time"><Input type="time" value={jobTime} onChange={setJobTime} placeholder="09:00" /></Field></div>
+        <div style={{ flex:1 }}><Field label="Time"><Input type="time" value={jobTime} onChange={setJobTime} /></Field></div>
       </div>
       <Field label="Job Location">
-        <Input value={location} onChange={setLocation} placeholder="Type address or use customer's…" />
-        {customerId && (
-          <button onClick={useCustomerAddress} style={{ marginTop:6, fontSize:12, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer", fontFamily:"inherit", fontWeight:600 }}>
-            📍 Use customer's address
-          </button>
-        )}
+        <div onClick={() => setShowLocPopup(true)} style={{ ...inputStyle, cursor:"pointer", color: locSummary ? "#111827" : "#9CA3AF", display:"flex", alignItems:"center", gap:6 }}>
+          📍 {locSummary || "Tap to enter address…"}
+        </div>
       </Field>
       <div style={{ display:"flex", gap:10 }}>
         <div style={{ flex:1 }}><Field label="Job Type"><Select value={jobType} onChange={setJobType} options={JOB_TYPES} /></Field></div>
@@ -451,6 +502,18 @@ function JobForm({ data, onClose, editJob }) {
       <div style={{ display:"flex", gap:10 }}>
         <div style={{ flex:1 }}><Field label="Damage Type"><Select value={damageType} onChange={setDamageType} options={DAMAGE_TYPES} /></Field></div>
         <div style={{ flex:1 }}><Field label="Status"><Select value={status} onChange={setStatus} options={Object.keys(STATUS_META)} /></Field></div>
+      </div>
+      <div style={{ display:"flex", gap:10 }}>
+        <div style={{ flex:1 }}>
+          <Field label="Damage Side">
+            <Select value={damageSide} onChange={setDamageSide} options={["Driver Side","Passenger Side"]} placeholder="Select…" />
+          </Field>
+        </div>
+        <div style={{ flex:1 }}>
+          <Field label="Damage Position">
+            <Select value={damagePosition} onChange={setDamagePosition} options={["Top","Bottom","Left","Right"]} placeholder="Select…" />
+          </Field>
+        </div>
       </div>
       <Field label="ADAS Calibration">
         <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151" }}>
@@ -476,6 +539,16 @@ function JobForm({ data, onClose, editJob }) {
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!customerId}>Save Job</Btn>
     </Modal>
+    {showLocPopup && (
+      <LocationPopup
+        customerId={customerId}
+        data={data}
+        initial={{ locAddress1, locAddress2, locTown, locCounty, locPostcode }}
+        onSave={(loc) => { setLocAddress1(loc.locAddress1); setLocAddress2(loc.locAddress2); setLocTown(loc.locTown); setLocCounty(loc.locCounty); setLocPostcode(loc.locPostcode); setShowLocPopup(false); }}
+        onClose={() => setShowLocPopup(false)}
+      />
+    )}
+    </>
   );
 }
 
@@ -527,10 +600,12 @@ function JobDetail({ data, id, setView }) {
         <Row label="Vehicle"      value={vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : null} />
         <Row label="Date"         value={fmtDate(job.date)} />
         <Row label="Time"         value={job.jobTime || null} />
-        <Row label="Location"     value={job.location || null} />
+        <Row label="Location"     value={[job.locAddress1, job.locAddress2, job.locTown, job.locCounty, job.locPostcode].filter(Boolean).join(", ") || null} />
         <Row label="Job Type"     value={job.jobType} />
         <Row label="Glass"        value={job.glassPosition} />
         <Row label="Damage"       value={job.damageType} />
+        <Row label="Damage Side"  value={job.damageSide || null} />
+        <Row label="Damage Pos."  value={job.damagePosition || null} />
         <Row label="ADAS"         value={job.adasRequired ? "Required" : null} />
         <Row label="Payment"      value={job.paymentType} />
         <Row label="Insurance Co" value={job.insuranceCo} />
