@@ -672,6 +672,62 @@ function JobForm({ data, onClose, editJob }) {
   );
 }
 
+// ── iCal Export ──────────────────────────────────────────────────────────────
+function addToCalendar(job, customer, vehicle) {
+  if (!job.date) { alert("Job has no date set."); return; }
+
+  // Build start datetime
+  const [y, m, d] = job.date.split("-").map(Number);
+  const [h, min]  = job.jobTime ? job.jobTime.split(":").map(Number) : [9, 0];
+  const start = new Date(y, m - 1, d, h, min, 0);
+  const end   = new Date(start.getTime() + 60 * 60 * 1000); // 1hr duration
+
+  function icsDate(dt) {
+    const pad = n => String(n).padStart(2, "0");
+    return `${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+  }
+
+  const company  = customer?.company  || "Unknown Company";
+  const driver   = job.driverName     || "";
+  const reg      = vehicle?.reg       || "";
+  const car      = vehicle ? `${vehicle.make} ${vehicle.model} ${reg}`.trim() : "";
+  const location = [job.locAddress1, job.locAddress2, job.locTown, job.locPostcode].filter(Boolean).join(", ");
+
+  const title    = `${job.jobType} — ${company}${driver ? ` (${driver})` : ""}${car ? ` · ${car}` : ""}`;
+  const notes    = [
+    driver   ? `Driver: ${driver}`   : "",
+    car      ? `Vehicle: ${car}`     : "",
+    location ? `Location: ${location}` : "",
+    job.damageType ? `Damage: ${job.damageType}${job.damageSide ? ` · ${job.damageSide}` : ""}${job.damagePosition ? ` · ${job.damagePosition}` : ""}` : "",
+    job.paymentType === "Insurance" && job.insuranceCo ? `Insurance: ${job.insuranceCo} · ${job.claimNo || ""}` : "",
+    job.notes ? `Notes: ${job.notes}` : "",
+  ].filter(Boolean).join("\\n");
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Windscreen Repairs Bristol//CRM//EN",
+    "BEGIN:VEVENT",
+    `UID:${job.id}@windscreen-crm`,
+    `DTSTAMP:${icsDate(new Date())}`,
+    `DTSTART:${icsDate(start)}`,
+    `DTEND:${icsDate(end)}`,
+    `SUMMARY:${title}`,
+    location ? `LOCATION:${location}` : "",
+    notes    ? `DESCRIPTION:${notes}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean).join("\r\n");
+
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `job-${job.date}-${company.replace(/\s+/g, "-")}.ics`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // ── Job Detail ────────────────────────────────────────────────────────────────
 function JobDetail({ data, id, setView }) {
   const job = data.jobs.find(j => j.id === id);
@@ -773,6 +829,9 @@ function JobDetail({ data, id, setView }) {
         <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}    style={{ flex:1, justifyContent:"center" }}><Icon name="edit"  size={13}/> Edit</Btn>
         <Btn size="sm" variant="danger" onClick={deleteJob}                 style={{ flex:1, justifyContent:"center" }}><Icon name="trash" size={13}/> Delete</Btn>
       </div>
+      <Btn variant="ghost" onClick={() => addToCalendar(job, customer, vehicle)} style={{ width:"100%", justifyContent:"center", marginTop:8 }}>
+        📅 Add to iPhone Calendar
+      </Btn>
       {showEdit    && <JobForm     data={data} editJob={job} onClose={() => setShowEdit(false)}    />}
       {showInvoice && <InvoiceForm data={data} jobId={id}   onClose={() => setShowInvoice(false)} />}
     </div>
