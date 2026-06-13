@@ -396,29 +396,44 @@ function JobsList({ data, setView }) {
 }
 
 // ── Photo Uploader ────────────────────────────────────────────────────────────
+function resizeImage(file, maxW = 1200) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width  = img.width  * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.75));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function PhotoUploader({ label, photos = [], onChange }) {
   const [loading, setLoading] = useState(false);
 
-  function handleFiles(e) {
+  async function handleFiles(e) {
     const files = Array.from(e.target.files);
     if (!files.length) return;
     setLoading(true);
-    let loaded = 0;
-    const newPhotos = [];
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        newPhotos.push({ id: uid(), data: ev.target.result, name: file.name, ts: new Date().toISOString() });
-        loaded++;
-        if (loaded === files.length) {
-          onChange([...photos, ...newPhotos]);
-          setLoading(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-    // Reset input so same file can be picked again
-    e.target.value = "";
+    try {
+      const newPhotos = await Promise.all(files.map(async file => ({
+        id: uid(),
+        data: await resizeImage(file),
+        name: file.name,
+        ts: new Date().toISOString()
+      })));
+      onChange([...photos, ...newPhotos]);
+    } finally {
+      setLoading(false);
+      e.target.value = "";
+    }
   }
 
   function remove(id) {
@@ -548,7 +563,12 @@ function JobForm({ data, onClose, editJob }) {
     } else {
       jobs.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
-    saveData({ ...data, jobs });
+    try {
+      saveData({ ...data, jobs });
+    } catch(e) {
+      alert("Storage full — try using fewer or smaller photos.");
+      return;
+    }
     onClose();
     window.location.reload();
   }
