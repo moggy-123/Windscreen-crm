@@ -115,7 +115,7 @@ function Modal({ title, onClose, children }) {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({ data, setView }) {
+function Dashboard({ data, setView, notifStatus, requestNotifications }) {
   const todayStr = todayISO();
   const todayJobs = data.jobs
     .filter(j => j.date === todayStr)
@@ -139,6 +139,20 @@ function Dashboard({ data, setView }) {
 
   return (
     <div>
+      {notifStatus === "default" && (
+        <div onClick={requestNotifications} style={{ background:"#FFF7ED", border:"1px solid #FED7AA", borderRadius:10, padding:"10px 14px", marginBottom:16, cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:20 }}>🔔</span>
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:"#92400E" }}>Enable job alerts</div>
+            <div style={{ fontSize:12, color:"#B45309" }}>Tap to get notified at 9am & 1hr before each job</div>
+          </div>
+        </div>
+      )}
+      {notifStatus === "denied" && (
+        <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:10, padding:"10px 14px", marginBottom:16 }}>
+          <div style={{ fontSize:12, color:"#991B1B" }}>🔕 Notifications blocked — enable in phone Settings → Safari/Chrome → Notifications</div>
+        </div>
+      )}
       <div style={{ marginBottom:20 }}>
         <h2 style={{ margin:0, fontSize:22, fontWeight:800, color:"#1E3A5F" }}>Good day 👋</h2>
         <p style={{ margin:"4px 0 0", color:"#6B7280", fontSize:14 }}>{new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</p>
@@ -850,10 +864,88 @@ function InvoicesList({ data, setView }) {
 }
 
 // ── Root App ──────────────────────────────────────────────────────────────────
+// ── Notification & Sound System ───────────────────────────────────────────────
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const times = [0, 0.2, 0.4];
+    times.forEach(t => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0, ctx.currentTime + t);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + t + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + 0.18);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.2);
+    });
+  } catch(e) {}
+}
+
+function sendNotification(title, body) {
+  playAlertSound();
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(title, { body, icon: "/logo.png", badge: "/logo.png" });
+  }
+}
+
+function scheduleNotifications(data) {
+  // Clear any existing scheduled timers stored on window
+  if (window._crmTimers) window._crmTimers.forEach(clearTimeout);
+  window._crmTimers = [];
+
+  const now  = new Date();
+  const today = now.toISOString().split("T")[0];
+  const todayJobs = data.jobs.filter(j =>
+    j.date === today && ["Booked", "In Progress"].includes(j.status)
+  );
+
+  // 9am daily summary
+  const nineAm = new Date();
+  nineAm.setHours(9, 0, 0, 0);
+  const msTo9am = nineAm - now;
+  if (msTo9am > 0 && todayJobs.length > 0) {
+    window._crmTimers.push(setTimeout(() => {
+      sendNotification(
+        "📋 Windscreen Repairs Bristol",
+        `You have ${todayJobs.length} job${todayJobs.length > 1 ? "s" : ""} booked today`
+      );
+    }, msTo9am));
+  }
+
+  // 1 hour before each job
+  todayJobs.forEach(job => {
+    if (!job.jobTime) return;
+    const [h, m] = job.jobTime.split(":").map(Number);
+    const jobDate = new Date();
+    jobDate.setHours(h, m, 0, 0);
+    const alertTime = new Date(jobDate - 60 * 60 * 1000); // 1hr before
+    const msToAlert = alertTime - now;
+    if (msToAlert > 0) {
+      const cust = data.customers.find(c => c.id === job.customerId);
+      const veh  = data.vehicles.find(v => v.id === job.vehicleId);
+      const name = cust?.company || job.driverName || "Customer";
+      const car  = veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "";
+      window._crmTimers.push(setTimeout(() => {
+        sendNotification(
+          `🔧 Job in 1 hour — ${job.jobTime}`,
+          `${name}${car ? ` · ${car}` : ""}${job.locAddress1 ? ` · ${job.locAddress1}` : ""}`
+        );
+      }, msToAlert));
+    }
+  });
+}
+
 export default function App() {
-  const [data, setData]       = useState(loadData);
-  const [view, setViewState]  = useState({ screen:"dashboard" });
-  const [tab,  setTab]        = useState("dashboard");
+  const [data, setData]             = useState(loadData);
+  const [view, setViewState]        = useState({ screen:"dashboard" });
+  const [tab,  setTab]              = useState("dashboard");
+  const [notifStatus, setNotifStatus] = useState(
+    "Notification" in window ? Notification.permission : "unsupported"
+  );
 
   const setView = useCallback((v) => {
     setViewState(v);
@@ -862,6 +954,34 @@ export default function App() {
   }, []);
 
   useEffect(() => { setData(loadData()); }, [tab]);
+
+  // Schedule notifications whenever data changes
+  useEffect(() => {
+    if (notifStatus === "granted") scheduleNotifications(data);
+  }, [data, notifStatus]);
+
+  // Re-schedule at midnight for the new day
+  useEffect(() => {
+    const now = new Date();
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    const msToMidnight = midnight - now;
+    const t = setTimeout(() => {
+      const fresh = loadData();
+      setData(fresh);
+    }, msToMidnight);
+    return () => clearTimeout(t);
+  }, []);
+
+  async function requestNotifications() {
+    if (!("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    setNotifStatus(result);
+    if (result === "granted") {
+      scheduleNotifications(data);
+      sendNotification("✅ Notifications enabled", "You'll get alerts for today's jobs");
+    }
+  }
 
   const tabs = [
     { id:"dashboard", icon:"dashboard", label:"Home" },
@@ -884,12 +1004,21 @@ export default function App() {
             <div style={{ fontSize:10, color:"#93C5FD", fontWeight:500, letterSpacing:"0.06em", textTransform:"uppercase" }}>Job Management</div>
           </div>
         </div>
-        <div style={{ width:8, height:8, borderRadius:"50%", background:"#22C55E", boxShadow:"0 0 6px #22C55E" }} title="Saved" />
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {notifStatus !== "unsupported" && (
+            <button onClick={notifStatus === "granted" ? undefined : requestNotifications}
+              title={notifStatus === "granted" ? "Notifications on" : "Tap to enable alerts"}
+              style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, padding:"6px 8px", cursor: notifStatus === "granted" ? "default" : "pointer", fontSize:16, lineHeight:1 }}>
+              {notifStatus === "granted" ? "🔔" : "🔕"}
+            </button>
+          )}
+          <div style={{ width:8, height:8, borderRadius:"50%", background:"#22C55E", boxShadow:"0 0 6px #22C55E" }} title="Saved" />
+        </div>
       </div>
 
       {/* Content */}
       <div style={{ padding:"16px 16px 90px" }}>
-        {view.screen==="dashboard"      && <Dashboard      data={data} setView={setView} />}
+        {view.screen==="dashboard"      && <Dashboard      data={data} setView={setView} notifStatus={notifStatus} requestNotifications={requestNotifications} />}
         {view.screen==="customers"      && <CustomersList  data={data} setView={setView} />}
         {view.screen==="customerDetail" && <CustomerDetail data={data} id={view.id} setView={setView} />}
         {view.screen==="jobs"           && <JobsList       data={data} setView={setView} />}
