@@ -303,7 +303,17 @@ function CustomerDetail({ data, id, setView }) {
           </div>
         )}
         {customer.notes && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:6 }}>{customer.notes}</div>}
-        <div style={{ display:"flex", gap:8, marginTop:12 }}>
+        <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+          {customer.phone && (
+            <a href={`tel:${customer.phone}`} style={{ textDecoration:"none" }}>
+              <Btn size="sm" variant="primary">📞 Call</Btn>
+            </a>
+          )}
+          {customer.email && (
+            <a href={`mailto:${customer.email}`} style={{ textDecoration:"none" }}>
+              <Btn size="sm" variant="ghost">✉️ Email</Btn>
+            </a>
+          )}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
@@ -672,6 +682,91 @@ function JobForm({ data, onClose, editJob }) {
   );
 }
 
+// ── Job Card Email ────────────────────────────────────────────────────────────
+function sendJobCard(job, customer, vehicle, invoice) {
+  const company  = customer?.company        || "";
+  const contact  = customer?.companyContact || "";
+  const driver   = job.driverName           || "";
+  const car      = vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : "";
+  const location = [job.locAddress1, job.locAddress2, job.locTown, job.locPostcode].filter(Boolean).join(", ");
+  const toEmail  = customer?.email          || "";
+
+  const photoSection = (photos, label) => {
+    if (!photos || photos.length === 0) return "";
+    return `
+      <h3 style="color:#1E3A5F;font-size:15px;margin:20px 0 10px;border-bottom:2px solid #F3F4F6;padding-bottom:6px;">${label}</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${photos.map(p => `<img src="${p.data}" style="width:160px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;" />`).join("")}
+      </div>`;
+  };
+
+  const row = (label, value) => value ? `
+    <tr>
+      <td style="padding:7px 0;font-size:13px;color:#6B7280;width:40%;vertical-align:top;">${label}</td>
+      <td style="padding:7px 0;font-size:13px;color:#111827;font-weight:600;">${value}</td>
+    </tr>` : "";
+
+  const fmtD = iso => { if (!iso) return ""; const [y,m,d] = iso.split("-"); return `${d}/${m}/${y}`; };
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+  <div style="background:#1E3A5F;padding:24px 28px;">
+    <div style="font-size:20px;font-weight:800;color:#fff;">Windscreen Repairs (Bristol)</div>
+    <div style="font-size:12px;color:#93C5FD;margin-top:4px;">3 Goosander Grove, Cheddar, BS27 3FY</div>
+    <div style="font-size:12px;color:#93C5FD;">07946 222246 · info@windscreenrepairsbristol.co.uk</div>
+    <div style="font-size:12px;color:#93C5FD;">www.windscreenrepairsbristol.co.uk</div>
+  </div>
+  <div style="background:#F59E0B;padding:12px 28px;">
+    <div style="font-size:16px;font-weight:700;color:#fff;">Job Completion Report</div>
+    <div style="font-size:12px;color:#FEF3C7;">${fmtD(job.date)}${job.jobTime ? " · " + job.jobTime : ""}</div>
+  </div>
+  <div style="padding:24px 28px;">
+    <h3 style="color:#1E3A5F;font-size:15px;margin:0 0 10px;border-bottom:2px solid #F3F4F6;padding-bottom:6px;">Job Details</h3>
+    <table style="width:100%;border-collapse:collapse;">
+      ${row("Company", company)}
+      ${row("Contact", contact)}
+      ${row("Driver", driver)}
+      ${row("Vehicle", car)}
+      ${row("Location", location)}
+      ${row("Job Type", job.jobType)}
+      ${row("Damage", job.damageType)}
+      ${row("Position", [job.damageSide, job.damagePosition].filter(Boolean).join(" · "))}
+      ${job.adasRequired ? row("ADAS", "Required & Completed") : ""}
+      ${row("Payment", job.paymentType)}
+      ${job.paymentType === "Insurance" ? row("Insurance", [job.insuranceCo, job.claimNo].filter(Boolean).join(" · ")) : ""}
+      ${row("Notes", job.notes)}
+    </table>
+    ${invoice ? `
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:20px 0;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:13px;color:#065F46;font-weight:600;">Total${invoice.vat ? " (inc. 20% VAT)" : ""}</div>
+        <div style="font-size:11px;color:#059669;">Labour: £${parseFloat(invoice.labour||0).toFixed(2)} · Parts: £${parseFloat(invoice.parts||0).toFixed(2)}</div>
+        <div style="font-size:12px;color:${invoice.paid?"#059669":"#D97706"};font-weight:600;margin-top:4px;">${invoice.paid ? "✓ Paid" : "⏳ Payment Awaited"}</div>
+      </div>
+      <div style="font-size:28px;font-weight:800;color:#065F46;">£${parseFloat(invoice.total).toFixed(2)}</div>
+    </div>` : ""}
+    ${photoSection(job.photosBefore, "📷 Before")}
+    ${photoSection(job.photosAfter,  "✅ After")}
+    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #F3F4F6;text-align:center;font-size:12px;color:#9CA3AF;">
+      Thank you for choosing Windscreen Repairs (Bristol)<br>
+      <a href="https://www.windscreenrepairsbristol.co.uk" style="color:#1E3A5F;">www.windscreenrepairsbristol.co.uk</a>
+    </div>
+  </div>
+</div>
+</body></html>`;
+
+  const blob = new Blob([html], { type:"text/html" });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  const subject   = `Job Report — ${company || driver} · ${car}`;
+  const plainBody = `Please find your job completion report attached.\n\nWindscreen Repairs (Bristol)\n07946 222246\nwww.windscreenrepairsbristol.co.uk`;
+  setTimeout(() => {
+    window.location.href = `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+  }, 600);
+}
+
 // ── iCal Export ──────────────────────────────────────────────────────────────
 function addToCalendar(job, customer, vehicle) {
   if (!job.date) { alert("Job has no date set."); return; }
@@ -825,12 +920,27 @@ function JobDetail({ data, id, setView }) {
           </div>
         </Card>
       )}
+      <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+        {customer?.phone && (
+          <a href={`tel:${customer.phone}`} style={{ textDecoration:"none", flex:1 }}>
+            <Btn size="sm" variant="primary" style={{ width:"100%", justifyContent:"center" }}>📞 Call</Btn>
+          </a>
+        )}
+        {customer?.email && (
+          <a href={`mailto:${customer.email}`} style={{ textDecoration:"none", flex:1 }}>
+            <Btn size="sm" variant="ghost" style={{ width:"100%", justifyContent:"center" }}>✉️ Email</Btn>
+          </a>
+        )}
+      </div>
       <div style={{ display:"flex", gap:8, marginTop:8 }}>
         <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}    style={{ flex:1, justifyContent:"center" }}><Icon name="edit"  size={13}/> Edit</Btn>
         <Btn size="sm" variant="danger" onClick={deleteJob}                 style={{ flex:1, justifyContent:"center" }}><Icon name="trash" size={13}/> Delete</Btn>
       </div>
       <Btn variant="ghost" onClick={() => addToCalendar(job, customer, vehicle)} style={{ width:"100%", justifyContent:"center", marginTop:8 }}>
         📅 Add to iPhone Calendar
+      </Btn>
+      <Btn variant="amber" onClick={() => sendJobCard(job, customer, vehicle, invoice)} style={{ width:"100%", justifyContent:"center", marginTop:8 }}>
+        📧 Email Job Card to Customer
       </Btn>
       {showEdit    && <JobForm     data={data} editJob={job} onClose={() => setShowEdit(false)}    />}
       {showInvoice && <InvoiceForm data={data} jobId={id}   onClose={() => setShowInvoice(false)} />}
