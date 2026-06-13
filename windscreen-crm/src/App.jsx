@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 
 const DB_KEY = "wscrm_data";
@@ -155,7 +154,7 @@ function Dashboard({ data, setView }) {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div>
                 {job.jobTime && <div style={{ fontSize:13, fontWeight:700, color:"#F59E0B", marginBottom:2 }}>🕐 {job.jobTime}</div>}
-                <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.company||"Unknown Company"}</div>
+                <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.company || cust?.companyContact || job.driverName || "No Company"}</div>
                 {job.driverName && <div style={{ fontSize:13, color:"#374151", fontWeight:600 }}>Driver: {job.driverName}</div>}
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType}</div>
@@ -379,6 +378,7 @@ function JobsList({ data, setView }) {
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
+                {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && <div style={{ fontSize:11, color:"#6B7280", marginTop:3 }}>📷 {(job.photosBefore?.length||0)} before · {(job.photosAfter?.length||0)} after</div>}
                 {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
               <StatusBadge status={job.status} />
@@ -390,7 +390,64 @@ function JobsList({ data, setView }) {
   );
 }
 
-// ── Location Popup ────────────────────────────────────────────────────────────
+// ── Photo Uploader ────────────────────────────────────────────────────────────
+function PhotoUploader({ label, photos = [], onChange }) {
+  function handleFiles(e) {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        onChange([...photos, { id: uid(), data: ev.target.result, name: file.name, ts: new Date().toISOString() }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function remove(id) {
+    onChange(photos.filter(p => p.id !== id));
+  }
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>{label}</label>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+        {photos.map(p => (
+          <div key={p.id} style={{ position:"relative", width:80, height:80 }}>
+            <img src={p.data} alt="job" style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1.5px solid #E5E7EB" }} />
+            <button onClick={() => remove(p.id)} style={{ position:"absolute", top:-6, right:-6, background:"#EF4444", border:"none", borderRadius:"50%", width:20, height:20, color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
+          </div>
+        ))}
+        <label style={{ width:80, height:80, border:"2px dashed #D1D5DB", borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#9CA3AF", fontSize:11, fontWeight:600, gap:4 }}>
+          <span style={{ fontSize:24, lineHeight:1 }}>📷</span>
+          Add
+          <input type="file" accept="image/*" capture="environment" multiple onChange={handleFiles} style={{ display:"none" }} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ── Photo Viewer ──────────────────────────────────────────────────────────────
+function PhotoViewer({ label, photos = [] }) {
+  const [lightbox, setLightbox] = useState(null);
+  if (photos.length === 0) return null;
+  return (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>{label} ({photos.length})</div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+        {photos.map(p => (
+          <img key={p.id} src={p.data} alt="job" onClick={() => setLightbox(p.data)}
+            style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1.5px solid #E5E7EB", cursor:"pointer" }} />
+        ))}
+      </div>
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.9)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <img src={lightbox} alt="full" style={{ maxWidth:"100%", maxHeight:"100%", borderRadius:8 }} />
+        </div>
+      )}
+    </div>
+  );
+}
 function LocationPopup({ customerId, data, initial, onSave, onClose }) {
   const [addr1,     setAddr1]     = useState(initial?.locAddress1  || "");
   const [addr2,     setAddr2]     = useState(initial?.locAddress2  || "");
@@ -457,6 +514,8 @@ function JobForm({ data, onClose, editJob }) {
   const [paymentType,   setPaymentType]   = useState(editJob?.paymentType   || "Private");
   const [insuranceCo,   setInsuranceCo]   = useState(editJob?.insuranceCo   || "");
   const [claimNo,       setClaimNo]       = useState(editJob?.claimNo       || "");
+  const [photosBefore,  setPhotosBefore]  = useState(editJob?.photosBefore  || []);
+  const [photosAfter,   setPhotosAfter]   = useState(editJob?.photosAfter   || []);
 
   const custVehicles = data.vehicles.filter(v => v.customerId === customerId);
   const locSummary = [locAddress1, locTown, locPostcode].filter(Boolean).join(", ");
@@ -464,7 +523,7 @@ function JobForm({ data, onClose, editJob }) {
   function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
-    const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo };
+    const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
     if (editJob) {
       const idx = jobs.findIndex(j => j.id === editJob.id);
       jobs[idx] = { ...editJob, ...rec };
@@ -544,6 +603,8 @@ function JobForm({ data, onClose, editJob }) {
         </Field>
       )}
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
+      <PhotoUploader label="Before Photos" photos={photosBefore} onChange={setPhotosBefore} />
+      <PhotoUploader label="After Photos"  photos={photosAfter}  onChange={setPhotosAfter}  />
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!customerId}>Save Job</Btn>
     </Modal>
     {showLocPopup && (
@@ -621,6 +682,12 @@ function JobDetail({ data, id, setView }) {
         <Row label="Technician"   value={technician?.name} />
         <Row label="Notes"        value={job.notes} />
       </Card>
+      {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
+        <Card>
+          <PhotoViewer label="Before Photos" photos={job.photosBefore} />
+          <PhotoViewer label="After Photos"  photos={job.photosAfter}  />
+        </Card>
+      )}
 
       {nextStatuses[job.status]?.length > 0 && (
         <Btn variant="amber" onClick={() => updateStatus(nextStatuses[job.status][0])} style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>
