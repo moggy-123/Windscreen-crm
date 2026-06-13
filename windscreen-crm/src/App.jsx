@@ -690,6 +690,9 @@ function sendJobCard(job, customer, vehicle, invoice) {
   const car      = vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : "";
   const location = [job.locAddress1, job.locAddress2, job.locTown, job.locPostcode].filter(Boolean).join(", ");
   const toEmail  = customer?.email          || "";
+  const subject  = encodeURIComponent(`Job Report — ${company || driver} · ${car}`);
+  const body     = encodeURIComponent(`Please find your job completion report attached.\n\nWindscreen Repairs (Bristol)\n07946 222246\nwww.windscreenrepairsbristol.co.uk`);
+  const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${body}`;
 
   const photoSection = (photos, label) => {
     if (!photos || photos.length === 0) return "";
@@ -709,9 +712,34 @@ function sendJobCard(job, customer, vehicle, invoice) {
   const fmtD = iso => { if (!iso) return ""; const [y,m,d] = iso.split("-"); return `${d}/${m}/${y}`; };
 
   const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
-<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Job Report</title>
+<style>
+  body { margin:0; padding:0; background:#F8FAFC; font-family:Arial,sans-serif; }
+  @media print {
+    .no-print { display:none !important; }
+    body { background:#fff; }
+    .card { box-shadow:none !important; border-radius:0 !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Action Bar (hidden when printing) -->
+<div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+  <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF first, then attach to email</div>
+  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+    💾 Save as PDF
+  </button>
+  <a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:6px;">
+    ✉️ Open Mail App
+  </a>
+</div>
+
+<!-- Job Card -->
+<div class="card" style="max-width:600px;margin:16px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
   <div style="background:#1E3A5F;padding:24px 28px;">
     <div style="font-size:20px;font-weight:800;color:#fff;">Windscreen Repairs (Bristol)</div>
     <div style="font-size:12px;color:#93C5FD;margin-top:4px;">3 Goosander Grove, Cheddar, BS27 3FY</div>
@@ -738,6 +766,7 @@ function sendJobCard(job, customer, vehicle, invoice) {
       ${job.paymentType === "Insurance" ? row("Insurance", [job.insuranceCo, job.claimNo].filter(Boolean).join(" · ")) : ""}
       ${row("Notes", job.notes)}
     </table>
+
     ${invoice ? `
     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:20px 0;display:flex;justify-content:space-between;align-items:center;">
       <div>
@@ -747,24 +776,34 @@ function sendJobCard(job, customer, vehicle, invoice) {
       </div>
       <div style="font-size:28px;font-weight:800;color:#065F46;">£${parseFloat(invoice.total).toFixed(2)}</div>
     </div>` : ""}
+
     ${photoSection(job.photosBefore, "📷 Before")}
     ${photoSection(job.photosAfter,  "✅ After")}
+
     <div style="margin-top:28px;padding-top:16px;border-top:1px solid #F3F4F6;text-align:center;font-size:12px;color:#9CA3AF;">
       Thank you for choosing Windscreen Repairs (Bristol)<br>
       <a href="https://www.windscreenrepairsbristol.co.uk" style="color:#1E3A5F;">www.windscreenrepairsbristol.co.uk</a>
     </div>
   </div>
 </div>
+
+<!-- How to attach instructions -->
+<div class="no-print" style="max-width:600px;margin:0 auto 32px;padding:16px;background:#FFF7ED;border-radius:12px;border:1px solid #FED7AA;">
+  <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:8px;">📎 How to attach to email on iPhone:</div>
+  <ol style="margin:0;padding-left:18px;font-size:12px;color:#B45309;line-height:1.8;">
+    <li>Tap <strong>💾 Save as PDF</strong> above</li>
+    <li>In the print preview, <strong>pinch outward</strong> on the page to convert to PDF</li>
+    <li>Tap the <strong>Share icon</strong> → <strong>Save to Files</strong></li>
+    <li>Tap <strong>✉️ Open Mail App</strong> above</li>
+    <li>In Mail, tap the <strong>paperclip icon</strong> → find your saved PDF in Files</li>
+  </ol>
+</div>
+
 </body></html>`;
 
   const blob = new Blob([html], { type:"text/html" });
   const url  = URL.createObjectURL(blob);
   window.open(url, "_blank");
-  const subject   = `Job Report — ${company || driver} · ${car}`;
-  const plainBody = `Please find your job completion report attached.\n\nWindscreen Repairs (Bristol)\n07946 222246\nwww.windscreenrepairsbristol.co.uk`;
-  setTimeout(() => {
-    window.location.href = `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
-  }, 600);
 }
 
 // ── iCal Export ──────────────────────────────────────────────────────────────
