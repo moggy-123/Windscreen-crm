@@ -99,12 +99,16 @@ function Card({ children, onClick, style: extra }) {
 function Modal({ title, onClose, children }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:520, maxHeight:"90vh", overflowY:"auto", padding:"20px 20px 32px" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-          <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:"#111827" }}>{title}</h3>
-          <button onClick={onClose} style={{ background:"#F3F4F6", border:"none", borderRadius:99, width:32, height:32, cursor:"pointer", fontSize:18, color:"#6B7280" }}>×</button>
+      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:520, maxHeight:"90vh", display:"flex", flexDirection:"column" }}>
+        <div style={{ padding:"20px 20px 0", flexShrink:0 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+            <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:"#111827" }}>{title}</h3>
+            <button onClick={onClose} style={{ background:"#F3F4F6", border:"none", borderRadius:99, width:32, height:32, cursor:"pointer", fontSize:18, color:"#6B7280" }}>×</button>
+          </div>
         </div>
-        {children}
+        <div style={{ overflowY:"auto", padding:"0 20px 20px", flex:1 }}>
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -374,7 +378,8 @@ function JobsList({ data, setView }) {
           <Card key={job.id} onClick={() => setView({ screen:"jobDetail", id:job.id })}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.name||"Unknown"}</div>
+                <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.company || cust?.companyContact || job.driverName || "No Company"}</div>
+                {job.driverName && cust?.company && <div style={{ fontSize:13, color:"#374151", fontWeight:600 }}>Driver: {job.driverName}</div>}
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
@@ -392,15 +397,28 @@ function JobsList({ data, setView }) {
 
 // ── Photo Uploader ────────────────────────────────────────────────────────────
 function PhotoUploader({ label, photos = [], onChange }) {
+  const [loading, setLoading] = useState(false);
+
   function handleFiles(e) {
     const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setLoading(true);
+    let loaded = 0;
+    const newPhotos = [];
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        onChange([...photos, { id: uid(), data: ev.target.result, name: file.name, ts: new Date().toISOString() }]);
+        newPhotos.push({ id: uid(), data: ev.target.result, name: file.name, ts: new Date().toISOString() });
+        loaded++;
+        if (loaded === files.length) {
+          onChange([...photos, ...newPhotos]);
+          setLoading(false);
+        }
       };
       reader.readAsDataURL(file);
     });
+    // Reset input so same file can be picked again
+    e.target.value = "";
   }
 
   function remove(id) {
@@ -417,10 +435,10 @@ function PhotoUploader({ label, photos = [], onChange }) {
             <button onClick={() => remove(p.id)} style={{ position:"absolute", top:-6, right:-6, background:"#EF4444", border:"none", borderRadius:"50%", width:20, height:20, color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
           </div>
         ))}
-        <label style={{ width:80, height:80, border:"2px dashed #D1D5DB", borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#9CA3AF", fontSize:11, fontWeight:600, gap:4 }}>
-          <span style={{ fontSize:24, lineHeight:1 }}>📷</span>
-          Add
-          <input type="file" accept="image/*" capture="environment" multiple onChange={handleFiles} style={{ display:"none" }} />
+        <label style={{ width:80, height:80, border:`2px dashed ${loading ? "#93C5FD" : "#D1D5DB"}`, borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", color: loading ? "#3B82F6" : "#9CA3AF", fontSize:11, fontWeight:600, gap:4, background: loading ? "#EFF6FF" : "transparent" }}>
+          <span style={{ fontSize:24, lineHeight:1 }}>{loading ? "⏳" : "📷"}</span>
+          {loading ? "Loading…" : "Add"}
+          <input type="file" accept="image/*" capture="environment" multiple onChange={handleFiles} style={{ display:"none" }} disabled={loading} />
         </label>
       </div>
     </div>
