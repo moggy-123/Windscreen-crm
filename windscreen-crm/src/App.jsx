@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { pullFromCloud, pushToCloud, deleteRecord } from "./supabase";
 
 const DB_KEY = "wscrm_data";
 
@@ -31,7 +32,44 @@ function loadData() {
   } catch {}
   return { customers: [], vehicles: [], jobs: [], invoices: [], technicians: [] };
 }
-function saveData(data) { localStorage.setItem(DB_KEY, JSON.stringify(data)); }
+function saveData(data) {
+  localStorage.setItem(DB_KEY, JSON.stringify(data));
+  // Push to cloud in background (fire and forget — works offline, syncs when online)
+  pushToCloud(data).catch(() => {/* offline — will sync later */});
+}
+
+// Export all data as a downloadable JSON backup file
+function exportBackup() {
+  const data = loadData();
+  const stamp = new Date().toISOString().split("T")[0];
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `windscreen-crm-backup-${stamp}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Delete photos from jobs older than one year (keeps the job records)
+function cleanupOldPhotos() {
+  const data = loadData();
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  let cleaned = 0;
+  const jobs = data.jobs.map(j => {
+    if (j.date && new Date(j.date) < oneYearAgo) {
+      const had = (j.photosBefore?.length || 0) + (j.photosAfter?.length || 0);
+      if (had > 0) { cleaned += had; return { ...j, photosBefore: [], photosAfter: [] }; }
+    }
+    return j;
+  });
+  if (cleaned === 0) { alert("No photos older than a year to remove."); return; }
+  if (!window.confirm(`Remove ${cleaned} photo(s) from jobs older than a year? Job records are kept.`)) return;
+  saveData({ ...data, jobs });
+  alert(`Removed ${cleaned} old photo(s).`);
+  window.location.reload();
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 18, color = "currentColor" }) => {
@@ -188,6 +226,14 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
           <Icon name="plus" size={16} /> New Job
         </Btn>
       </div>
+
+      <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
+        <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tools</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <Btn variant="ghost" onClick={exportBackup} style={{ width:"100%", justifyContent:"center" }}>💾 Download Backup</Btn>
+          <Btn variant="ghost" onClick={cleanupOldPhotos} style={{ width:"100%", justifyContent:"center" }}>🗑️ Clear Photos Over 1 Year Old</Btn>
+        </div>
+      </div>
     </div>
   );
 }
@@ -283,6 +329,7 @@ function CustomerDetail({ data, id, setView }) {
   function deleteCustomer() {
     if (!window.confirm("Delete this customer?")) return;
     saveData({ ...data, customers: data.customers.filter(c => c.id !== id) });
+    deleteRecord("customers", id).catch(() => {});
     setView({ screen:"customers" });
     window.location.reload();
   }
@@ -883,6 +930,7 @@ function JobDetail({ data, id, setView }) {
   function deleteJob() {
     if (!window.confirm("Delete this job?")) return;
     saveData({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
+    deleteRecord("jobs", id).catch(() => {});
     setView({ screen:"jobs" });
     window.location.reload();
   }
@@ -1154,6 +1202,40 @@ export default function App() {
   const [notifStatus, setNotifStatus] = useState(
     "Notification" in window ? Notification.permission : "unsupported"
   );
+  const [syncStatus, setSyncStatus] = useState("syncing"); // syncing | synced | offline
+
+  // On first load, pull from cloud and merge with local
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cloud = await pullFromCloud();
+        if (cancelled) return;
+        const local = loadData();
+        // Merge: cloud is source of truth, but keep any local-only records
+        const merge = (cloudArr, localArr) => {
+          const ids = new Set(cloudArr.map(x => x.id));
+          const localOnly = localArr.filter(x => !ids.has(x.id));
+          return [...cloudArr, ...localOnly];
+        };
+        const merged = {
+          customers:   merge(cloud.customers,   local.customers || []),
+          vehicles:    merge(cloud.vehicles,    local.vehicles || []),
+          jobs:        merge(cloud.jobs,        local.jobs || []),
+          invoices:    merge(cloud.invoices,    local.invoices || []),
+          technicians: local.technicians || [],
+        };
+        localStorage.setItem(DB_KEY, JSON.stringify(merged));
+        setData(merged);
+        // Push any local-only records up to cloud
+        pushToCloud(merged).catch(() => {});
+        setSyncStatus("synced");
+      } catch (e) {
+        if (!cancelled) setSyncStatus("offline");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const setView = useCallback((v) => {
     setViewState(v);
@@ -1220,7 +1302,10 @@ export default function App() {
               {notifStatus === "granted" ? "🔔" : "🔕"}
             </button>
           )}
-          <div style={{ width:8, height:8, borderRadius:"50%", background:"#22C55E", boxShadow:"0 0 6px #22C55E" }} title="Saved" />
+          <div style={{ width:8, height:8, borderRadius:"50%",
+            background: syncStatus === "synced" ? "#22C55E" : syncStatus === "syncing" ? "#F59E0B" : "#9CA3AF",
+            boxShadow: syncStatus === "synced" ? "0 0 6px #22C55E" : "none" }}
+            title={syncStatus === "synced" ? "Synced to cloud" : syncStatus === "syncing" ? "Syncing…" : "Offline — saved locally"} />
         </div>
       </div>
 
