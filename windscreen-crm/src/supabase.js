@@ -87,16 +87,34 @@ export async function pullFromCloud() {
 }
 
 // ── Push entire local dataset to Supabase (upsert) ──────────────────────────
+// Uploads each table's rows in small chunks, one chunk at a time, so large
+// photo payloads never exceed the statement timeout on slow mobile connections.
 export async function pushToCloud(data) {
-  const ops = [];
-  if (data.customers?.length) ops.push(supabase.from("customers").upsert(data.customers.map(customerToDb)));
-  if (data.vehicles?.length)  ops.push(supabase.from("vehicles").upsert(data.vehicles.map(vehicleToDb)));
-  if (data.jobs?.length)      ops.push(supabase.from("jobs").upsert(data.jobs.map(jobToDb)));
-  if (data.invoices?.length)  ops.push(supabase.from("invoices").upsert(data.invoices.map(invoiceToDb)));
-  const results = await Promise.all(ops);
-  const err = results.find(r => r.error);
-  if (err) {
-    const msg = err.error.message || err.error.details || err.error.hint || JSON.stringify(err.error);
+  const tables = [
+    { name: "customers", rows: (data.customers || []).map(customerToDb) },
+    { name: "vehicles",  rows: (data.vehicles  || []).map(vehicleToDb)  },
+    { name: "jobs",      rows: (data.jobs      || []).map(jobToDb)      },
+    { name: "invoices",  rows: (data.invoices  || []).map(invoiceToDb)  },
+  ];
+
+  for (const t of tables) {
+    // Upload one row at a time — keeps each request tiny even with photos
+    for (const row of t.rows) {
+      const { error } = await supabase.from(t.name).upsert(row);
+      if (error) {
+        const msg = error.message || error.details || error.hint || JSON.stringify(error);
+        throw new Error(msg);
+      }
+    }
+  }
+}
+
+// Push only ONE record (used for single saves — fast, avoids re-uploading everything)
+export async function pushOne(table, record) {
+  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb };
+  const { error } = await supabase.from(table).upsert(map[table](record));
+  if (error) {
+    const msg = error.message || error.details || error.hint || JSON.stringify(error);
     throw new Error(msg);
   }
 }
