@@ -1427,15 +1427,20 @@ export default function App() {
         // This protects local edits made while the cloud still had the old version.
         const merge = (cloudArr, localArr) => {
           const deleted = getTombstones();
+          const now = Date.now();
           const byId = {};
           (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
           (localArr || []).forEach(x => {
             if (deleted.includes(x.id)) return;
-            const existing = byId[x.id];
-            if (!existing) { byId[x.id] = x; return; }
-            const localTime = x.updatedAt || 0;
-            const cloudTime = existing.updatedAt || 0;
-            byId[x.id] = localTime >= cloudTime ? x : existing;
+            if (byId[x.id]) {
+              const localTime = x.updatedAt || 0;
+              const cloudTime = byId[x.id].updatedAt || 0;
+              byId[x.id] = localTime >= cloudTime ? x : byId[x.id];
+            } else {
+              // local-only: keep only if recently created (not yet uploaded)
+              const age = now - (x.updatedAt || 0);
+              if (age < 60000) byId[x.id] = x;
+            }
           });
           return Object.values(byId);
         };
@@ -1462,21 +1467,30 @@ export default function App() {
   useEffect(() => {
     const channel = supabase
       .channel("crm-changes")
-      .on("postgres_changes", { event: "*", schema: "public" }, async () => {
+      .on("postgres_changes", { event: "*", schema: "public" }, async (payload) => {
         if (SAVING_IN_PROGRESS) return; // don't interfere with an active save
         try {
           const cloud = await pullFromCloud();
           const local = loadData();
-          // Merge newest-wins (same logic as initial load)
+          const deleted = getTombstones();
+          // Cloud is authoritative. A record is kept if it's in the cloud.
+          // Local-only records are kept ONLY if created in the last 60s (genuinely new,
+          // not yet uploaded) — otherwise they were deleted elsewhere and must go.
+          const now = Date.now();
           const merge = (cloudArr, localArr) => {
-            const deleted = getTombstones();
             const byId = {};
             (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
             (localArr || []).forEach(x => {
               if (deleted.includes(x.id)) return;
-              const ex = byId[x.id];
-              if (!ex) { byId[x.id] = x; return; }
-              byId[x.id] = (x.updatedAt || 0) >= (ex.updatedAt || 0) ? x : ex;
+              if (byId[x.id]) {
+                // exists in cloud — newest wins
+                byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
+              } else {
+                // local-only: keep only if very recently created (not yet synced)
+                const age = now - (x.updatedAt || 0);
+                if (age < 60000) byId[x.id] = x;
+                // otherwise it was deleted on another device — drop it
+              }
             });
             return Object.values(byId);
           };
