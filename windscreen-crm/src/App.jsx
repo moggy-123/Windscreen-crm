@@ -107,9 +107,10 @@ async function saveAndReload(data) {
   } catch (e) {
     hideSavingOverlay();
     SAVING_IN_PROGRESS = false;
-    // DIAGNOSTIC: show the error so we can see what's blocking sync
-    const msg = e?.message || JSON.stringify(e);
-    alert("Sync diagnostic: " + msg + " | online=" + navigator.onLine);
+    // Only warn if genuinely online — offline saves are normal and sync later
+    const msg = e?.message || "";
+    const isOffline = !navigator.onLine || msg.includes("Load failed") || msg.includes("timeout") || msg.includes("Failed to fetch") || msg.includes("NetworkError");
+    if (!isOffline) alert("Sync problem: " + (msg || JSON.stringify(e)));
     window.location.reload();
     return;
   }
@@ -138,6 +139,17 @@ function removeSig(id) {
     delete sigs[id];
     localStorage.setItem("wscrm_sigs", JSON.stringify(sigs));
   } catch {}
+}
+
+// Tombstones: remember deleted IDs so they can never be re-added by a merge
+function addTombstone(id) {
+  try {
+    const t = JSON.parse(localStorage.getItem("wscrm_deleted") || "[]");
+    if (!t.includes(id)) { t.push(id); localStorage.setItem("wscrm_deleted", JSON.stringify(t)); }
+  } catch {}
+}
+function getTombstones() {
+  try { return JSON.parse(localStorage.getItem("wscrm_deleted") || "[]"); } catch { return []; }
 }
 
 // Compare against last-synced signatures and push only changed/new records
@@ -476,6 +488,7 @@ function CustomerDetail({ data, id, setView }) {
       alert("Delete failed: " + (e?.message || JSON.stringify(e)));
       return;
     }
+    addTombstone(id);
     removeSig(id);
     await saveAndReload({ ...data, customers: data.customers.filter(c => c.id !== id) });
   }
@@ -583,6 +596,7 @@ function VehicleDetail({ data, id, customerId, setView }) {
   async function deleteVehicle() {
     if (!window.confirm("Delete this vehicle?")) return;
     try { await deleteRecord("vehicles", id); } catch {}
+    addTombstone(id);
     removeSig(id);
     await saveAndReload({ ...data, vehicles: data.vehicles.filter(v => v.id !== id) });
   }
@@ -1128,6 +1142,7 @@ function JobDetail({ data, id, setView }) {
   async function deleteJob() {
     if (!window.confirm("Delete this job?")) return;
     try { await deleteRecord("jobs", id); } catch {}
+    addTombstone(id);
     removeSig(id);
     await saveAndReload({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
   }
@@ -1411,9 +1426,11 @@ export default function App() {
         // Merge by id: whichever copy (cloud or local) has the newer updatedAt wins.
         // This protects local edits made while the cloud still had the old version.
         const merge = (cloudArr, localArr) => {
+          const deleted = getTombstones();
           const byId = {};
-          (cloudArr || []).forEach(x => { byId[x.id] = x; });
+          (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
           (localArr || []).forEach(x => {
+            if (deleted.includes(x.id)) return;
             const existing = byId[x.id];
             if (!existing) { byId[x.id] = x; return; }
             const localTime = x.updatedAt || 0;
@@ -1452,9 +1469,11 @@ export default function App() {
           const local = loadData();
           // Merge newest-wins (same logic as initial load)
           const merge = (cloudArr, localArr) => {
+            const deleted = getTombstones();
             const byId = {};
-            (cloudArr || []).forEach(x => { byId[x.id] = x; });
+            (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
             (localArr || []).forEach(x => {
+              if (deleted.includes(x.id)) return;
               const ex = byId[x.id];
               if (!ex) { byId[x.id] = x; return; }
               byId[x.id] = (x.updatedAt || 0) >= (ex.updatedAt || 0) ? x : ex;
