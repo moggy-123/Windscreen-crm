@@ -543,7 +543,7 @@ function JobsList({ data, setView }) {
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
-                {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && <div style={{ fontSize:11, color:"#6B7280", marginTop:3 }}>📷 {(job.photosBefore?.length||0)} before · {(job.photosAfter?.length||0)} after</div>}
+                {/* photo count hidden during testing */}
                 {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
               <StatusBadge status={job.status} />
@@ -800,8 +800,7 @@ function JobForm({ data, onClose, editJob }) {
         </Field>
       )}
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
-      <PhotoUploader label="Before Photos" photos={photosBefore} onChange={setPhotosBefore} />
-      <PhotoUploader label="After Photos"  photos={photosAfter}  onChange={setPhotosAfter}  />
+      {/* Photos temporarily disabled for sync testing */}
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!customerId}>Save Job</Btn>
     </Modal>
     {showLocPopup && (
@@ -1058,7 +1057,8 @@ function JobDetail({ data, id, setView }) {
         <Row label="Technician"   value={technician?.name} />
         <Row label="Notes"        value={job.notes} />
       </Card>
-      {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
+      {/* Photos temporarily disabled for sync testing */}
+      {false && (job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
         <Card>
           <PhotoViewer label="Before Photos" photos={job.photosBefore} />
           <PhotoViewer label="After Photos"  photos={job.photosAfter}  />
