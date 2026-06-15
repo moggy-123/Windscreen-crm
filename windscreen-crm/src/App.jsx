@@ -141,6 +141,14 @@ function removeSig(id) {
   } catch {}
 }
 
+// Check if an id was previously uploaded to the cloud (exists in signatures)
+function wasUploaded(id) {
+  try {
+    const sigs = JSON.parse(localStorage.getItem("wscrm_sigs") || "{}");
+    return Object.prototype.hasOwnProperty.call(sigs, id);
+  } catch { return false; }
+}
+
 // Tombstones: remember deleted IDs so they can never be re-added by a merge
 function addTombstone(id) {
   try {
@@ -1445,8 +1453,10 @@ export default function App() {
               byId[x.id] = localTime >= cloudTime ? x : byId[x.id];
             } else {
               // local-only: keep only if recently created (not yet uploaded)
+              // local-only row: keep only if it was never uploaded (genuinely new).
+              // If it was uploaded before, its absence from cloud means it was deleted elsewhere.
               const age = now - (x.updatedAt || 0);
-              if (age < 60000) byId[x.id] = x;
+              if (!wasUploaded(x.id) && age < 60000) byId[x.id] = x;
             }
           });
           return Object.values(byId);
@@ -1493,9 +1503,9 @@ export default function App() {
                 // exists in cloud — newest wins
                 byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
               } else {
-                // local-only: keep only if very recently created (not yet synced)
+                // local-only: keep only if genuinely new (never uploaded)
                 const age = now - (x.updatedAt || 0);
-                if (age < 60000) byId[x.id] = x;
+                if (!wasUploaded(x.id) && age < 60000) byId[x.id] = x;
                 // otherwise it was deleted on another device — drop it
               }
             });
@@ -1534,8 +1544,10 @@ export default function App() {
             if (byId[x.id]) {
               byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
             } else {
+              // local-only row: keep only if it was never uploaded (genuinely new).
+              // If it was uploaded before, its absence from cloud means it was deleted elsewhere.
               const age = now - (x.updatedAt || 0);
-              if (age < 60000) byId[x.id] = x; // keep only very recently created local-only rows
+              if (!wasUploaded(x.id) && age < 60000) byId[x.id] = x; // keep only very recently created local-only rows
             }
           });
           return Object.values(byId);
