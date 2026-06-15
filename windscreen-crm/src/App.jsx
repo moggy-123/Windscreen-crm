@@ -33,9 +33,43 @@ function loadData() {
   return { customers: [], vehicles: [], jobs: [], invoices: [], technicians: [] };
 }
 function saveData(data) {
-  localStorage.setItem(DB_KEY, JSON.stringify(data));
-  // Push to cloud in background (fire and forget — works offline, syncs when online)
-  pushToCloud(data).catch(() => {/* offline — will sync later */});
+  const stamped = stampData(data);
+  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  return pushToCloud(stamped).catch(() => {/* offline — will sync later */});
+}
+
+// Add/refresh an updatedAt timestamp so the newest edit wins when merging
+function stampData(data) {
+  const now = Date.now();
+  const prev = loadData();
+  const stamp = (arr, prevArr) => (arr || []).map(rec => {
+    const old = (prevArr || []).find(p => p.id === rec.id);
+    const oldComparable = old ? { ...old } : null;
+    if (oldComparable) delete oldComparable.updatedAt;
+    const recComparable = { ...rec };
+    delete recComparable.updatedAt;
+    const changed = !old || JSON.stringify(oldComparable) !== JSON.stringify(recComparable);
+    return { ...rec, updatedAt: changed ? now : (old.updatedAt || now) };
+  });
+  return {
+    ...data,
+    customers: stamp(data.customers, prev.customers),
+    vehicles:  stamp(data.vehicles,  prev.vehicles),
+    jobs:      stamp(data.jobs,      prev.jobs),
+    invoices:  stamp(data.invoices,  prev.invoices),
+  };
+}
+
+// Save then reload, but wait for cloud push first (important on mobile)
+async function saveAndReload(data) {
+  const stamped = stampData(data);
+  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  try {
+    await pushToCloud(stamped);
+  } catch (e) {
+    alert("Cloud save error: " + (e?.message || e?.error_description || JSON.stringify(e)));
+  }
+  window.location.reload();
 }
 
 // Export all data as a downloadable JSON backup file
@@ -68,7 +102,6 @@ function cleanupOldPhotos() {
   if (!window.confirm(`Remove ${cleaned} photo(s) from jobs older than a year? Job records are kept.`)) return;
   saveData({ ...data, jobs });
   alert(`Removed ${cleaned} old photo(s).`);
-  window.location.reload();
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -283,7 +316,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [postcode, setPostcode] = useState(editCustomer?.postcode || "");
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
 
-  function save() {
+  async function save() {
     if (!company) return;
     const customers = [...data.customers];
     const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
@@ -293,8 +326,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     } else {
       customers.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
-    saveData({ ...data, customers });
-    window.location.reload();
+    await saveAndReload({ ...data, customers });
   }
 
   return (
@@ -326,12 +358,11 @@ function CustomerDetail({ data, id, setView }) {
 
   const addrParts = [customer.address1, customer.address2, customer.town, customer.county, customer.postcode].filter(Boolean);
 
-  function deleteCustomer() {
+  async function deleteCustomer() {
     if (!window.confirm("Delete this customer?")) return;
-    saveData({ ...data, customers: data.customers.filter(c => c.id !== id) });
+    await saveAndReload({ ...data, customers: data.customers.filter(c => c.id !== id) });
     deleteRecord("customers", id).catch(() => {});
     setView({ screen:"customers" });
-    window.location.reload();
   }
 
   return (
@@ -404,11 +435,10 @@ function VehicleForm({ data, customerId, onClose }) {
   const [model, setModel] = useState("");
   const [reg,   setReg]   = useState("");
 
-  function save() {
+  async function save() {
     if (!reg) return;
     const vehicles = [...data.vehicles, { id:uid(), customerId, make, model, reg:reg.toUpperCase() }];
-    saveData({ ...data, vehicles });
-    window.location.reload();
+    await saveAndReload({ ...data, vehicles });
   }
   return (
     <Modal title="Add Vehicle" onClose={onClose}>
@@ -624,7 +654,7 @@ function JobForm({ data, onClose, editJob }) {
   const custVehicles = data.vehicles.filter(v => v.customerId === customerId);
   const locSummary = [locAddress1, locTown, locPostcode].filter(Boolean).join(", ");
 
-  function save() {
+  async function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
     const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
@@ -635,13 +665,12 @@ function JobForm({ data, onClose, editJob }) {
       jobs.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
     try {
-      saveData({ ...data, jobs });
+      await saveAndReload({ ...data, jobs });
     } catch(e) {
       alert("Storage full — try using fewer or smaller photos.");
       return;
     }
     onClose();
-    window.location.reload();
   }
 
   return (
@@ -923,16 +952,14 @@ function JobDetail({ data, id, setView }) {
 
   const nextStatuses = { "Booked":["In Progress"], "In Progress":["Complete"], "Complete":["Invoiced"], "Invoiced":["Paid"], "Paid":[] };
 
-  function updateStatus(s) {
-    saveData({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
-    window.location.reload();
+  async function updateStatus(s) {
+    await saveAndReload({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
   }
-  function deleteJob() {
+  async function deleteJob() {
     if (!window.confirm("Delete this job?")) return;
-    saveData({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
+    await saveAndReload({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
     deleteRecord("jobs", id).catch(() => {});
     setView({ screen:"jobs" });
-    window.location.reload();
   }
 
   const Row = ({ label, value }) => value ? (
@@ -997,11 +1024,10 @@ function JobDetail({ data, id, setView }) {
               <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? "✓ Paid" : "Awaiting payment"}</div>
             </div>
             {!invoice.paid && (
-              <Btn size="sm" variant="ghost" onClick={() => {
+              <Btn size="sm" variant="ghost" onClick={async () => {
                 const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
                 const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
-                saveData({ ...data, invoices, jobs });
-                window.location.reload();
+                await saveAndReload({ ...data, invoices, jobs });
               }}>Mark Paid</Btn>
             )}
           </div>
@@ -1043,11 +1069,10 @@ function InvoiceForm({ data, jobId, onClose }) {
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
-  function save() {
+  async function save() {
     const invoices = [...data.invoices, { id:uid(), jobId, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
     const jobs     = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
-    saveData({ ...data, invoices, jobs });
-    window.location.reload();
+    await saveAndReload({ ...data, invoices, jobs });
   }
 
   return (
@@ -1212,11 +1237,19 @@ export default function App() {
         const cloud = await pullFromCloud();
         if (cancelled) return;
         const local = loadData();
-        // Merge: cloud is source of truth, but keep any local-only records
+        // Merge by id: whichever copy (cloud or local) has the newer updatedAt wins.
+        // This protects local edits made while the cloud still had the old version.
         const merge = (cloudArr, localArr) => {
-          const ids = new Set(cloudArr.map(x => x.id));
-          const localOnly = localArr.filter(x => !ids.has(x.id));
-          return [...cloudArr, ...localOnly];
+          const byId = {};
+          (cloudArr || []).forEach(x => { byId[x.id] = x; });
+          (localArr || []).forEach(x => {
+            const existing = byId[x.id];
+            if (!existing) { byId[x.id] = x; return; }
+            const localTime = x.updatedAt || 0;
+            const cloudTime = existing.updatedAt || 0;
+            byId[x.id] = localTime >= cloudTime ? x : existing;
+          });
+          return Object.values(byId);
         };
         const merged = {
           customers:   merge(cloud.customers,   local.customers || []),
@@ -1227,7 +1260,7 @@ export default function App() {
         };
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
         setData(merged);
-        // Push any local-only records up to cloud
+        // Push the merged result (including any local-newer records) back up
         pushToCloud(merged).catch(() => {});
         setSyncStatus("synced");
       } catch (e) {
