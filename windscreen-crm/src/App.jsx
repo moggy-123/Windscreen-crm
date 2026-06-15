@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { pullFromCloud, pushToCloud, pushOne, deleteRecord, supabase } from "./supabase";
 
 const DB_KEY = "wscrm_data";
 
@@ -28,180 +27,11 @@ function fmtDate(iso) {
 function loadData() {
   try {
     const raw = localStorage.getItem(DB_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      // Strip any old photo data — photos are disabled, and they were filling storage
-      if (data.jobs) {
-        data.jobs = data.jobs.map(j => {
-          if (j.photosBefore?.length || j.photosAfter?.length) {
-            return { ...j, photosBefore: [], photosAfter: [] };
-          }
-          return j;
-        });
-      }
-      return data;
-    }
+    if (raw) return JSON.parse(raw);
   } catch {}
   return { customers: [], vehicles: [], jobs: [], invoices: [], technicians: [] };
 }
-
-// One-time cleanup: remove old photo bloat and the duplicate lastsync copy
-function clearStorageBloat() {
-  try {
-    // Remove the duplicate snapshot that was doubling storage
-    localStorage.removeItem("wscrm_lastsync");
-    // Re-save main data with photos stripped
-    const raw = localStorage.getItem(DB_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      if (data.jobs) {
-        data.jobs = data.jobs.map(j => ({ ...j, photosBefore: [], photosAfter: [] }));
-      }
-      localStorage.setItem(DB_KEY, JSON.stringify(data));
-    }
-  } catch {}
-}
-function saveData(data) {
-  const stamped = stampData(data);
-  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
-  return pushToCloud(stamped).catch(() => {/* offline — will sync later */});
-}
-
-// Add/refresh an updatedAt timestamp so the newest edit wins when merging
-function stampData(data) {
-  const now = Date.now();
-  const prev = loadData();
-  const stamp = (arr, prevArr) => (arr || []).map(rec => {
-    const old = (prevArr || []).find(p => p.id === rec.id);
-    const oldComparable = old ? { ...old } : null;
-    if (oldComparable) delete oldComparable.updatedAt;
-    const recComparable = { ...rec };
-    delete recComparable.updatedAt;
-    const changed = !old || JSON.stringify(oldComparable) !== JSON.stringify(recComparable);
-    return { ...rec, updatedAt: changed ? now : (old.updatedAt || now) };
-  });
-  return {
-    ...data,
-    customers: stamp(data.customers, prev.customers),
-    vehicles:  stamp(data.vehicles,  prev.vehicles),
-    jobs:      stamp(data.jobs,      prev.jobs),
-    invoices:  stamp(data.invoices,  prev.invoices),
-  };
-}
-
-// Global flag so the realtime listener doesn't interfere mid-save
-let SAVING_IN_PROGRESS = false;
-
-// Save then reload, but wait for cloud push first (important on mobile)
-async function saveAndReload(data) {
-  showSavingOverlay();
-  SAVING_IN_PROGRESS = true;
-  const stamped = stampData(data);
-  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
-  // Push only changed records, with a safety timeout so it never hangs forever
-  try {
-    await Promise.race([
-      pushChangedOnly(stamped),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout after 12s")), 12000)),
-    ]);
-  } catch (e) {
-    hideSavingOverlay();
-    SAVING_IN_PROGRESS = false;
-    alert("Sync problem: " + (e?.message || JSON.stringify(e)));
-    window.location.reload();
-    return;
-  }
-  SAVING_IN_PROGRESS = false;
-  window.location.reload();
-}
-
-// Simple full-screen "Saving…" overlay to prevent double-taps during save
-function showSavingOverlay() {
-  if (document.getElementById("crm-saving-overlay")) return;
-  const el = document.createElement("div");
-  el.id = "crm-saving-overlay";
-  el.style.cssText = "position:fixed;inset:0;background:rgba(30,58,95,.55);z-index:9999;display:flex;align-items:center;justify-content:center;";
-  el.innerHTML = '<div style="background:#fff;border-radius:14px;padding:20px 28px;font-family:Inter,sans-serif;font-weight:700;color:#1E3A5F;font-size:15px;box-shadow:0 4px 20px rgba(0,0,0,.2);">💾 Saving…</div>';
-  document.body.appendChild(el);
-}
-function hideSavingOverlay() {
-  const el = document.getElementById("crm-saving-overlay");
-  if (el) el.remove();
-}
-
-// Compare against last-synced signatures and push only changed/new records
-async function pushChangedOnly(data) {
-  let sigs = {};
-  try { sigs = JSON.parse(localStorage.getItem("wscrm_sigs") || "{}"); } catch {}
-
-  const tables = [
-    { name: "customers", key: "customers" },
-    { name: "vehicles",  key: "vehicles"  },
-    { name: "jobs",      key: "jobs"      },
-    { name: "invoices",  key: "invoices"  },
-  ];
-
-  let failed = 0;
-  let lastError = "";
-  const newSigs = {};
-
-  for (const t of tables) {
-    const current = data[t.key] || [];
-    for (const rec of current) {
-      // A compact signature of the record (excludes photos which aren't synced)
-      const clean = { ...rec, photosBefore: undefined, photosAfter: undefined };
-      const sig = JSON.stringify(clean);
-      newSigs[rec.id] = sig;
-      if (sigs[rec.id] !== sig) {
-        try {
-          await pushOne(t.name, rec);
-        } catch (e) {
-          failed++;
-          lastError = (e?.message || JSON.stringify(e));
-          console.warn("Sync skipped for", t.name, rec.id, e?.message);
-        }
-      }
-    }
-  }
-  // Store only the compact signatures (tiny — no photo data)
-  try { localStorage.setItem("wscrm_sigs", JSON.stringify(newSigs)); } catch {}
-
-  if (failed > 0) {
-    throw new Error(`${failed} record(s) failed to sync. Last error: ${lastError}`);
-  }
-}
-
-// Export all data as a downloadable JSON backup file
-function exportBackup() {
-  const data = loadData();
-  const stamp = new Date().toISOString().split("T")[0];
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `windscreen-crm-backup-${stamp}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-// Delete photos from jobs older than one year (keeps the job records)
-function cleanupOldPhotos() {
-  const data = loadData();
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  let cleaned = 0;
-  const jobs = data.jobs.map(j => {
-    if (j.date && new Date(j.date) < oneYearAgo) {
-      const had = (j.photosBefore?.length || 0) + (j.photosAfter?.length || 0);
-      if (had > 0) { cleaned += had; return { ...j, photosBefore: [], photosAfter: [] }; }
-    }
-    return j;
-  });
-  if (cleaned === 0) { alert("No photos older than a year to remove."); return; }
-  if (!window.confirm(`Remove ${cleaned} photo(s) from jobs older than a year? Job records are kept.`)) return;
-  saveData({ ...data, jobs });
-  alert(`Removed ${cleaned} old photo(s).`);
-}
+function saveData(data) { localStorage.setItem(DB_KEY, JSON.stringify(data)); }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 18, color = "currentColor" }) => {
@@ -358,14 +188,6 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
           <Icon name="plus" size={16} /> New Job
         </Btn>
       </div>
-
-      <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
-        <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tools</h3>
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          <Btn variant="ghost" onClick={exportBackup} style={{ width:"100%", justifyContent:"center" }}>💾 Download Backup</Btn>
-          <Btn variant="ghost" onClick={cleanupOldPhotos} style={{ width:"100%", justifyContent:"center" }}>🗑️ Clear Photos Over 1 Year Old</Btn>
-        </div>
-      </div>
     </div>
   );
 }
@@ -415,7 +237,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [postcode, setPostcode] = useState(editCustomer?.postcode || "");
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
 
-  async function save() {
+  function save() {
     if (!company) return;
     const customers = [...data.customers];
     const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
@@ -425,7 +247,8 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     } else {
       customers.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
-    await saveAndReload({ ...data, customers });
+    saveData({ ...data, customers });
+    window.location.reload();
   }
 
   return (
@@ -457,11 +280,11 @@ function CustomerDetail({ data, id, setView }) {
 
   const addrParts = [customer.address1, customer.address2, customer.town, customer.county, customer.postcode].filter(Boolean);
 
-  async function deleteCustomer() {
+  function deleteCustomer() {
     if (!window.confirm("Delete this customer?")) return;
-    await saveAndReload({ ...data, customers: data.customers.filter(c => c.id !== id) });
-    deleteRecord("customers", id).catch(() => {});
+    saveData({ ...data, customers: data.customers.filter(c => c.id !== id) });
     setView({ screen:"customers" });
+    window.location.reload();
   }
 
   return (
@@ -534,10 +357,11 @@ function VehicleForm({ data, customerId, onClose }) {
   const [model, setModel] = useState("");
   const [reg,   setReg]   = useState("");
 
-  async function save() {
+  function save() {
     if (!reg) return;
     const vehicles = [...data.vehicles, { id:uid(), customerId, make, model, reg:reg.toUpperCase() }];
-    await saveAndReload({ ...data, vehicles });
+    saveData({ ...data, vehicles });
+    window.location.reload();
   }
   return (
     <Modal title="Add Vehicle" onClose={onClose}>
@@ -583,7 +407,7 @@ function JobsList({ data, setView }) {
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
-                {/* photo count hidden during testing */}
+                {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && <div style={{ fontSize:11, color:"#6B7280", marginTop:3 }}>📷 {(job.photosBefore?.length||0)} before · {(job.photosAfter?.length||0)} after</div>}
                 {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
               <StatusBadge status={job.status} />
@@ -596,7 +420,7 @@ function JobsList({ data, setView }) {
 }
 
 // ── Photo Uploader ────────────────────────────────────────────────────────────
-function resizeImage(file, maxW = 800) {
+function resizeImage(file, maxW = 1200) {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = ev => {
@@ -607,7 +431,7 @@ function resizeImage(file, maxW = 800) {
         canvas.width  = img.width  * scale;
         canvas.height = img.height * scale;
         canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.6));
+        resolve(canvas.toDataURL("image/jpeg", 0.75));
       };
       img.src = ev.target.result;
     };
@@ -753,7 +577,7 @@ function JobForm({ data, onClose, editJob }) {
   const custVehicles = data.vehicles.filter(v => v.customerId === customerId);
   const locSummary = [locAddress1, locTown, locPostcode].filter(Boolean).join(", ");
 
-  async function save() {
+  function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
     const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
@@ -764,12 +588,13 @@ function JobForm({ data, onClose, editJob }) {
       jobs.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
     try {
-      await saveAndReload({ ...data, jobs });
+      saveData({ ...data, jobs });
     } catch(e) {
       alert("Storage full — try using fewer or smaller photos.");
       return;
     }
     onClose();
+    window.location.reload();
   }
 
   return (
@@ -840,7 +665,8 @@ function JobForm({ data, onClose, editJob }) {
         </Field>
       )}
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
-      {/* Photos temporarily disabled for sync testing */}
+      <PhotoUploader label="Before Photos" photos={photosBefore} onChange={setPhotosBefore} />
+      <PhotoUploader label="After Photos"  photos={photosAfter}  onChange={setPhotosAfter}  />
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!customerId}>Save Job</Btn>
     </Modal>
     {showLocPopup && (
@@ -1050,14 +876,15 @@ function JobDetail({ data, id, setView }) {
 
   const nextStatuses = { "Booked":["In Progress"], "In Progress":["Complete"], "Complete":["Invoiced"], "Invoiced":["Paid"], "Paid":[] };
 
-  async function updateStatus(s) {
-    await saveAndReload({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
+  function updateStatus(s) {
+    saveData({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
+    window.location.reload();
   }
-  async function deleteJob() {
+  function deleteJob() {
     if (!window.confirm("Delete this job?")) return;
-    await saveAndReload({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
-    deleteRecord("jobs", id).catch(() => {});
+    saveData({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
     setView({ screen:"jobs" });
+    window.location.reload();
   }
 
   const Row = ({ label, value }) => value ? (
@@ -1097,8 +924,7 @@ function JobDetail({ data, id, setView }) {
         <Row label="Technician"   value={technician?.name} />
         <Row label="Notes"        value={job.notes} />
       </Card>
-      {/* Photos temporarily disabled for sync testing */}
-      {false && (job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
+      {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
         <Card>
           <PhotoViewer label="Before Photos" photos={job.photosBefore} />
           <PhotoViewer label="After Photos"  photos={job.photosAfter}  />
@@ -1123,10 +949,11 @@ function JobDetail({ data, id, setView }) {
               <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? "✓ Paid" : "Awaiting payment"}</div>
             </div>
             {!invoice.paid && (
-              <Btn size="sm" variant="ghost" onClick={async () => {
+              <Btn size="sm" variant="ghost" onClick={() => {
                 const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
                 const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
-                await saveAndReload({ ...data, invoices, jobs });
+                saveData({ ...data, invoices, jobs });
+                window.location.reload();
               }}>Mark Paid</Btn>
             )}
           </div>
@@ -1168,10 +995,11 @@ function InvoiceForm({ data, jobId, onClose }) {
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
-  async function save() {
+  function save() {
     const invoices = [...data.invoices, { id:uid(), jobId, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
     const jobs     = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
-    await saveAndReload({ ...data, invoices, jobs });
+    saveData({ ...data, invoices, jobs });
+    window.location.reload();
   }
 
   return (
@@ -1320,89 +1148,12 @@ function scheduleNotifications(data) {
 }
 
 export default function App() {
-  const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
+  const [data, setData]             = useState(loadData);
   const [view, setViewState]        = useState({ screen:"dashboard" });
   const [tab,  setTab]              = useState("dashboard");
   const [notifStatus, setNotifStatus] = useState(
     "Notification" in window ? Notification.permission : "unsupported"
   );
-  const [syncStatus, setSyncStatus] = useState("syncing"); // syncing | synced | offline
-
-  // On first load, pull from cloud and merge with local
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const cloud = await pullFromCloud();
-        if (cancelled) return;
-        const local = loadData();
-        // Merge by id: whichever copy (cloud or local) has the newer updatedAt wins.
-        // This protects local edits made while the cloud still had the old version.
-        const merge = (cloudArr, localArr) => {
-          const byId = {};
-          (cloudArr || []).forEach(x => { byId[x.id] = x; });
-          (localArr || []).forEach(x => {
-            const existing = byId[x.id];
-            if (!existing) { byId[x.id] = x; return; }
-            const localTime = x.updatedAt || 0;
-            const cloudTime = existing.updatedAt || 0;
-            byId[x.id] = localTime >= cloudTime ? x : existing;
-          });
-          return Object.values(byId);
-        };
-        const merged = {
-          customers:   merge(cloud.customers,   local.customers || []),
-          vehicles:    merge(cloud.vehicles,    local.vehicles || []),
-          jobs:        merge(cloud.jobs,        local.jobs || []),
-          invoices:    merge(cloud.invoices,    local.invoices || []),
-          technicians: local.technicians || [],
-        };
-        localStorage.setItem(DB_KEY, JSON.stringify(merged));
-        setData(merged);
-        // Push the merged result (including any local-newer records) back up
-        pushToCloud(merged).catch(() => {});
-        setSyncStatus("synced");
-      } catch (e) {
-        if (!cancelled) setSyncStatus("offline");
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Live updates: when any device changes data, refresh from cloud automatically
-  useEffect(() => {
-    const channel = supabase
-      .channel("crm-changes")
-      .on("postgres_changes", { event: "*", schema: "public" }, async () => {
-        if (SAVING_IN_PROGRESS) return; // don't interfere with an active save
-        try {
-          const cloud = await pullFromCloud();
-          const local = loadData();
-          // Merge newest-wins (same logic as initial load)
-          const merge = (cloudArr, localArr) => {
-            const byId = {};
-            (cloudArr || []).forEach(x => { byId[x.id] = x; });
-            (localArr || []).forEach(x => {
-              const ex = byId[x.id];
-              if (!ex) { byId[x.id] = x; return; }
-              byId[x.id] = (x.updatedAt || 0) >= (ex.updatedAt || 0) ? x : ex;
-            });
-            return Object.values(byId);
-          };
-          const merged = {
-            customers: merge(cloud.customers, local.customers || []),
-            vehicles:  merge(cloud.vehicles,  local.vehicles || []),
-            jobs:      merge(cloud.jobs,      local.jobs || []),
-            invoices:  merge(cloud.invoices,  local.invoices || []),
-            technicians: local.technicians || [],
-          };
-          localStorage.setItem(DB_KEY, JSON.stringify(merged));
-          setData(merged);
-        } catch {}
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
 
   const setView = useCallback((v) => {
     setViewState(v);
@@ -1469,10 +1220,7 @@ export default function App() {
               {notifStatus === "granted" ? "🔔" : "🔕"}
             </button>
           )}
-          <div style={{ width:8, height:8, borderRadius:"50%",
-            background: syncStatus === "synced" ? "#22C55E" : syncStatus === "syncing" ? "#F59E0B" : "#9CA3AF",
-            boxShadow: syncStatus === "synced" ? "0 0 6px #22C55E" : "none" }}
-            title={syncStatus === "synced" ? "Synced to cloud" : syncStatus === "syncing" ? "Syncing…" : "Offline — saved locally"} />
+          <div style={{ width:8, height:8, borderRadius:"50%", background:"#22C55E", boxShadow:"0 0 6px #22C55E" }} title="Saved" />
         </div>
       </div>
 
