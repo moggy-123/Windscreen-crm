@@ -28,9 +28,38 @@ function fmtDate(iso) {
 function loadData() {
   try {
     const raw = localStorage.getItem(DB_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const data = JSON.parse(raw);
+      // Strip any old photo data — photos are disabled, and they were filling storage
+      if (data.jobs) {
+        data.jobs = data.jobs.map(j => {
+          if (j.photosBefore?.length || j.photosAfter?.length) {
+            return { ...j, photosBefore: [], photosAfter: [] };
+          }
+          return j;
+        });
+      }
+      return data;
+    }
   } catch {}
   return { customers: [], vehicles: [], jobs: [], invoices: [], technicians: [] };
+}
+
+// One-time cleanup: remove old photo bloat and the duplicate lastsync copy
+function clearStorageBloat() {
+  try {
+    // Remove the duplicate snapshot that was doubling storage
+    localStorage.removeItem("wscrm_lastsync");
+    // Re-save main data with photos stripped
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.jobs) {
+        data.jobs = data.jobs.map(j => ({ ...j, photosBefore: [], photosAfter: [] }));
+      }
+      localStorage.setItem(DB_KEY, JSON.stringify(data));
+    }
+  } catch {}
 }
 function saveData(data) {
   const stamped = stampData(data);
@@ -100,10 +129,10 @@ function hideSavingOverlay() {
   if (el) el.remove();
 }
 
-// Compare against last-synced snapshot and push only changed/new records
+// Compare against last-synced signatures and push only changed/new records
 async function pushChangedOnly(data) {
-  let lastSynced = {};
-  try { lastSynced = JSON.parse(localStorage.getItem("wscrm_lastsync") || "{}"); } catch {}
+  let sigs = {};
+  try { sigs = JSON.parse(localStorage.getItem("wscrm_sigs") || "{}"); } catch {}
 
   const tables = [
     { name: "customers", key: "customers" },
@@ -112,22 +141,20 @@ async function pushChangedOnly(data) {
     { name: "invoices",  key: "invoices"  },
   ];
 
-  let pushed = 0;
   let failed = 0;
   let lastError = "";
+  const newSigs = {};
 
   for (const t of tables) {
     const current = data[t.key] || [];
-    const prev = lastSynced[t.key] || [];
-    const prevById = {};
-    prev.forEach(r => { prevById[r.id] = r; });
-
     for (const rec of current) {
-      const old = prevById[rec.id];
-      if (!old || JSON.stringify(old) !== JSON.stringify(rec)) {
+      // A compact signature of the record (excludes photos which aren't synced)
+      const clean = { ...rec, photosBefore: undefined, photosAfter: undefined };
+      const sig = JSON.stringify(clean);
+      newSigs[rec.id] = sig;
+      if (sigs[rec.id] !== sig) {
         try {
           await pushOne(t.name, rec);
-          pushed++;
         } catch (e) {
           failed++;
           lastError = (e?.message || JSON.stringify(e));
@@ -136,9 +163,9 @@ async function pushChangedOnly(data) {
       }
     }
   }
-  localStorage.setItem("wscrm_lastsync", JSON.stringify(data));
+  // Store only the compact signatures (tiny — no photo data)
+  try { localStorage.setItem("wscrm_sigs", JSON.stringify(newSigs)); } catch {}
 
-  // Surface the result so we can diagnose
   if (failed > 0) {
     throw new Error(`${failed} record(s) failed to sync. Last error: ${lastError}`);
   }
@@ -1293,7 +1320,7 @@ function scheduleNotifications(data) {
 }
 
 export default function App() {
-  const [data, setData]             = useState(loadData);
+  const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
   const [view, setViewState]        = useState({ screen:"dashboard" });
   const [tab,  setTab]              = useState("dashboard");
   const [notifStatus, setNotifStatus] = useState(
@@ -1370,7 +1397,6 @@ export default function App() {
             technicians: local.technicians || [],
           };
           localStorage.setItem(DB_KEY, JSON.stringify(merged));
-          localStorage.setItem("wscrm_lastsync", JSON.stringify(merged));
           setData(merged);
         } catch {}
       })
