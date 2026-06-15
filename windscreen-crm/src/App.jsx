@@ -107,12 +107,9 @@ async function saveAndReload(data) {
   } catch (e) {
     hideSavingOverlay();
     SAVING_IN_PROGRESS = false;
-    // Only warn if we're actually online — offline saves are normal and sync later
-    const msg = e?.message || "";
-    const isOffline = !navigator.onLine || msg.includes("Load failed") || msg.includes("timeout") || msg.includes("Failed to fetch") || msg.includes("NetworkError");
-    if (!isOffline) {
-      alert("Sync problem: " + (msg || JSON.stringify(e)));
-    }
+    // DIAGNOSTIC: show the error so we can see what's blocking sync
+    const msg = e?.message || JSON.stringify(e);
+    alert("Sync diagnostic: " + msg + " | online=" + navigator.onLine);
     window.location.reload();
     return;
   }
