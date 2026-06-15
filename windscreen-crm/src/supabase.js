@@ -11,20 +11,23 @@ const customerToDb = c => ({
   id: c.id, company: c.company, company_contact: c.companyContact,
   phone: c.phone, email: c.email, address1: c.address1, address2: c.address2,
   town: c.town, county: c.county, postcode: c.postcode, notes: c.notes,
+  updated_at: c.updatedAt || Date.now(),
   created_at: c.createdAt || new Date().toISOString(),
 });
 const customerFromDb = r => ({
   id: r.id, company: r.company, companyContact: r.company_contact,
   phone: r.phone, email: r.email, address1: r.address1, address2: r.address2,
   town: r.town, county: r.county, postcode: r.postcode, notes: r.notes,
-  createdAt: r.created_at,
+  updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
 const vehicleToDb = v => ({
   id: v.id, customer_id: v.customerId, make: v.make, model: v.model, reg: v.reg,
+  updated_at: v.updatedAt || Date.now(),
 });
 const vehicleFromDb = r => ({
   id: r.id, customerId: r.customer_id, make: r.make, model: r.model, reg: r.reg,
+  updatedAt: r.updated_at,
 });
 
 const jobToDb = j => ({
@@ -36,6 +39,7 @@ const jobToDb = j => ({
   technician_id: j.technicianId || null, notes: j.notes, payment_type: j.paymentType,
   insurance_co: j.insuranceCo, claim_no: j.claimNo,
   photos_before: j.photosBefore || [], photos_after: j.photosAfter || [],
+  updated_at: j.updatedAt || Date.now(),
   created_at: j.createdAt || new Date().toISOString(),
 });
 const jobFromDb = r => ({
@@ -47,17 +51,19 @@ const jobFromDb = r => ({
   technicianId: r.technician_id, notes: r.notes, paymentType: r.payment_type,
   insuranceCo: r.insurance_co, claimNo: r.claim_no,
   photosBefore: r.photos_before || [], photosAfter: r.photos_after || [],
-  createdAt: r.created_at,
+  updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
 const invoiceToDb = i => ({
   id: i.id, job_id: i.jobId, labour: i.labour, parts: i.parts, vat: !!i.vat,
   total: i.total, paid: !!i.paid, paid_date: i.paidDate,
+  updated_at: i.updatedAt || Date.now(),
   created_at: i.createdAt || new Date().toISOString(),
 });
 const invoiceFromDb = r => ({
   id: r.id, jobId: r.job_id, labour: r.labour, parts: r.parts, vat: r.vat,
-  total: r.total, paid: r.paid, paidDate: r.paid_date, createdAt: r.created_at,
+  total: r.total, paid: r.paid, paidDate: r.paid_date,
+  updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
 // ── Pull all data from Supabase ─────────────────────────────────────────────
@@ -89,7 +95,10 @@ export async function pushToCloud(data) {
   if (data.invoices?.length)  ops.push(supabase.from("invoices").upsert(data.invoices.map(invoiceToDb)));
   const results = await Promise.all(ops);
   const err = results.find(r => r.error);
-  if (err) throw err.error;
+  if (err) {
+    const msg = err.error.message || err.error.details || err.error.hint || JSON.stringify(err.error);
+    throw new Error(msg);
+  }
 }
 
 // ── Push a single record ────────────────────────────────────────────────────
