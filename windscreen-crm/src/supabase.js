@@ -38,7 +38,7 @@ const jobToDb = j => ({
   damage_position: j.damagePosition, adas_required: !!j.adasRequired, status: j.status,
   technician_id: j.technicianId || null, notes: j.notes, payment_type: j.paymentType,
   insurance_co: j.insuranceCo, claim_no: j.claimNo,
-  photos_before: j.photosBefore || [], photos_after: j.photosAfter || [],
+  photos_before: [], photos_after: [],
   updated_at: j.updatedAt || Date.now(),
   created_at: j.createdAt || new Date().toISOString(),
 });
