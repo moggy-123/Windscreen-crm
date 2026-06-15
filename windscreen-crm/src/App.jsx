@@ -60,18 +60,25 @@ function stampData(data) {
   };
 }
 
+// Global flag so the realtime listener doesn't interfere mid-save
+let SAVING_IN_PROGRESS = false;
+
 // Save then reload, but wait for cloud push first (important on mobile)
 async function saveAndReload(data) {
   showSavingOverlay();
+  SAVING_IN_PROGRESS = true;
   const stamped = stampData(data);
   localStorage.setItem(DB_KEY, JSON.stringify(stamped));
-  // Push only the records that actually changed (fast — avoids re-uploading photos)
+  // Push only changed records, with a safety timeout so it never hangs forever
   try {
-    await pushChangedOnly(stamped);
+    await Promise.race([
+      pushChangedOnly(stamped),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 12000)),
+    ]);
   } catch (e) {
-    hideSavingOverlay();
-    alert("Cloud save error: " + (e?.message || e?.error_description || JSON.stringify(e)));
+    // Saved locally even if cloud was slow/offline — will sync later. Continue.
   }
+  SAVING_IN_PROGRESS = false;
   window.location.reload();
 }
 
@@ -111,7 +118,12 @@ async function pushChangedOnly(data) {
       const old = prevById[rec.id];
       // Push only if new or changed
       if (!old || JSON.stringify(old) !== JSON.stringify(rec)) {
-        await pushOne(t.name, rec);
+        try {
+          await pushOne(t.name, rec);
+        } catch (e) {
+          // Skip this record if it fails (e.g. too big) but keep going with the rest
+          console.warn("Sync skipped for", t.name, rec.id, e?.message);
+        }
       }
     }
   }
@@ -1322,6 +1334,7 @@ export default function App() {
     const channel = supabase
       .channel("crm-changes")
       .on("postgres_changes", { event: "*", schema: "public" }, async () => {
+        if (SAVING_IN_PROGRESS) return; // don't interfere with an active save
         try {
           const cloud = await pullFromCloud();
           const local = loadData();
