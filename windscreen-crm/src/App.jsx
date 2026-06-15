@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { pullFromCloud, pushToCloud, pushOne, deleteRecord, supabase } from "./supabase";
 
 const DB_KEY = "wscrm_data";
 
@@ -27,11 +28,194 @@ function fmtDate(iso) {
 function loadData() {
   try {
     const raw = localStorage.getItem(DB_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const data = JSON.parse(raw);
+      // Strip any old photo data — photos are disabled, and they were filling storage
+      if (data.jobs) {
+        data.jobs = data.jobs.map(j => {
+          if (j.photosBefore?.length || j.photosAfter?.length) {
+            return { ...j, photosBefore: [], photosAfter: [] };
+          }
+          return j;
+        });
+      }
+      return data;
+    }
   } catch {}
   return { customers: [], vehicles: [], jobs: [], invoices: [], technicians: [] };
 }
-function saveData(data) { localStorage.setItem(DB_KEY, JSON.stringify(data)); }
+
+// One-time cleanup: remove old photo bloat and the duplicate lastsync copy
+function clearStorageBloat() {
+  try {
+    // Remove the duplicate snapshot that was doubling storage
+    localStorage.removeItem("wscrm_lastsync");
+    // Re-save main data with photos stripped
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.jobs) {
+        data.jobs = data.jobs.map(j => ({ ...j, photosBefore: [], photosAfter: [] }));
+      }
+      localStorage.setItem(DB_KEY, JSON.stringify(data));
+    }
+  } catch {}
+}
+function saveData(data) {
+  const stamped = stampData(data);
+  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  return pushToCloud(stamped).catch(() => {/* offline — will sync later */});
+}
+
+// Add/refresh an updatedAt timestamp so the newest edit wins when merging
+function stampData(data) {
+  const now = Date.now();
+  const prev = loadData();
+  const stamp = (arr, prevArr) => (arr || []).map(rec => {
+    const old = (prevArr || []).find(p => p.id === rec.id);
+    const oldComparable = old ? { ...old } : null;
+    if (oldComparable) delete oldComparable.updatedAt;
+    const recComparable = { ...rec };
+    delete recComparable.updatedAt;
+    const changed = !old || JSON.stringify(oldComparable) !== JSON.stringify(recComparable);
+    return { ...rec, updatedAt: changed ? now : (old.updatedAt || now) };
+  });
+  return {
+    ...data,
+    customers: stamp(data.customers, prev.customers),
+    vehicles:  stamp(data.vehicles,  prev.vehicles),
+    jobs:      stamp(data.jobs,      prev.jobs),
+    invoices:  stamp(data.invoices,  prev.invoices),
+  };
+}
+
+// Global flag so the realtime listener doesn't interfere mid-save
+let SAVING_IN_PROGRESS = false;
+
+// Save then reload, but wait for cloud push first (important on mobile)
+async function saveAndReload(data) {
+  showSavingOverlay();
+  SAVING_IN_PROGRESS = true;
+  const stamped = stampData(data);
+  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  // Push only changed records, with a safety timeout so it never hangs forever
+  try {
+    await Promise.race([
+      pushChangedOnly(stamped),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout after 12s")), 12000)),
+    ]);
+  } catch (e) {
+    hideSavingOverlay();
+    SAVING_IN_PROGRESS = false;
+    // Only warn if we're actually online — offline saves are normal and sync later
+    const msg = e?.message || "";
+    const isOffline = !navigator.onLine || msg.includes("Load failed") || msg.includes("timeout") || msg.includes("Failed to fetch") || msg.includes("NetworkError");
+    if (!isOffline) {
+      alert("Sync problem: " + (msg || JSON.stringify(e)));
+    }
+    window.location.reload();
+    return;
+  }
+  SAVING_IN_PROGRESS = false;
+  window.location.reload();
+}
+
+// Simple full-screen "Saving…" overlay to prevent double-taps during save
+function showSavingOverlay() {
+  if (document.getElementById("crm-saving-overlay")) return;
+  const el = document.createElement("div");
+  el.id = "crm-saving-overlay";
+  el.style.cssText = "position:fixed;inset:0;background:rgba(30,58,95,.55);z-index:9999;display:flex;align-items:center;justify-content:center;";
+  el.innerHTML = '<div style="background:#fff;border-radius:14px;padding:20px 28px;font-family:Inter,sans-serif;font-weight:700;color:#1E3A5F;font-size:15px;box-shadow:0 4px 20px rgba(0,0,0,.2);">💾 Saving…</div>';
+  document.body.appendChild(el);
+}
+function hideSavingOverlay() {
+  const el = document.getElementById("crm-saving-overlay");
+  if (el) el.remove();
+}
+
+// Remove a record's signature so a deleted item isn't re-synced
+function removeSig(id) {
+  try {
+    const sigs = JSON.parse(localStorage.getItem("wscrm_sigs") || "{}");
+    delete sigs[id];
+    localStorage.setItem("wscrm_sigs", JSON.stringify(sigs));
+  } catch {}
+}
+
+// Compare against last-synced signatures and push only changed/new records
+async function pushChangedOnly(data) {
+  let sigs = {};
+  try { sigs = JSON.parse(localStorage.getItem("wscrm_sigs") || "{}"); } catch {}
+
+  const tables = [
+    { name: "customers", key: "customers" },
+    { name: "vehicles",  key: "vehicles"  },
+    { name: "jobs",      key: "jobs"      },
+    { name: "invoices",  key: "invoices"  },
+  ];
+
+  let failed = 0;
+  let lastError = "";
+  const newSigs = {};
+
+  for (const t of tables) {
+    const current = data[t.key] || [];
+    for (const rec of current) {
+      // A compact signature of the record (excludes photos which aren't synced)
+      const clean = { ...rec, photosBefore: undefined, photosAfter: undefined };
+      const sig = JSON.stringify(clean);
+      newSigs[rec.id] = sig;
+      if (sigs[rec.id] !== sig) {
+        try {
+          await pushOne(t.name, rec);
+        } catch (e) {
+          failed++;
+          lastError = (e?.message || JSON.stringify(e));
+          console.warn("Sync skipped for", t.name, rec.id, e?.message);
+        }
+      }
+    }
+  }
+  // Store only the compact signatures (tiny — no photo data)
+  try { localStorage.setItem("wscrm_sigs", JSON.stringify(newSigs)); } catch {}
+
+  if (failed > 0) {
+    throw new Error(`${failed} record(s) failed to sync. Last error: ${lastError}`);
+  }
+}
+
+// Export all data as a downloadable JSON backup file
+function exportBackup() {
+  const data = loadData();
+  const stamp = new Date().toISOString().split("T")[0];
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `windscreen-crm-backup-${stamp}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Delete photos from jobs older than one year (keeps the job records)
+function cleanupOldPhotos() {
+  const data = loadData();
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  let cleaned = 0;
+  const jobs = data.jobs.map(j => {
+    if (j.date && new Date(j.date) < oneYearAgo) {
+      const had = (j.photosBefore?.length || 0) + (j.photosAfter?.length || 0);
+      if (had > 0) { cleaned += had; return { ...j, photosBefore: [], photosAfter: [] }; }
+    }
+    return j;
+  });
+  if (cleaned === 0) { alert("No photos older than a year to remove."); return; }
+  if (!window.confirm(`Remove ${cleaned} photo(s) from jobs older than a year? Job records are kept.`)) return;
+  saveData({ ...data, jobs });
+  alert(`Removed ${cleaned} old photo(s).`);
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 18, color = "currentColor" }) => {
@@ -129,8 +313,8 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
   const unpaidInvoices = data.invoices.filter(i => !i.paid);
   const unpaidTotal = unpaidInvoices.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
 
-  const StatCard = ({ label, value, color, sub }) => (
-    <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", boxShadow:"0 1px 3px rgba(0,0,0,.07)", flex:1, minWidth:100 }}>
+  const StatCard = ({ label, value, color, sub, onClick }) => (
+    <div onClick={onClick} style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", boxShadow:"0 1px 3px rgba(0,0,0,.07)", flex:1, minWidth:100, cursor: onClick ? "pointer" : "default" }}>
       <div style={{ fontSize:26, fontWeight:800, color }}>{value}</div>
       <div style={{ fontSize:12, color:"#6B7280", fontWeight:600, marginTop:2 }}>{label}</div>
       {sub && <div style={{ fontSize:11, color:"#9CA3AF", marginTop:2 }}>{sub}</div>}
@@ -158,9 +342,9 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
         <p style={{ margin:"4px 0 0", color:"#6B7280", fontSize:14 }}>{new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</p>
       </div>
       <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-        <StatCard label="Today's Jobs" value={todayJobs.length} color="#1E3A5F" />
-        <StatCard label="Open Jobs" value={openJobs.length} color="#D97706" />
-        <StatCard label="Outstanding" value={`£${unpaidTotal.toFixed(0)}`} color="#059669" sub={`${unpaidInvoices.length} invoices`} />
+        <StatCard label="Today's Jobs" value={todayJobs.length} color="#1E3A5F" onClick={() => setView({ screen:"jobs", filter:"Today" })} />
+        <StatCard label="Open Jobs" value={openJobs.length} color="#D97706" onClick={() => setView({ screen:"jobs", filter:"Open" })} />
+        <StatCard label="Outstanding" value={`£${unpaidTotal.toFixed(0)}`} color="#059669" sub={`${unpaidInvoices.length} invoices`} onClick={() => setView({ screen:"invoices", filter:"Unpaid" })} />
       </div>
       <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Today's Jobs</h3>
       {todayJobs.length === 0 && <Card><p style={{ margin:0, color:"#9CA3AF", fontSize:14, textAlign:"center" }}>No jobs scheduled today</p></Card>}
@@ -187,6 +371,14 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
         <Btn onClick={() => setView({ screen:"newJob" })} variant="amber" style={{ width:"100%", justifyContent:"center" }}>
           <Icon name="plus" size={16} /> New Job
         </Btn>
+      </div>
+
+      <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
+        <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tools</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <Btn variant="ghost" onClick={exportBackup} style={{ width:"100%", justifyContent:"center" }}>💾 Download Backup</Btn>
+          <Btn variant="ghost" onClick={cleanupOldPhotos} style={{ width:"100%", justifyContent:"center" }}>🗑️ Clear Photos Over 1 Year Old</Btn>
+        </div>
       </div>
     </div>
   );
@@ -237,7 +429,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [postcode, setPostcode] = useState(editCustomer?.postcode || "");
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
 
-  function save() {
+  async function save() {
     if (!company) return;
     const customers = [...data.customers];
     const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
@@ -247,8 +439,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     } else {
       customers.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
-    saveData({ ...data, customers });
-    window.location.reload();
+    await saveAndReload({ ...data, customers });
   }
 
   return (
@@ -280,11 +471,13 @@ function CustomerDetail({ data, id, setView }) {
 
   const addrParts = [customer.address1, customer.address2, customer.town, customer.county, customer.postcode].filter(Boolean);
 
-  function deleteCustomer() {
+  async function deleteCustomer() {
     if (!window.confirm("Delete this customer?")) return;
-    saveData({ ...data, customers: data.customers.filter(c => c.id !== id) });
-    setView({ screen:"customers" });
-    window.location.reload();
+    // Delete from cloud FIRST (before reload), so it doesn't sync back
+    try { await deleteRecord("customers", id); } catch {}
+    // Also remove from the sync signatures so it's not seen as "changed"
+    removeSig(id);
+    await saveAndReload({ ...data, customers: data.customers.filter(c => c.id !== id) });
   }
 
   return (
@@ -324,7 +517,7 @@ function CustomerDetail({ data, id, setView }) {
         <Btn size="sm" onClick={() => setShowVehicle(true)}><Icon name="plus" size={13} /> Add</Btn>
       </div>
       {vehicles.map(v => (
-        <Card key={v.id}>
+        <Card key={v.id} onClick={() => setView({ screen:"vehicleDetail", id:v.id, customerId:id })}>
           <div style={{ fontWeight:600, fontSize:14 }}>{v.make} {v.model}</div>
           <div style={{ fontSize:13, color:"#6B7280" }}>{v.reg}</div>
         </Card>
@@ -352,19 +545,24 @@ function CustomerDetail({ data, id, setView }) {
 }
 
 // ── Vehicle Form ──────────────────────────────────────────────────────────────
-function VehicleForm({ data, customerId, onClose }) {
-  const [make,  setMake]  = useState("");
-  const [model, setModel] = useState("");
-  const [reg,   setReg]   = useState("");
+function VehicleForm({ data, customerId, onClose, editVehicle }) {
+  const [make,  setMake]  = useState(editVehicle?.make  || "");
+  const [model, setModel] = useState(editVehicle?.model || "");
+  const [reg,   setReg]   = useState(editVehicle?.reg   || "");
 
-  function save() {
+  async function save() {
     if (!reg) return;
-    const vehicles = [...data.vehicles, { id:uid(), customerId, make, model, reg:reg.toUpperCase() }];
-    saveData({ ...data, vehicles });
-    window.location.reload();
+    const vehicles = [...data.vehicles];
+    if (editVehicle) {
+      const idx = vehicles.findIndex(v => v.id === editVehicle.id);
+      vehicles[idx] = { ...editVehicle, make, model, reg: reg.toUpperCase() };
+    } else {
+      vehicles.push({ id:uid(), customerId, make, model, reg:reg.toUpperCase() });
+    }
+    await saveAndReload({ ...data, vehicles });
   }
   return (
-    <Modal title="Add Vehicle" onClose={onClose}>
+    <Modal title={editVehicle ? "Edit Vehicle" : "Add Vehicle"} onClose={onClose}>
       <Field label="Registration" required><Input value={reg} onChange={setReg} placeholder="AB12 CDE" /></Field>
       <Field label="Make"><Input value={make} onChange={setMake} placeholder="Ford" /></Field>
       <Field label="Model"><Input value={model} onChange={setModel} placeholder="Focus" /></Field>
@@ -373,9 +571,59 @@ function VehicleForm({ data, customerId, onClose }) {
   );
 }
 
+// ── Vehicle Detail ────────────────────────────────────────────────────────────
+function VehicleDetail({ data, id, customerId, setView }) {
+  const vehicle = data.vehicles.find(v => v.id === id);
+  const [showEdit, setShowEdit] = useState(false);
+  if (!vehicle) return <p>Not found</p>;
+
+  const customer = data.customers.find(c => c.id === vehicle.customerId);
+  const jobs = data.jobs.filter(j => j.vehicleId === id).sort((a,b) => b.date.localeCompare(a.date));
+
+  async function deleteVehicle() {
+    if (!window.confirm("Delete this vehicle?")) return;
+    try { await deleteRecord("vehicles", id); } catch {}
+    removeSig(id);
+    await saveAndReload({ ...data, vehicles: data.vehicles.filter(v => v.id !== id) });
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"customerDetail", id: customerId || vehicle.customerId })}><Icon name="back" size={14} /> Back</Btn>
+      </div>
+      <Card>
+        <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{vehicle.make} {vehicle.model}</div>
+        <div style={{ fontSize:15, color:"#6B7280", marginTop:4 }}>{vehicle.reg}</div>
+        {customer && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:6 }}>Owner: {customer.company || customer.companyContact || "—"}</div>}
+        <div style={{ display:"flex", gap:8, marginTop:12 }}>
+          <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
+          <Btn size="sm" variant="danger" onClick={deleteVehicle}><Icon name="trash" size={13} /> Delete</Btn>
+        </div>
+      </Card>
+
+      <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em", margin:"16px 0 8px" }}>Job History</h3>
+      {jobs.map(j => (
+        <Card key={j.id} onClick={() => setView({ screen:"jobDetail", id:j.id })}>
+          <div style={{ display:"flex", justifyContent:"space-between" }}>
+            <div>
+              <div style={{ fontWeight:600, fontSize:14 }}>{j.jobType}</div>
+              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(j.date)}</div>
+            </div>
+            <StatusBadge status={j.status} />
+          </div>
+        </Card>
+      ))}
+      {jobs.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No jobs for this vehicle yet</p>}
+
+      {showEdit && <VehicleForm data={data} onClose={() => setShowEdit(false)} editVehicle={vehicle} />}
+    </div>
+  );
+}
+
 // ── Jobs List ─────────────────────────────────────────────────────────────────
-function JobsList({ data, setView }) {
-  const [filter, setFilter] = useState("Open");
+function JobsList({ data, setView, initialFilter }) {
+  const [filter, setFilter] = useState(initialFilter || "Open");
   const filtered = data.jobs.filter(j => {
     if (filter==="Today")    return j.date === todayISO();
     if (filter==="Open")     return !["Paid"].includes(j.status);
@@ -407,7 +655,7 @@ function JobsList({ data, setView }) {
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
-                {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && <div style={{ fontSize:11, color:"#6B7280", marginTop:3 }}>📷 {(job.photosBefore?.length||0)} before · {(job.photosAfter?.length||0)} after</div>}
+                {/* photo count hidden during testing */}
                 {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
               <StatusBadge status={job.status} />
@@ -420,7 +668,7 @@ function JobsList({ data, setView }) {
 }
 
 // ── Photo Uploader ────────────────────────────────────────────────────────────
-function resizeImage(file, maxW = 1200) {
+function resizeImage(file, maxW = 800) {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = ev => {
@@ -431,7 +679,7 @@ function resizeImage(file, maxW = 1200) {
         canvas.width  = img.width  * scale;
         canvas.height = img.height * scale;
         canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
+        resolve(canvas.toDataURL("image/jpeg", 0.6));
       };
       img.src = ev.target.result;
     };
@@ -577,7 +825,7 @@ function JobForm({ data, onClose, editJob }) {
   const custVehicles = data.vehicles.filter(v => v.customerId === customerId);
   const locSummary = [locAddress1, locTown, locPostcode].filter(Boolean).join(", ");
 
-  function save() {
+  async function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
     const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
@@ -588,13 +836,12 @@ function JobForm({ data, onClose, editJob }) {
       jobs.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
     try {
-      saveData({ ...data, jobs });
+      await saveAndReload({ ...data, jobs });
     } catch(e) {
       alert("Storage full — try using fewer or smaller photos.");
       return;
     }
     onClose();
-    window.location.reload();
   }
 
   return (
@@ -665,8 +912,7 @@ function JobForm({ data, onClose, editJob }) {
         </Field>
       )}
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
-      <PhotoUploader label="Before Photos" photos={photosBefore} onChange={setPhotosBefore} />
-      <PhotoUploader label="After Photos"  photos={photosAfter}  onChange={setPhotosAfter}  />
+      {/* Photos temporarily disabled for sync testing */}
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!customerId}>Save Job</Btn>
     </Modal>
     {showLocPopup && (
@@ -876,15 +1122,14 @@ function JobDetail({ data, id, setView }) {
 
   const nextStatuses = { "Booked":["In Progress"], "In Progress":["Complete"], "Complete":["Invoiced"], "Invoiced":["Paid"], "Paid":[] };
 
-  function updateStatus(s) {
-    saveData({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
-    window.location.reload();
+  async function updateStatus(s) {
+    await saveAndReload({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
   }
-  function deleteJob() {
+  async function deleteJob() {
     if (!window.confirm("Delete this job?")) return;
-    saveData({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
-    setView({ screen:"jobs" });
-    window.location.reload();
+    try { await deleteRecord("jobs", id); } catch {}
+    removeSig(id);
+    await saveAndReload({ ...data, jobs: data.jobs.filter(j => j.id!==id) });
   }
 
   const Row = ({ label, value }) => value ? (
@@ -924,7 +1169,8 @@ function JobDetail({ data, id, setView }) {
         <Row label="Technician"   value={technician?.name} />
         <Row label="Notes"        value={job.notes} />
       </Card>
-      {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
+      {/* Photos temporarily disabled for sync testing */}
+      {false && (job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
         <Card>
           <PhotoViewer label="Before Photos" photos={job.photosBefore} />
           <PhotoViewer label="After Photos"  photos={job.photosAfter}  />
@@ -949,11 +1195,10 @@ function JobDetail({ data, id, setView }) {
               <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? "✓ Paid" : "Awaiting payment"}</div>
             </div>
             {!invoice.paid && (
-              <Btn size="sm" variant="ghost" onClick={() => {
+              <Btn size="sm" variant="ghost" onClick={async () => {
                 const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
                 const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
-                saveData({ ...data, invoices, jobs });
-                window.location.reload();
+                await saveAndReload({ ...data, invoices, jobs });
               }}>Mark Paid</Btn>
             )}
           </div>
@@ -995,11 +1240,10 @@ function InvoiceForm({ data, jobId, onClose }) {
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
-  function save() {
+  async function save() {
     const invoices = [...data.invoices, { id:uid(), jobId, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
     const jobs     = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
-    saveData({ ...data, invoices, jobs });
-    window.location.reload();
+    await saveAndReload({ ...data, invoices, jobs });
   }
 
   return (
@@ -1023,8 +1267,8 @@ function InvoiceForm({ data, jobId, onClose }) {
 }
 
 // ── Invoices List ─────────────────────────────────────────────────────────────
-function InvoicesList({ data, setView }) {
-  const [filter, setFilter] = useState("Unpaid");
+function InvoicesList({ data, setView, initialFilter }) {
+  const [filter, setFilter] = useState(initialFilter || "Unpaid");
   const enriched = data.invoices.map(inv => {
     const job      = data.jobs.find(j => j.id === inv.jobId);
     const customer = job ? data.customers.find(c => c.id === job.customerId) : null;
@@ -1148,12 +1392,89 @@ function scheduleNotifications(data) {
 }
 
 export default function App() {
-  const [data, setData]             = useState(loadData);
+  const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
   const [view, setViewState]        = useState({ screen:"dashboard" });
   const [tab,  setTab]              = useState("dashboard");
   const [notifStatus, setNotifStatus] = useState(
     "Notification" in window ? Notification.permission : "unsupported"
   );
+  const [syncStatus, setSyncStatus] = useState("syncing"); // syncing | synced | offline
+
+  // On first load, pull from cloud and merge with local
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cloud = await pullFromCloud();
+        if (cancelled) return;
+        const local = loadData();
+        // Merge by id: whichever copy (cloud or local) has the newer updatedAt wins.
+        // This protects local edits made while the cloud still had the old version.
+        const merge = (cloudArr, localArr) => {
+          const byId = {};
+          (cloudArr || []).forEach(x => { byId[x.id] = x; });
+          (localArr || []).forEach(x => {
+            const existing = byId[x.id];
+            if (!existing) { byId[x.id] = x; return; }
+            const localTime = x.updatedAt || 0;
+            const cloudTime = existing.updatedAt || 0;
+            byId[x.id] = localTime >= cloudTime ? x : existing;
+          });
+          return Object.values(byId);
+        };
+        const merged = {
+          customers:   merge(cloud.customers,   local.customers || []),
+          vehicles:    merge(cloud.vehicles,    local.vehicles || []),
+          jobs:        merge(cloud.jobs,        local.jobs || []),
+          invoices:    merge(cloud.invoices,    local.invoices || []),
+          technicians: local.technicians || [],
+        };
+        localStorage.setItem(DB_KEY, JSON.stringify(merged));
+        setData(merged);
+        // Push the merged result (including any local-newer records) back up
+        pushToCloud(merged).catch(() => {});
+        setSyncStatus("synced");
+      } catch (e) {
+        if (!cancelled) setSyncStatus("offline");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Live updates: when any device changes data, refresh from cloud automatically
+  useEffect(() => {
+    const channel = supabase
+      .channel("crm-changes")
+      .on("postgres_changes", { event: "*", schema: "public" }, async () => {
+        if (SAVING_IN_PROGRESS) return; // don't interfere with an active save
+        try {
+          const cloud = await pullFromCloud();
+          const local = loadData();
+          // Merge newest-wins (same logic as initial load)
+          const merge = (cloudArr, localArr) => {
+            const byId = {};
+            (cloudArr || []).forEach(x => { byId[x.id] = x; });
+            (localArr || []).forEach(x => {
+              const ex = byId[x.id];
+              if (!ex) { byId[x.id] = x; return; }
+              byId[x.id] = (x.updatedAt || 0) >= (ex.updatedAt || 0) ? x : ex;
+            });
+            return Object.values(byId);
+          };
+          const merged = {
+            customers: merge(cloud.customers, local.customers || []),
+            vehicles:  merge(cloud.vehicles,  local.vehicles || []),
+            jobs:      merge(cloud.jobs,      local.jobs || []),
+            invoices:  merge(cloud.invoices,  local.invoices || []),
+            technicians: local.technicians || [],
+          };
+          localStorage.setItem(DB_KEY, JSON.stringify(merged));
+          setData(merged);
+        } catch {}
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const setView = useCallback((v) => {
     setViewState(v);
@@ -1220,7 +1541,10 @@ export default function App() {
               {notifStatus === "granted" ? "🔔" : "🔕"}
             </button>
           )}
-          <div style={{ width:8, height:8, borderRadius:"50%", background:"#22C55E", boxShadow:"0 0 6px #22C55E" }} title="Saved" />
+          <div style={{ width:8, height:8, borderRadius:"50%",
+            background: syncStatus === "synced" ? "#22C55E" : syncStatus === "syncing" ? "#F59E0B" : "#9CA3AF",
+            boxShadow: syncStatus === "synced" ? "0 0 6px #22C55E" : "none" }}
+            title={syncStatus === "synced" ? "Synced to cloud" : syncStatus === "syncing" ? "Syncing…" : "Offline — saved locally"} />
         </div>
       </div>
 
@@ -1229,10 +1553,11 @@ export default function App() {
         {view.screen==="dashboard"      && <Dashboard      data={data} setView={setView} notifStatus={notifStatus} requestNotifications={requestNotifications} />}
         {view.screen==="customers"      && <CustomersList  data={data} setView={setView} />}
         {view.screen==="customerDetail" && <CustomerDetail data={data} id={view.id} setView={setView} />}
-        {view.screen==="jobs"           && <JobsList       data={data} setView={setView} />}
+        {view.screen==="vehicleDetail"  && <VehicleDetail  data={data} id={view.id} customerId={view.customerId} setView={setView} />}
+        {view.screen==="jobs"           && <JobsList       data={data} setView={setView} initialFilter={view.filter} />}
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
-        {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} />}
+        {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
       </div>
 
       {view.screen==="newJob" && <JobForm data={data} onClose={() => setView({ screen:"jobs" })} />}
