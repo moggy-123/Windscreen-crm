@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { pullFromCloud, pushToCloud, deleteRecord } from "./supabase";
+import { pullFromCloud, pushToCloud, pushOne, deleteRecord, supabase } from "./supabase";
 
 const DB_KEY = "wscrm_data";
 
@@ -62,14 +62,61 @@ function stampData(data) {
 
 // Save then reload, but wait for cloud push first (important on mobile)
 async function saveAndReload(data) {
+  showSavingOverlay();
   const stamped = stampData(data);
   localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  // Push only the records that actually changed (fast — avoids re-uploading photos)
   try {
-    await pushToCloud(stamped);
+    await pushChangedOnly(stamped);
   } catch (e) {
+    hideSavingOverlay();
     alert("Cloud save error: " + (e?.message || e?.error_description || JSON.stringify(e)));
   }
   window.location.reload();
+}
+
+// Simple full-screen "Saving…" overlay to prevent double-taps during save
+function showSavingOverlay() {
+  if (document.getElementById("crm-saving-overlay")) return;
+  const el = document.createElement("div");
+  el.id = "crm-saving-overlay";
+  el.style.cssText = "position:fixed;inset:0;background:rgba(30,58,95,.55);z-index:9999;display:flex;align-items:center;justify-content:center;";
+  el.innerHTML = '<div style="background:#fff;border-radius:14px;padding:20px 28px;font-family:Inter,sans-serif;font-weight:700;color:#1E3A5F;font-size:15px;box-shadow:0 4px 20px rgba(0,0,0,.2);">💾 Saving…</div>';
+  document.body.appendChild(el);
+}
+function hideSavingOverlay() {
+  const el = document.getElementById("crm-saving-overlay");
+  if (el) el.remove();
+}
+
+// Compare against last-synced snapshot and push only changed/new records
+async function pushChangedOnly(data) {
+  let lastSynced = {};
+  try { lastSynced = JSON.parse(localStorage.getItem("wscrm_lastsync") || "{}"); } catch {}
+
+  const tables = [
+    { name: "customers", key: "customers" },
+    { name: "vehicles",  key: "vehicles"  },
+    { name: "jobs",      key: "jobs"      },
+    { name: "invoices",  key: "invoices"  },
+  ];
+
+  for (const t of tables) {
+    const current = data[t.key] || [];
+    const prev = lastSynced[t.key] || [];
+    const prevById = {};
+    prev.forEach(r => { prevById[r.id] = r; });
+
+    for (const rec of current) {
+      const old = prevById[rec.id];
+      // Push only if new or changed
+      if (!old || JSON.stringify(old) !== JSON.stringify(rec)) {
+        await pushOne(t.name, rec);
+      }
+    }
+  }
+  // Record this as the last successful sync
+  localStorage.setItem("wscrm_lastsync", JSON.stringify(data));
 }
 
 // Export all data as a downloadable JSON backup file
@@ -1268,6 +1315,41 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  // Live updates: when any device changes data, refresh from cloud automatically
+  useEffect(() => {
+    const channel = supabase
+      .channel("crm-changes")
+      .on("postgres_changes", { event: "*", schema: "public" }, async () => {
+        try {
+          const cloud = await pullFromCloud();
+          const local = loadData();
+          // Merge newest-wins (same logic as initial load)
+          const merge = (cloudArr, localArr) => {
+            const byId = {};
+            (cloudArr || []).forEach(x => { byId[x.id] = x; });
+            (localArr || []).forEach(x => {
+              const ex = byId[x.id];
+              if (!ex) { byId[x.id] = x; return; }
+              byId[x.id] = (x.updatedAt || 0) >= (ex.updatedAt || 0) ? x : ex;
+            });
+            return Object.values(byId);
+          };
+          const merged = {
+            customers: merge(cloud.customers, local.customers || []),
+            vehicles:  merge(cloud.vehicles,  local.vehicles || []),
+            jobs:      merge(cloud.jobs,      local.jobs || []),
+            invoices:  merge(cloud.invoices,  local.invoices || []),
+            technicians: local.technicians || [],
+          };
+          localStorage.setItem(DB_KEY, JSON.stringify(merged));
+          localStorage.setItem("wscrm_lastsync", JSON.stringify(merged));
+          setData(merged);
+        } catch {}
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const setView = useCallback((v) => {
