@@ -497,7 +497,7 @@ function JobsList({ data, setView }) {
 }
 
 // ── Photo Uploader ────────────────────────────────────────────────────────────
-function resizeImage(file, maxW = 1200) {
+function resizeImage(file, maxW = 800) {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = ev => {
@@ -508,7 +508,7 @@ function resizeImage(file, maxW = 1200) {
         canvas.width  = img.width  * scale;
         canvas.height = img.height * scale;
         canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
+        resolve(canvas.toDataURL("image/jpeg", 0.6));
       };
       img.src = ev.target.result;
     };
