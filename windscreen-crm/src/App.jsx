@@ -470,9 +470,12 @@ function CustomerDetail({ data, id, setView }) {
 
   async function deleteCustomer() {
     if (!window.confirm("Delete this customer?")) return;
-    // Delete from cloud FIRST (before reload), so it doesn't sync back
-    try { await deleteRecord("customers", id); } catch {}
-    // Also remove from the sync signatures so it's not seen as "changed"
+    try {
+      await deleteRecord("customers", id);
+    } catch (e) {
+      alert("Delete failed: " + (e?.message || JSON.stringify(e)));
+      return;
+    }
     removeSig(id);
     await saveAndReload({ ...data, customers: data.customers.filter(c => c.id !== id) });
   }
