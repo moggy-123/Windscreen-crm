@@ -1509,6 +1509,51 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // Polling fallback: every 20s, re-check the cloud and drop anything deleted elsewhere.
+  // This catches deletes that realtime doesn't reliably broadcast.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (SAVING_IN_PROGRESS) return;
+      try {
+        const cloud = await pullFromCloud();
+        const local = loadData();
+        const deleted = getTombstones();
+        const now = Date.now();
+        const merge = (cloudArr, localArr) => {
+          const byId = {};
+          (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
+          (localArr || []).forEach(x => {
+            if (deleted.includes(x.id)) return;
+            if (byId[x.id]) {
+              byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
+            } else {
+              const age = now - (x.updatedAt || 0);
+              if (age < 60000) byId[x.id] = x; // keep only very recently created local-only rows
+            }
+          });
+          return Object.values(byId);
+        };
+        const merged = {
+          customers: merge(cloud.customers, local.customers || []),
+          vehicles:  merge(cloud.vehicles,  local.vehicles || []),
+          jobs:      merge(cloud.jobs,      local.jobs || []),
+          invoices:  merge(cloud.invoices,  local.invoices || []),
+          technicians: local.technicians || [],
+        };
+        const before = JSON.stringify(local.customers?.length) + local.jobs?.length + local.vehicles?.length + local.invoices?.length;
+        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length;
+        localStorage.setItem(DB_KEY, JSON.stringify(merged));
+        // Only re-render if something actually changed, to avoid disrupting typing
+        setData(prev => {
+          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0);
+          if (prevCount !== after) return merged;
+          return prev;
+        });
+      } catch {}
+    }, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
   const setView = useCallback((v) => {
     setViewState(v);
     if (["dashboard","customers","jobs","invoices"].includes(v.screen)) setTab(v.screen);
