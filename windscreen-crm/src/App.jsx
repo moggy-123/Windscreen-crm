@@ -73,10 +73,14 @@ async function saveAndReload(data) {
   try {
     await Promise.race([
       pushChangedOnly(stamped),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 12000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout after 12s")), 12000)),
     ]);
   } catch (e) {
-    // Saved locally even if cloud was slow/offline — will sync later. Continue.
+    hideSavingOverlay();
+    SAVING_IN_PROGRESS = false;
+    alert("Sync problem: " + (e?.message || JSON.stringify(e)));
+    window.location.reload();
+    return;
   }
   SAVING_IN_PROGRESS = false;
   window.location.reload();
@@ -108,6 +112,10 @@ async function pushChangedOnly(data) {
     { name: "invoices",  key: "invoices"  },
   ];
 
+  let pushed = 0;
+  let failed = 0;
+  let lastError = "";
+
   for (const t of tables) {
     const current = data[t.key] || [];
     const prev = lastSynced[t.key] || [];
@@ -116,19 +124,24 @@ async function pushChangedOnly(data) {
 
     for (const rec of current) {
       const old = prevById[rec.id];
-      // Push only if new or changed
       if (!old || JSON.stringify(old) !== JSON.stringify(rec)) {
         try {
           await pushOne(t.name, rec);
+          pushed++;
         } catch (e) {
-          // Skip this record if it fails (e.g. too big) but keep going with the rest
+          failed++;
+          lastError = (e?.message || JSON.stringify(e));
           console.warn("Sync skipped for", t.name, rec.id, e?.message);
         }
       }
     }
   }
-  // Record this as the last successful sync
   localStorage.setItem("wscrm_lastsync", JSON.stringify(data));
+
+  // Surface the result so we can diagnose
+  if (failed > 0) {
+    throw new Error(`${failed} record(s) failed to sync. Last error: ${lastError}`);
+  }
 }
 
 // Export all data as a downloadable JSON backup file
