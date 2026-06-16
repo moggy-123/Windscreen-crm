@@ -843,6 +843,16 @@ function JobForm({ data, onClose, editJob }) {
   const [damageType,    setDamageType]    = useState(editJob?.damageType    || "Chip");
   const [damageSide,    setDamageSide]    = useState(editJob?.damageSide    || "");
   const [damagePosition,setDamagePosition]= useState(editJob?.damagePosition|| "");
+  // Repairs list — supports multiple repairs per windscreen. Falls back to the old
+  // single damage fields for jobs created before this feature.
+  const [repairs, setRepairs] = useState(() => {
+    if (editJob?.repairs?.length) return editJob.repairs;
+    if (editJob?.damageType) return [{ id: uid(), type: editJob.damageType, side: editJob.damageSide || "", position: editJob.damagePosition || "" }];
+    return [{ id: uid(), type: "Chip", side: "", position: "" }];
+  });
+  const updateRepair = (id, field, value) => setRepairs(rs => rs.map(r => r.id === id ? { ...r, [field]: value } : r));
+  const addRepair = () => setRepairs(rs => [...rs, { id: uid(), type: "Chip", side: "", position: "" }]);
+  const removeRepair = (id) => setRepairs(rs => rs.length > 1 ? rs.filter(r => r.id !== id) : rs);
   const [adasRequired,  setAdasRequired]  = useState(editJob?.adasRequired  || false);
   const [status,        setStatus]        = useState(editJob?.status        || "Booked");
   const [technicianId,  setTechnicianId]  = useState(editJob?.technicianId  || "");
@@ -859,7 +869,8 @@ function JobForm({ data, onClose, editJob }) {
   async function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
-    const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, damageType, damageSide, damagePosition, adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
+    const first = repairs[0] || {};
+    const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, repairs, damageType: first.type || "", damageSide: first.side || "", damagePosition: first.position || "", adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
     if (editJob) {
       const idx = jobs.findIndex(j => j.id === editJob.id);
       jobs[idx] = { ...editJob, ...rec };
@@ -906,20 +917,33 @@ function JobForm({ data, onClose, editJob }) {
         <div style={{ flex:1 }}><Field label="Job Type"><Select value={jobType} onChange={setJobType} options={JOB_TYPES} /></Field></div>
       </div>
       <div style={{ display:"flex", gap:10 }}>
-        <div style={{ flex:1 }}><Field label="Damage Type"><Select value={damageType} onChange={setDamageType} options={DAMAGE_TYPES} /></Field></div>
         <div style={{ flex:1 }}><Field label="Status"><Select value={status} onChange={setStatus} options={Object.keys(STATUS_META)} /></Field></div>
       </div>
-      <div style={{ display:"flex", gap:10 }}>
-        <div style={{ flex:1 }}>
-          <Field label="Damage Side">
-            <Select value={damageSide} onChange={setDamageSide} options={["Drivers Side","Passenger Side","Middle"]} placeholder="Select…" />
-          </Field>
-        </div>
-        <div style={{ flex:1 }}>
-          <Field label="Damage Position">
-            <Select value={damagePosition} onChange={setDamagePosition} options={["Top Right","Top Left","Top Centre","Centre","Bottom Right","Bottom Left","Bottom Centre"]} placeholder="Select…" />
-          </Field>
-        </div>
+
+      <div style={{ marginBottom:14 }}>
+        <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>Repairs</label>
+        {repairs.map((r, idx) => (
+          <div key={r.id} style={{ background:"#F8FAFC", border:"1px solid #F3F4F6", borderRadius:10, padding:12, marginBottom:8 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <span style={{ fontSize:12, fontWeight:700, color:"#1E3A5F" }}>Repair {idx + 1}</span>
+              {repairs.length > 1 && (
+                <button onClick={() => removeRepair(r.id)} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:600, cursor:"pointer" }}>Remove</button>
+              )}
+            </div>
+            <div style={{ marginBottom:8 }}>
+              <Select value={r.type} onChange={v => updateRepair(r.id, "type", v)} options={DAMAGE_TYPES} />
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ flex:1 }}>
+                <Select value={r.side} onChange={v => updateRepair(r.id, "side", v)} options={["Drivers Side","Passenger Side","Middle"]} placeholder="Side…" />
+              </div>
+              <div style={{ flex:1 }}>
+                <Select value={r.position} onChange={v => updateRepair(r.id, "position", v)} options={["Top Right","Top Left","Top Centre","Centre","Bottom Right","Bottom Left","Bottom Centre"]} placeholder="Position…" />
+              </div>
+            </div>
+          </div>
+        ))}
+        <Btn size="sm" variant="ghost" onClick={addRepair} style={{ width:"100%", justifyContent:"center" }}>+ Add repair</Btn>
       </div>
       <Field label="ADAS Calibration">
         <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151" }}>
@@ -1043,8 +1067,7 @@ function sendJobCard(job, customer, vehicle, invoice) {
       ${row("Vehicle", car)}
       ${row("Location", location)}
       ${row("Job Type", job.jobType)}
-      ${row("Damage", job.damageType)}
-      ${row("Position", [job.damageSide, job.damagePosition].filter(Boolean).join(" · "))}
+      ${(job.repairs?.length ? job.repairs : [{type:job.damageType,side:job.damageSide,position:job.damagePosition}]).map((r,i) => row(job.repairs?.length>1?`Repair ${i+1}`:"Damage", [r.type, r.side, r.position].filter(Boolean).join(" · "))).join("")}
       ${job.adasRequired ? row("ADAS", "Required & Completed") : ""}
       ${row("Payment", job.paymentType)}
       ${job.paymentType === "Insurance" ? row("Insurance", [job.insuranceCo, job.claimNo].filter(Boolean).join(" · ")) : ""}
@@ -1200,9 +1223,9 @@ function JobDetail({ data, id, setView }) {
         <Row label="Time"         value={job.jobTime || null} />
         <Row label="Location"     value={[job.locAddress1, job.locAddress2, job.locTown, job.locCounty, job.locPostcode].filter(Boolean).join(", ") || null} />
         <Row label="Job Type"     value={job.jobType} />
-        <Row label="Damage"       value={job.damageType} />
-        <Row label="Damage Side"  value={job.damageSide || null} />
-        <Row label="Damage Pos."  value={job.damagePosition || null} />
+        {(job.repairs?.length ? job.repairs : [{ id:"x", type:job.damageType, side:job.damageSide, position:job.damagePosition }]).map((r, i) => (
+          <Row key={r.id || i} label={job.repairs?.length > 1 ? `Repair ${i+1}` : "Damage"} value={[r.type, r.side, r.position].filter(Boolean).join(" · ") || null} />
+        ))}
         <Row label="ADAS"         value={job.adasRequired ? "Required" : null} />
         <Row label="Payment"      value={job.paymentType} />
         <Row label="Insurance Co" value={job.insuranceCo} />
@@ -1274,20 +1297,32 @@ function JobDetail({ data, id, setView }) {
 
 // ── Invoice Form ──────────────────────────────────────────────────────────────
 function InvoiceForm({ data, jobId, onClose }) {
+  const job = data.jobs.find(j => j.id === jobId);
+  // Auto-fill details from the job's repairs
+  const autoDetails = (() => {
+    const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
+    return reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
+  })();
+  const [details, setDetails] = useState(autoDetails);
   const [labour, setLabour] = useState("");
   const [parts,  setParts]  = useState("");
-  const [vat,    setVat]    = useState(true);
+  const [vat,    setVat]    = useState(false);
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
-    const invoices = [...data.invoices, { id:uid(), jobId, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
+    const invoices = [...data.invoices, { id:uid(), jobId, details, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
     const jobs     = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
     await saveAndReload({ ...data, invoices, jobs });
   }
 
   return (
     <Modal title="Create Invoice" onClose={onClose}>
+      <Field label="Details / Work Done">
+        <textarea value={details} onChange={e => setDetails(e.target.value)} rows={3}
+          style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }}
+          placeholder="e.g. Chip repair – Driver Side Top" />
+      </Field>
       <Field label="Labour (£)"><Input type="number" value={labour} onChange={setLabour} placeholder="0.00" /></Field>
       <Field label="Parts (£)"><Input type="number" value={parts} onChange={setParts} placeholder="0.00" /></Field>
       <Field label="VAT">
