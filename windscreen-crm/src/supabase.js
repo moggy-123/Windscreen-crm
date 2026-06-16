@@ -38,7 +38,7 @@ const jobToDb = j => ({
   damage_position: j.damagePosition, adas_required: !!j.adasRequired, status: j.status,
   technician_id: j.technicianId || null, notes: j.notes, payment_type: j.paymentType,
   insurance_co: j.insuranceCo, claim_no: j.claimNo,
-  photos_before: [], photos_after: [],
+  photos_before: j.photosBefore || [], photos_after: j.photosAfter || [],
   updated_at: j.updatedAt || Date.now(),
   created_at: j.createdAt || new Date().toISOString(),
 });
@@ -138,4 +138,28 @@ export async function isOnline() {
   } catch {
     return false;
   }
+}
+
+// ── Photo Storage ────────────────────────────────────────────────────────────
+const PHOTO_BUCKET = "job-photos";
+
+// Upload a base64 data URL to Supabase Storage, return the public URL
+export async function uploadPhoto(dataUrl, jobId) {
+  // Convert data URL to a Blob
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  const filename = `${jobId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+  const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(filename, blob, {
+    contentType: "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(filename);
+  return { url: data.publicUrl, path: filename };
+}
+
+// Delete a photo from storage by its path
+export async function deletePhoto(path) {
+  if (!path) return;
+  await supabase.storage.from(PHOTO_BUCKET).remove([path]);
 }
