@@ -237,6 +237,7 @@ const Icon = ({ name, size = 18, color = "currentColor" }) => {
     edit:      "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
     trash:     "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
     check:     "M5 13l4 4L19 7",
+    calendar:  "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -1430,6 +1431,124 @@ function scheduleNotifications(data) {
   });
 }
 
+// ── Calendar ──────────────────────────────────────────────────────────────────
+function CalendarView({ data, setView }) {
+  const [mode, setMode] = useState("month"); // "month" | "agenda"
+  const [selectedDay, setSelectedDay] = useState(null);
+  const today = new Date();
+  const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const dayNames = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  const jobsByDate = {};
+  (data.jobs || []).forEach(j => {
+    if (!j.date) return;
+    (jobsByDate[j.date] = jobsByDate[j.date] || []).push(j);
+  });
+  Object.values(jobsByDate).forEach(arr => arr.sort((a,b) => (a.jobTime||"").localeCompare(b.jobTime||"")));
+
+  const toISO = (y, m, d) => `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const todayISO = toISO(today.getFullYear(), today.getMonth(), today.getDate());
+
+  function custName(j) {
+    const c = data.customers.find(x => x.id === j.customerId);
+    return j.driverName || c?.company || c?.companyContact || "Job";
+  }
+
+  function MonthGrid() {
+    const year = cursor.getFullYear(), month = cursor.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    return (
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <Btn size="sm" variant="ghost" onClick={() => setCursor(new Date(year, month-1, 1))}>‹</Btn>
+          <div style={{ fontWeight:800, fontSize:16, color:"#1E3A5F" }}>{monthNames[month]} {year}</div>
+          <Btn size="sm" variant="ghost" onClick={() => setCursor(new Date(year, month+1, 1))}>›</Btn>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
+          {dayNames.map(d => <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:"#9CA3AF", padding:"4px 0" }}>{d}</div>)}
+          {cells.map((d, i) => {
+            if (d === null) return <div key={"e"+i} />;
+            const iso = toISO(year, month, d);
+            const dayJobs = jobsByDate[iso] || [];
+            const isToday = iso === todayISO;
+            return (
+              <div key={iso} onClick={() => dayJobs.length && setSelectedDay(iso)}
+                style={{ minHeight:54, borderRadius:8, padding:4, background: isToday ? "#EFF6FF" : "#fff", border: isToday ? "1.5px solid #2563EB" : "1px solid #F3F4F6", cursor: dayJobs.length ? "pointer" : "default" }}>
+                <div style={{ fontSize:12, fontWeight:700, color: isToday ? "#2563EB" : "#374151" }}>{d}</div>
+                {dayJobs.slice(0,3).map(j => (
+                  <div key={j.id} style={{ height:4, borderRadius:2, marginTop:2, background: (STATUS_META[j.status]||STATUS_META.Booked).color }} />
+                ))}
+                {dayJobs.length > 3 && <div style={{ fontSize:9, color:"#9CA3AF", marginTop:1 }}>+{dayJobs.length-3}</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function Agenda() {
+    const upcoming = Object.keys(jobsByDate).filter(d => d >= todayISO).sort();
+    if (upcoming.length === 0) return <p style={{ fontSize:13, color:"#9CA3AF", textAlign:"center", marginTop:30 }}>No upcoming jobs scheduled</p>;
+    return (
+      <div>
+        {upcoming.map(date => (
+          <div key={date} style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color: date===todayISO ? "#2563EB" : "#374151", marginBottom:6 }}>
+              {date===todayISO ? "Today · " : ""}{fmtDate(date)}
+            </div>
+            {jobsByDate[date].map(j => (
+              <Card key={j.id} onClick={() => setView({ screen:"jobDetail", id:j.id })}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:14 }}>{j.jobTime ? j.jobTime + " · " : ""}{custName(j)}</div>
+                    <div style={{ fontSize:12, color:"#9CA3AF" }}>{j.jobType}{j.damageType ? " · " + j.damageType : ""}</div>
+                  </div>
+                  <StatusBadge status={j.status} />
+                </div>
+              </Card>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+        <Btn variant={mode==="month"?"primary":"ghost"} size="sm" onClick={() => setMode("month")} style={{ flex:1, justifyContent:"center" }}>Month</Btn>
+        <Btn variant={mode==="agenda"?"primary":"ghost"} size="sm" onClick={() => setMode("agenda")} style={{ flex:1, justifyContent:"center" }}>Agenda</Btn>
+      </div>
+
+      {mode === "month" ? <MonthGrid /> : <Agenda />}
+
+      {selectedDay && (
+        <Modal title={fmtDate(selectedDay)} onClose={() => setSelectedDay(null)}>
+          {(jobsByDate[selectedDay] || []).map(j => (
+            <Card key={j.id} onClick={() => { setSelectedDay(null); setView({ screen:"jobDetail", id:j.id }); }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>{j.jobTime ? j.jobTime + " · " : ""}{custName(j)}</div>
+                  <div style={{ fontSize:12, color:"#9CA3AF" }}>{j.jobType}{j.damageType ? " · " + j.damageType : ""}</div>
+                </div>
+                <StatusBadge status={j.status} />
+              </div>
+            </Card>
+          ))}
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
   const [view, setViewState]        = useState({ screen:"dashboard" });
@@ -1619,7 +1738,7 @@ export default function App() {
 
   const setView = useCallback((v) => {
     setViewState(v);
-    if (["dashboard","customers","jobs","invoices"].includes(v.screen)) setTab(v.screen);
+    if (["dashboard","customers","jobs","invoices","calendar"].includes(v.screen)) setTab(v.screen);
     setData(loadData());
   }, []);
 
@@ -1656,6 +1775,7 @@ export default function App() {
   const tabs = [
     { id:"dashboard", icon:"dashboard", label:"Home" },
     { id:"jobs",      icon:"jobs",      label:"Jobs" },
+    { id:"calendar",  icon:"calendar",  label:"Calendar" },
     { id:"customers", icon:"customers", label:"Customers" },
     { id:"invoices",  icon:"invoices",  label:"Invoices" },
   ];
@@ -1665,7 +1785,7 @@ export default function App() {
       {/* Header */}
       <div style={{ background:"#1E3A5F", padding:"10px 16px", position:"sticky", top:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          {!["dashboard","customers","jobs","invoices"].includes(view.screen) && (
+          {!["dashboard","customers","jobs","invoices","calendar"].includes(view.screen) && (
             <button onClick={() => setView({ screen:tab })} style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, padding:"4px 8px", color:"#fff", cursor:"pointer", fontSize:18 }}>‹</button>
           )}
           <img src="/logo.png" alt="Logo" style={{ height:36, width:36, objectFit:"contain", borderRadius:6, background:"#fff", padding:2 }} />
@@ -1696,6 +1816,7 @@ export default function App() {
         {view.screen==="customerDetail" && <CustomerDetail data={data} id={view.id} setView={setView} />}
         {view.screen==="vehicleDetail"  && <VehicleDetail  data={data} id={view.id} customerId={view.customerId} setView={setView} />}
         {view.screen==="jobs"           && <JobsList       data={data} setView={setView} initialFilter={view.filter} />}
+        {view.screen==="calendar"       && <CalendarView   data={data} setView={setView} />}
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
