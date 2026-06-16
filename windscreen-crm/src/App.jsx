@@ -911,12 +911,12 @@ function JobForm({ data, onClose, editJob }) {
       <div style={{ display:"flex", gap:10 }}>
         <div style={{ flex:1 }}>
           <Field label="Damage Side">
-            <Select value={damageSide} onChange={setDamageSide} options={["Driver Side","Passenger Side"]} placeholder="Select…" />
+            <Select value={damageSide} onChange={setDamageSide} options={["Drivers Side","Passenger Side","Middle"]} placeholder="Select…" />
           </Field>
         </div>
         <div style={{ flex:1 }}>
           <Field label="Damage Position">
-            <Select value={damagePosition} onChange={setDamagePosition} options={["Top","Bottom","Left","Right"]} placeholder="Select…" />
+            <Select value={damagePosition} onChange={setDamagePosition} options={["Top Right","Top Left","Top Centre","Centre","Bottom Right","Bottom Left","Bottom Centre"]} placeholder="Select…" />
           </Field>
         </div>
       </div>
