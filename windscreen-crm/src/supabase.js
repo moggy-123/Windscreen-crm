@@ -38,6 +38,7 @@ const jobToDb = j => ({
   damage_position: j.damagePosition, adas_required: !!j.adasRequired, status: j.status,
   technician_id: j.technicianId || null, notes: j.notes, payment_type: j.paymentType,
   insurance_co: j.insuranceCo, claim_no: j.claimNo,
+  repairs: j.repairs || [],
   photos_before: j.photosBefore || [], photos_after: j.photosAfter || [],
   updated_at: j.updatedAt || Date.now(),
   created_at: j.createdAt || new Date().toISOString(),
@@ -50,18 +51,19 @@ const jobFromDb = r => ({
   damagePosition: r.damage_position, adasRequired: r.adas_required, status: r.status,
   technicianId: r.technician_id, notes: r.notes, paymentType: r.payment_type,
   insuranceCo: r.insurance_co, claimNo: r.claim_no,
+  repairs: r.repairs || [],
   photosBefore: r.photos_before || [], photosAfter: r.photos_after || [],
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
 const invoiceToDb = i => ({
-  id: i.id, job_id: i.jobId, labour: i.labour, parts: i.parts, vat: !!i.vat,
+  id: i.id, job_id: i.jobId, details: i.details || "", labour: i.labour, parts: i.parts, vat: !!i.vat,
   total: i.total, paid: !!i.paid, paid_date: i.paidDate,
   updated_at: i.updatedAt || Date.now(),
   created_at: i.createdAt || new Date().toISOString(),
 });
 const invoiceFromDb = r => ({
-  id: r.id, jobId: r.job_id, labour: r.labour, parts: r.parts, vat: r.vat,
+  id: r.id, jobId: r.job_id, details: r.details, labour: r.labour, parts: r.parts, vat: r.vat,
   total: r.total, paid: r.paid, paidDate: r.paid_date,
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
