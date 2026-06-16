@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { pullFromCloud, pushToCloud, pushOne, deleteRecord, supabase } from "./supabase";
+import { pullFromCloud, pushToCloud, pushOne, deleteRecord, supabase, uploadPhoto, deletePhoto } from "./supabase";
 
 const DB_KEY = "wscrm_data";
 
@@ -30,13 +30,11 @@ function loadData() {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       const data = JSON.parse(raw);
-      // Strip any old photo data — photos are disabled, and they were filling storage
+      // Strip any leftover base64 photo data (old format) but keep URL references
       if (data.jobs) {
         data.jobs = data.jobs.map(j => {
-          if (j.photosBefore?.length || j.photosAfter?.length) {
-            return { ...j, photosBefore: [], photosAfter: [] };
-          }
-          return j;
+          const strip = arr => (arr || []).filter(p => p && p.url); // keep only uploaded (url) photos
+          return { ...j, photosBefore: strip(j.photosBefore), photosAfter: strip(j.photosAfter) };
         });
       }
       return data;
@@ -45,20 +43,10 @@ function loadData() {
   return { customers: [], vehicles: [], jobs: [], invoices: [], technicians: [] };
 }
 
-// One-time cleanup: remove old photo bloat and the duplicate lastsync copy
+// One-time cleanup: remove the old duplicate lastsync copy
 function clearStorageBloat() {
   try {
-    // Remove the duplicate snapshot that was doubling storage
     localStorage.removeItem("wscrm_lastsync");
-    // Re-save main data with photos stripped
-    const raw = localStorage.getItem(DB_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      if (data.jobs) {
-        data.jobs = data.jobs.map(j => ({ ...j, photosBefore: [], photosAfter: [] }));
-      }
-      localStorage.setItem(DB_KEY, JSON.stringify(data));
-    }
   } catch {}
 }
 function saveData(data) {
@@ -180,7 +168,10 @@ async function pushChangedOnly(data) {
     const current = data[t.key] || [];
     for (const rec of current) {
       // A compact signature of the record (excludes photos which aren't synced)
-      const clean = { ...rec, photosBefore: undefined, photosAfter: undefined };
+      // Signature includes photo URLs (small) so photo changes sync, but strips
+      // bulky pending base64 so offline photos don't bloat the signature
+      const photoRefs = arr => (arr || []).map(p => p.url || p.id);
+      const clean = { ...rec, photosBefore: photoRefs(rec.photosBefore), photosAfter: photoRefs(rec.photosAfter) };
       const sig = JSON.stringify(clean);
       newSigs[rec.id] = sig;
       if (sigs[rec.id] !== sig) {
@@ -682,7 +673,7 @@ function JobsList({ data, setView, initialFilter }) {
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
-                {/* photo count hidden during testing */}
+                {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && <div style={{ fontSize:11, color:"#6B7280", marginTop:3 }}>📷 {(job.photosBefore?.length||0)} before · {(job.photosAfter?.length||0)} after</div>}
                 {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
               <StatusBadge status={job.status} />
@@ -714,7 +705,7 @@ function resizeImage(file, maxW = 800) {
   });
 }
 
-function PhotoUploader({ label, photos = [], onChange }) {
+function PhotoUploader({ label, photos = [], onChange, jobId }) {
   const [loading, setLoading] = useState(false);
 
   async function handleFiles(e) {
@@ -722,12 +713,19 @@ function PhotoUploader({ label, photos = [], onChange }) {
     if (!files.length) return;
     setLoading(true);
     try {
-      const newPhotos = await Promise.all(files.map(async file => ({
-        id: uid(),
-        data: await resizeImage(file),
-        name: file.name,
-        ts: new Date().toISOString()
-      })));
+      const newPhotos = [];
+      for (const file of files) {
+        const dataUrl = await resizeImage(file);
+        const photoId = uid();
+        // Try to upload to cloud storage immediately
+        try {
+          const { url, path } = await uploadPhoto(dataUrl, jobId || "unassigned");
+          newPhotos.push({ id: photoId, url, path });
+        } catch (err) {
+          // No signal / upload failed — keep locally, mark pending for later upload
+          newPhotos.push({ id: photoId, pending: dataUrl, jobId: jobId || "unassigned" });
+        }
+      }
       onChange([...photos, ...newPhotos]);
     } finally {
       setLoading(false);
@@ -735,9 +733,12 @@ function PhotoUploader({ label, photos = [], onChange }) {
     }
   }
 
-  function remove(id) {
-    onChange(photos.filter(p => p.id !== id));
+  async function remove(photo) {
+    if (photo.path) { deletePhoto(photo.path).catch(() => {}); }
+    onChange(photos.filter(p => p.id !== photo.id));
   }
+
+  const photoSrc = p => p.url || p.pending; // show uploaded URL or local pending image
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -745,13 +746,14 @@ function PhotoUploader({ label, photos = [], onChange }) {
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
         {photos.map(p => (
           <div key={p.id} style={{ position:"relative", width:80, height:80 }}>
-            <img src={p.data} alt="job" style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1.5px solid #E5E7EB" }} />
-            <button onClick={() => remove(p.id)} style={{ position:"absolute", top:-6, right:-6, background:"#EF4444", border:"none", borderRadius:"50%", width:20, height:20, color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
+            <img src={photoSrc(p)} alt="job" style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1.5px solid #E5E7EB" }} />
+            {p.pending && <div style={{ position:"absolute", bottom:2, left:2, background:"rgba(245,158,11,.9)", color:"#fff", fontSize:8, fontWeight:700, padding:"1px 4px", borderRadius:4 }}>PENDING</div>}
+            <button onClick={() => remove(p)} style={{ position:"absolute", top:-6, right:-6, background:"#EF4444", border:"none", borderRadius:"50%", width:20, height:20, color:"#fff", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
           </div>
         ))}
         <label style={{ width:80, height:80, border:`2px dashed ${loading ? "#93C5FD" : "#D1D5DB"}`, borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", color: loading ? "#3B82F6" : "#9CA3AF", fontSize:11, fontWeight:600, gap:4, background: loading ? "#EFF6FF" : "transparent" }}>
           <span style={{ fontSize:24, lineHeight:1 }}>{loading ? "⏳" : "📷"}</span>
-          {loading ? "Loading…" : "Add"}
+          {loading ? "Uploading…" : "Add"}
           <input type="file" accept="image/*" capture="environment" multiple onChange={handleFiles} style={{ display:"none" }} disabled={loading} />
         </label>
       </div>
@@ -763,12 +765,13 @@ function PhotoUploader({ label, photos = [], onChange }) {
 function PhotoViewer({ label, photos = [] }) {
   const [lightbox, setLightbox] = useState(null);
   if (photos.length === 0) return null;
+  const src = p => p.url || p.pending;
   return (
     <div style={{ marginBottom:14 }}>
       <div style={{ fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>{label} ({photos.length})</div>
       <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
         {photos.map(p => (
-          <img key={p.id} src={p.data} alt="job" onClick={() => setLightbox(p.data)}
+          <img key={p.id} src={src(p)} alt="job" onClick={() => setLightbox(src(p))}
             style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1.5px solid #E5E7EB", cursor:"pointer" }} />
         ))}
       </div>
@@ -939,7 +942,14 @@ function JobForm({ data, onClose, editJob }) {
         </Field>
       )}
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
-      {/* Photos temporarily disabled for sync testing */}
+      {editJob ? (
+        <>
+          <PhotoUploader label="Before Photos" photos={photosBefore} onChange={setPhotosBefore} jobId={editJob.id} />
+          <PhotoUploader label="After Photos"  photos={photosAfter}  onChange={setPhotosAfter}  jobId={editJob.id} />
+        </>
+      ) : (
+        <div style={{ fontSize:12, color:"#9CA3AF", textAlign:"center", margin:"4px 0 12px" }}>📷 You can add before/after photos once the job is saved</div>
+      )}
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!customerId}>Save Job</Btn>
     </Modal>
     {showLocPopup && (
@@ -972,7 +982,7 @@ function sendJobCard(job, customer, vehicle, invoice) {
     return `
       <h3 style="color:#1E3A5F;font-size:15px;margin:20px 0 10px;border-bottom:2px solid #F3F4F6;padding-bottom:6px;">${label}</h3>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
-        ${photos.map(p => `<img src="${p.data}" style="width:160px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;" />`).join("")}
+        ${photos.map(p => `<img src="${p.url || p.pending}" style="width:160px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;" />`).join("")}
       </div>`;
   };
 
@@ -1199,8 +1209,7 @@ function JobDetail({ data, id, setView }) {
         <Row label="Technician"   value={technician?.name} />
         <Row label="Notes"        value={job.notes} />
       </Card>
-      {/* Photos temporarily disabled for sync testing */}
-      {false && (job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
+      {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && (
         <Card>
           <PhotoViewer label="Before Photos" photos={job.photosBefore} />
           <PhotoViewer label="After Photos"  photos={job.photosAfter}  />
@@ -1524,6 +1533,41 @@ export default function App() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // Background photo uploader: finds photos saved offline (pending) and uploads
+  // them to storage when a connection is available, then swaps in the cloud URL.
+  useEffect(() => {
+    const uploadPending = async () => {
+      if (SAVING_IN_PROGRESS) return;
+      const d = loadData();
+      let changed = false;
+      for (const job of d.jobs || []) {
+        for (const key of ["photosBefore", "photosAfter"]) {
+          const arr = job[key] || [];
+          for (let i = 0; i < arr.length; i++) {
+            const p = arr[i];
+            if (p && p.pending && !p.url) {
+              try {
+                const { url, path } = await uploadPhoto(p.pending, job.id);
+                arr[i] = { id: p.id, url, path };
+                changed = true;
+              } catch {
+                // still no signal — leave as pending, try again next time
+              }
+            }
+          }
+        }
+      }
+      if (changed) {
+        localStorage.setItem(DB_KEY, JSON.stringify(d));
+        setData(d);
+        pushChangedOnly(d).catch(() => {});
+      }
+    };
+    uploadPending(); // run on load
+    const interval = setInterval(uploadPending, 30000); // and every 30s
+    return () => clearInterval(interval);
   }, []);
 
   // Polling fallback: every 20s, re-check the cloud and drop anything deleted elsewhere.
