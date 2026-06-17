@@ -1876,26 +1876,26 @@ export default function App() {
     <div className="crm-shell" style={{ fontFamily:"'Inter',system-ui,sans-serif", background:"#F8FAFC", minHeight:"100vh", margin:"0 auto" }}>
       <ResponsiveStyles device={device} />
       {/* Header */}
-      <div style={{ background:"#1E3A5F", padding:"10px 16px", position:"sticky", top:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+      <div style={{ background:"#1E3A5F", padding: device==="phone" ? "14px 18px" : "12px 18px", position:"sticky", top:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           {!["dashboard","customers","jobs","invoices","calendar"].includes(view.screen) && (
-            <button onClick={() => setView({ screen:tab })} style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, padding:"4px 8px", color:"#fff", cursor:"pointer", fontSize:18 }}>‹</button>
+            <button onClick={() => setView({ screen:tab })} style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, padding:"8px 12px", color:"#fff", cursor:"pointer", fontSize:22 }}>‹</button>
           )}
-          <img src="/logo.png" alt="Logo" style={{ height:36, width:36, objectFit:"contain", borderRadius:6, background:"#fff", padding:2 }} />
+          <img src="/logo.png" alt="Logo" style={{ height:44, width:44, objectFit:"contain", borderRadius:8, background:"#fff", padding:2 }} />
           <div>
-            <div style={{ fontSize:15, fontWeight:800, color:"#fff", letterSpacing:"-0.02em", lineHeight:1.2 }}>Windscreen Repairs Bristol</div>
-            <div style={{ fontSize:10, color:"#93C5FD", fontWeight:500, letterSpacing:"0.06em", textTransform:"uppercase" }}>Job Management</div>
+            <div style={{ fontSize: device==="phone" ? 17 : 16, fontWeight:800, color:"#fff", letterSpacing:"-0.02em", lineHeight:1.2 }}>Windscreen Repairs Bristol</div>
+            <div style={{ fontSize:11, color:"#93C5FD", fontWeight:500, letterSpacing:"0.06em", textTransform:"uppercase" }}>Job Management</div>
           </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           {notifStatus !== "unsupported" && (
             <button onClick={notifStatus === "granted" ? undefined : requestNotifications}
               title={notifStatus === "granted" ? "Notifications on" : "Tap to enable alerts"}
-              style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, padding:"6px 8px", cursor: notifStatus === "granted" ? "default" : "pointer", fontSize:16, lineHeight:1 }}>
+              style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:8, padding:"8px 11px", cursor: notifStatus === "granted" ? "default" : "pointer", fontSize:20, lineHeight:1 }}>
               {notifStatus === "granted" ? "🔔" : "🔕"}
             </button>
           )}
-          <div style={{ width:8, height:8, borderRadius:"50%",
+          <div style={{ width:10, height:10, borderRadius:"50%",
             background: syncStatus === "synced" ? "#22C55E" : syncStatus === "syncing" ? "#F59E0B" : "#9CA3AF",
             boxShadow: syncStatus === "synced" ? "0 0 6px #22C55E" : "none" }}
             title={syncStatus === "synced" ? "Synced to cloud" : syncStatus === "syncing" ? "Syncing…" : "Offline — saved locally"} />
@@ -1903,7 +1903,7 @@ export default function App() {
       </div>
 
       {/* Content */}
-      <div style={{ padding:"16px 16px 90px" }}>
+      <div style={{ padding:"16px 16px 110px" }}>
         {view.screen==="dashboard"      && <Dashboard      data={data} setView={setView} notifStatus={notifStatus} requestNotifications={requestNotifications} />}
         {view.screen==="customers"      && <CustomersList  data={data} setView={setView} />}
         {view.screen==="customerDetail" && <CustomerDetail data={data} id={view.id} setView={setView} />}
@@ -1923,10 +1923,10 @@ export default function App() {
           const active = tab===t.id;
           return (
             <button key={t.id} onClick={() => { setTab(t.id); setView({ screen:t.id }); }}
-              style={{ flex:1, padding:"10px 0 12px", background:"transparent", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-              <Icon name={t.icon} size={20} color={active?"#1E3A5F":"#9CA3AF"} />
-              <span style={{ fontSize:10, fontWeight:600, color:active?"#1E3A5F":"#9CA3AF", letterSpacing:"0.04em" }}>{t.label}</span>
-              {active && <div style={{ width:16, height:2, borderRadius:99, background:"#F59E0B", marginTop:1 }} />}
+              style={{ flex:1, padding: device==="phone" ? "14px 0 18px" : "12px 0 14px", background:"transparent", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+              <Icon name={t.icon} size={device==="phone" ? 26 : 22} color={active?"#1E3A5F":"#9CA3AF"} />
+              <span style={{ fontSize: device==="phone" ? 12 : 11, fontWeight:600, color:active?"#1E3A5F":"#9CA3AF", letterSpacing:"0.04em" }}>{t.label}</span>
+              {active && <div style={{ width:18, height:2.5, borderRadius:99, background:"#F59E0B", marginTop:2 }} />}
             </button>
           );
         })}
