@@ -1381,7 +1381,7 @@ function InvoicesList({ data, setView, initialFilter }) {
     if (filter==="Unpaid") return !inv.paid;
     if (filter==="Paid")   return  inv.paid;
     return true;
-  }).sort((a,b) => (b.createdAt||"").localeCompare(a.createdAt||""));
+  }).sort((a,b) => (b.job?.date||b.createdAt||"").localeCompare(a.job?.date||a.createdAt||""));
 
   const total = enriched.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
   const pill  = (active) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit", whiteSpace:"nowrap" });
@@ -1406,7 +1406,7 @@ function InvoicesList({ data, setView, initialFilter }) {
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
               <div style={{ fontWeight:700, fontSize:15 }}>{inv.customer?.company||"Unknown"}</div>
-              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.createdAt)}{inv.job?.jobType ? " · " + inv.job.jobType : ""}</div>
+              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.job?.date || inv.createdAt)}{inv.job?.jobType ? " · " + inv.job.jobType : ""}</div>
               {inv.vehicle && <div style={{ fontSize:12, color:"#6B7280", marginTop:1 }}>🚗 {[inv.vehicle.make, inv.vehicle.model, inv.vehicle.reg].filter(Boolean).join(" · ")}</div>}
             </div>
             <div style={{ textAlign:"right" }}>
