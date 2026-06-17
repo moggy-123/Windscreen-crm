@@ -285,7 +285,7 @@ function Btn({ children, onClick, variant="primary", size="md", disabled, style:
   const base = { display:"inline-flex", alignItems:"center", gap:6, borderRadius:8, fontWeight:600, cursor:disabled?"not-allowed":"pointer", border:"none", fontFamily:"inherit", transition:"opacity .15s" };
   const v = { primary:{background:"#1E3A5F",color:"#fff"}, amber:{background:"#F59E0B",color:"#fff"}, ghost:{background:"transparent",color:"#1E3A5F",border:"1.5px solid #1E3A5F"}, danger:{background:"#FEE2E2",color:"#DC2626"} };
   const p = size==="sm" ? { padding:"6px 12px", fontSize:13 } : { padding:"10px 18px", fontSize:14 };
-  return <button style={{ ...base, ...v[variant], ...p, opacity:disabled?.5:1, ...extra }} onClick={onClick} disabled={disabled}>{children}</button>;
+  return <button className={size==="sm" ? "crm-btn-sm" : "crm-btn"} style={{ ...base, ...v[variant], ...p, opacity:disabled?.5:1, ...extra }} onClick={onClick} disabled={disabled}>{children}</button>;
 }
 function Card({ children, onClick, style: extra }) {
   return <div onClick={onClick} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", boxShadow:"0 1px 3px rgba(0,0,0,.07)", marginBottom:10, cursor:onClick?"pointer":"default", border:"1px solid #F3F4F6", ...extra }}>{children}</div>;
@@ -293,7 +293,7 @@ function Card({ children, onClick, style: extra }) {
 function Modal({ title, onClose, children }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:520, maxHeight:"90vh", display:"flex", flexDirection:"column" }}>
+      <div className="crm-shell" style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column" }}>
         <div style={{ padding:"20px 20px 0", flexShrink:0 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
             <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:"#111827" }}>{title}</h3>
@@ -1585,10 +1585,50 @@ function CalendarView({ data, setView }) {
   );
 }
 
+// ── Responsive sizing ─────────────────────────────────────────────────────────
+// One app that adapts: phone (chunkier touch targets), tablet & desktop (roomier).
+function useDeviceType() {
+  const get = () => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 520;
+    if (w >= 1024) return "desktop";
+    if (w >= 700)  return "tablet";
+    return "phone";
+  };
+  const [device, setDevice] = useState(get);
+  useEffect(() => {
+    const onResize = () => setDevice(get());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return device;
+}
+
+// Global CSS tuned per device — bigger inputs/buttons on phone, wider layout on tablet/desktop
+function ResponsiveStyles({ device }) {
+  const css = {
+    phone: `
+      .crm-shell { max-width: 100%; }
+      input, select, textarea { font-size: 16px !important; padding: 14px 14px !important; }
+      .crm-btn { padding: 14px 20px !important; font-size: 16px !important; }
+      .crm-btn-sm { padding: 10px 14px !important; font-size: 14px !important; }
+    `,
+    tablet: `
+      .crm-shell { max-width: 720px; }
+      input, select, textarea { font-size: 15px !important; padding: 12px 14px !important; }
+    `,
+    desktop: `
+      .crm-shell { max-width: 880px; }
+      input, select, textarea { font-size: 15px !important; padding: 11px 14px !important; }
+    `,
+  };
+  return <style>{css[device] || ""}</style>;
+}
+
 export default function App() {
   const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
   const [view, setViewState]        = useState({ screen:"dashboard" });
   const [tab,  setTab]              = useState("dashboard");
+  const device = useDeviceType();
   const [notifStatus, setNotifStatus] = useState(
     "Notification" in window ? Notification.permission : "unsupported"
   );
@@ -1833,7 +1873,8 @@ export default function App() {
   ];
 
   return (
-    <div style={{ fontFamily:"'Inter',system-ui,sans-serif", background:"#F8FAFC", minHeight:"100vh", maxWidth:520, margin:"0 auto" }}>
+    <div className="crm-shell" style={{ fontFamily:"'Inter',system-ui,sans-serif", background:"#F8FAFC", minHeight:"100vh", margin:"0 auto" }}>
+      <ResponsiveStyles device={device} />
       {/* Header */}
       <div style={{ background:"#1E3A5F", padding:"10px 16px", position:"sticky", top:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -1877,7 +1918,7 @@ export default function App() {
       {view.screen==="newJob" && <JobForm data={data} onClose={() => setView({ screen:"jobs" })} />}
 
       {/* Bottom Nav */}
-      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:520, background:"#fff", borderTop:"1px solid #E5E7EB", display:"flex", zIndex:50 }}>
+      <div className="crm-shell" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", background:"#fff", borderTop:"1px solid #E5E7EB", display:"flex", zIndex:50 }}>
         {tabs.map(t => {
           const active = tab===t.id;
           return (
