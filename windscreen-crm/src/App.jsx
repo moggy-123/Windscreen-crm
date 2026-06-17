@@ -415,7 +415,10 @@ function CustomersList({ data, setView }) {
       {filtered.length === 0 && <p style={{ color:"#9CA3AF", textAlign:"center", fontSize:14 }}>No customers found</p>}
       {filtered.map(c => (
         <Card key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}>
-          <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{c.company || c.companyContact || "No name"}</div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+            <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{c.company || c.companyContact || "No name"}</div>
+            {c.onStop && <span style={{ background:"#DC2626", color:"#fff", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:6, whiteSpace:"nowrap", letterSpacing:"0.03em" }}>ON STOP</span>}
+          </div>
           {c.companyContact && <div style={{ fontSize:13, color:"#1E3A5F", fontWeight:600 }}>{c.companyContact}</div>}
           <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.phone}{c.town ? ` · ${c.town}` : ""}{c.postcode ? ` · ${c.postcode}` : ""}</div>
           {c.email && <div style={{ fontSize:12, color:"#9CA3AF" }}>{c.email}</div>}
@@ -438,11 +441,12 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [county,   setCounty]   = useState(editCustomer?.county   || "");
   const [postcode, setPostcode] = useState(editCustomer?.postcode || "");
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
+  const [onStop,   setOnStop]   = useState(editCustomer?.onStop   || false);
 
   async function save() {
     if (!company) return;
     const customers = [...data.customers];
-    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes };
+    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes, onStop };
     if (editCustomer) {
       const idx = customers.findIndex(c => c.id === editCustomer.id);
       customers[idx] = { ...editCustomer, ...rec };
@@ -465,6 +469,12 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
       <Field label="County"><Input value={county} onChange={setCounty} placeholder="Avon" /></Field>
       <Field label="Postcode"><Input value={postcode} onChange={setPostcode} placeholder="BS1 1AA" /></Field>
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
+      <div style={{ marginBottom:14 }}>
+        <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"12px 14px", borderRadius:8, border:`1.5px solid ${onStop ? "#FCA5A5" : "#E5E7EB"}`, background: onStop ? "#FEF2F2" : "#fff" }}>
+          <input type="checkbox" checked={onStop} onChange={e => setOnStop(e.target.checked)} style={{ width:18, height:18 }} />
+          <span style={{ fontSize:14, fontWeight:600, color: onStop ? "#DC2626" : "#374151" }}>🛑 Put account on stop (non-payment)</span>
+        </label>
+      </div>
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!company}>Save Customer</Btn>
     </Modal>
   );
@@ -502,6 +512,11 @@ function CustomerDetail({ data, id, setView }) {
       <div style={{ marginBottom:16 }}>
         <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"customers" })}><Icon name="back" size={14} /> Back</Btn>
       </div>
+      {customer.onStop && (
+        <div style={{ background:"#DC2626", color:"#fff", borderRadius:10, padding:"12px 16px", marginBottom:14, fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:8 }}>
+          🛑 ACCOUNT ON STOP — do not carry out work until paid
+        </div>
+      )}
       <Card>
         <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{customer.company || "No company name"}</div>
         {customer.companyContact && <div style={{ fontSize:14, color:"#374151", marginTop:4 }}>Contact: {customer.companyContact}</div>}
@@ -893,9 +908,17 @@ function JobForm({ data, onClose, editJob }) {
       <Field label="Customer" required>
         <select style={{ ...inputStyle, appearance:"none" }} value={customerId} onChange={e => { setCustomerId(e.target.value); setVehicleId(""); }}>
           <option value="">Select customer…</option>
-          {data.customers.map(c => <option key={c.id} value={c.id}>{c.company || c.companyContact || 'Unnamed'}</option>)}
+          {data.customers.map(c => <option key={c.id} value={c.id}>{c.company || c.companyContact || 'Unnamed'}{c.onStop ? " 🛑" : ""}</option>)}
         </select>
       </Field>
+      {(() => {
+        const cust = data.customers.find(c => c.id === customerId);
+        return cust?.onStop ? (
+          <div style={{ background:"#FEF2F2", border:"1.5px solid #FCA5A5", color:"#DC2626", borderRadius:8, padding:"10px 14px", marginBottom:14, fontWeight:600, fontSize:13 }}>
+            🛑 This customer is ON STOP for non-payment. You can still book the job, but check before carrying out work.
+          </div>
+        ) : null;
+      })()}
       <Field label="Driver / Customer Name"><Input value={driverName} onChange={setDriverName} placeholder="Name of the driver or car owner" /></Field>
       {customerId && (
         <Field label="Vehicle">
@@ -1348,12 +1371,13 @@ function InvoicesList({ data, setView, initialFilter }) {
   const enriched = data.invoices.map(inv => {
     const job      = data.jobs.find(j => j.id === inv.jobId);
     const customer = job ? data.customers.find(c => c.id === job.customerId) : null;
-    return { ...inv, job, customer };
+    const vehicle  = job?.vehicleId ? data.vehicles.find(v => v.id === job.vehicleId) : null;
+    return { ...inv, job, customer, vehicle };
   }).filter(inv => {
     if (filter==="Unpaid") return !inv.paid;
     if (filter==="Paid")   return  inv.paid;
     return true;
-  }).sort((a,b) => b.createdAt?.localeCompare(a.createdAt));
+  }).sort((a,b) => (b.createdAt||"").localeCompare(a.createdAt||""));
 
   const total = enriched.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
   const pill  = (active) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit", whiteSpace:"nowrap" });
@@ -1378,7 +1402,8 @@ function InvoicesList({ data, setView, initialFilter }) {
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
               <div style={{ fontWeight:700, fontSize:15 }}>{inv.customer?.company||"Unknown"}</div>
-              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.createdAt)} · {inv.job?.jobType}</div>
+              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.createdAt)}{inv.job?.jobType ? " · " + inv.job.jobType : ""}</div>
+              {inv.vehicle && <div style={{ fontSize:12, color:"#6B7280", marginTop:1 }}>🚗 {[inv.vehicle.make, inv.vehicle.model, inv.vehicle.reg].filter(Boolean).join(" · ")}</div>}
             </div>
             <div style={{ textAlign:"right" }}>
               <div style={{ fontWeight:800, fontSize:16, color:inv.paid?"#059669":"#1E3A5F" }}>£{parseFloat(inv.total).toFixed(2)}</div>
