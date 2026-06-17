@@ -383,6 +383,10 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
         </Btn>
       </div>
 
+      <div style={{ marginTop:20 }}>
+        <Btn onClick={() => setView({ screen:"reports" })} style={{ width:"100%", justifyContent:"center" }}>📊 View Reports</Btn>
+      </div>
+
       <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
         <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tools</h3>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -1691,6 +1695,101 @@ function ResponsiveStyles({ device }) {
   return <style>{css[device] || ""}</style>;
 }
 
+// ── Reports ───────────────────────────────────────────────────────────────────
+function ReportsView({ data }) {
+  // Build last 12 months (oldest to newest)
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}), year: d.getFullYear() });
+  }
+
+  // Revenue: billed (by invoice created date) and received (by paid date)
+  const billed = {}, received = {}, jobCount = {};
+  months.forEach(m => { billed[m.key]=0; received[m.key]=0; jobCount[m.key]=0; });
+
+  (data.invoices || []).forEach(inv => {
+    const amt = parseFloat(inv.total) || 0;
+    if (inv.createdAt) { const k = inv.createdAt.slice(0,7); if (k in billed) billed[k] += amt; }
+    if (inv.paid && inv.paidDate) { const k = inv.paidDate.slice(0,7); if (k in received) received[k] += amt; }
+  });
+  (data.jobs || []).forEach(j => {
+    if (j.date) { const k = j.date.slice(0,7); if (k in jobCount) jobCount[k] += 1; }
+  });
+
+  const outstanding = (data.invoices || []).filter(i => !i.paid).reduce((s,i) => s+(parseFloat(i.total)||0), 0);
+  const receivedYear = months.reduce((s,m) => s + received[m.key], 0);
+  const billedYear   = months.reduce((s,m) => s + billed[m.key], 0);
+
+  const maxRev = Math.max(1, ...months.map(m => Math.max(billed[m.key], received[m.key])));
+  const maxJobs = Math.max(1, ...months.map(m => jobCount[m.key]));
+
+  const Bar = ({ value, max, color }) => (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", alignItems:"center", height:120 }}>
+      <div style={{ width:"70%", height:`${(value/max)*100}%`, background:color, borderRadius:"3px 3px 0 0", minHeight: value>0?2:0 }} />
+    </div>
+  );
+
+  return (
+    <div>
+      <h2 style={{ margin:"0 0 16px", fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Reports</h2>
+
+      {/* Summary cards */}
+      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+        <div style={{ flex:1, minWidth:100, background:"#ECFDF5", borderRadius:12, padding:14, border:"1px solid #A7F3D0" }}>
+          <div style={{ fontSize:22, fontWeight:800, color:"#059669" }}>£{receivedYear.toFixed(0)}</div>
+          <div style={{ fontSize:11, color:"#047857", fontWeight:600 }}>Received (12 mo)</div>
+        </div>
+        <div style={{ flex:1, minWidth:100, background:"#EFF6FF", borderRadius:12, padding:14, border:"1px solid #BFDBFE" }}>
+          <div style={{ fontSize:22, fontWeight:800, color:"#1D4ED8" }}>£{billedYear.toFixed(0)}</div>
+          <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:600 }}>Billed (12 mo)</div>
+        </div>
+        <div style={{ flex:1, minWidth:100, background:"#FEF2F2", borderRadius:12, padding:14, border:"1px solid #FECACA" }}>
+          <div style={{ fontSize:22, fontWeight:800, color:"#DC2626" }}>£{outstanding.toFixed(0)}</div>
+          <div style={{ fontSize:11, color:"#DC2626", fontWeight:600 }}>Outstanding now</div>
+        </div>
+      </div>
+
+      {/* Revenue chart */}
+      <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+          <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151" }}>Revenue by month</h3>
+          <div style={{ display:"flex", gap:12, fontSize:11 }}>
+            <span style={{ color:"#1D4ED8", fontWeight:600 }}>■ Billed</span>
+            <span style={{ color:"#059669", fontWeight:600 }}>■ Received</span>
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:3, marginTop:10 }}>
+          {months.map(m => (
+            <div key={m.key} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center" }}>
+              <div style={{ display:"flex", gap:1, alignItems:"flex-end", width:"100%", justifyContent:"center" }}>
+                <Bar value={billed[m.key]} max={maxRev} color="#3B82F6" />
+                <Bar value={received[m.key]} max={maxRev} color="#10B981" />
+              </div>
+              <div style={{ fontSize:9, color:"#9CA3AF", marginTop:4 }}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Jobs chart */}
+      <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6" }}>
+        <h3 style={{ margin:"0 0 10px", fontSize:14, fontWeight:700, color:"#374151" }}>Jobs by month</h3>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:3 }}>
+          {months.map(m => (
+            <div key={m.key} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center" }}>
+              <div style={{ fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:2 }}>{jobCount[m.key] || ""}</div>
+              <div style={{ width:"60%", height:`${(jobCount[m.key]/maxJobs)*90}px`, background:"#F59E0B", borderRadius:"3px 3px 0 0", minHeight: jobCount[m.key]>0?2:0 }} />
+              <div style={{ fontSize:9, color:"#9CA3AF", marginTop:4 }}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
   const [view, setViewState]        = useState({ screen:"dashboard" });
@@ -1977,6 +2076,7 @@ export default function App() {
         {view.screen==="vehicleDetail"  && <VehicleDetail  data={data} id={view.id} customerId={view.customerId} setView={setView} />}
         {view.screen==="jobs"           && <JobsList       data={data} setView={setView} initialFilter={view.filter} />}
         {view.screen==="calendar"       && <CalendarView   data={data} setView={setView} device={device} />}
+        {view.screen==="reports"        && <ReportsView    data={data} />}
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
