@@ -167,21 +167,22 @@ async function pushChangedOnly(data) {
   for (const t of tables) {
     const current = data[t.key] || [];
     for (const rec of current) {
-      // A compact signature of the record (excludes photos which aren't synced)
-      // Signature includes photo URLs (small) so photo changes sync, but strips
-      // bulky pending base64 so offline photos don't bloat the signature
       const photoRefs = arr => (arr || []).map(p => p.url || p.id);
       const clean = { ...rec, photosBefore: photoRefs(rec.photosBefore), photosAfter: photoRefs(rec.photosAfter) };
       const sig = JSON.stringify(clean);
-      newSigs[rec.id] = sig;
       if (sigs[rec.id] !== sig) {
         try {
           await pushOne(t.name, rec);
+          newSigs[rec.id] = sig; // only record signature AFTER a successful upload
         } catch (e) {
           failed++;
           lastError = (e?.message || JSON.stringify(e));
+          // Keep the OLD signature (if any) so we retry next time; do NOT mark as uploaded
+          if (sigs[rec.id]) newSigs[rec.id] = sigs[rec.id];
           console.warn("Sync skipped for", t.name, rec.id, e?.message);
         }
+      } else {
+        newSigs[rec.id] = sig; // unchanged and already uploaded
       }
     }
   }
