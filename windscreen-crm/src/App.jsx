@@ -706,10 +706,9 @@ function JobsList({ data, setView, initialFilter }) {
                 </div>
                 {job.driverName && cust?.company && <div style={{ fontSize:13, color:"#374151", fontWeight:600 }}>Driver: {job.driverName}</div>}
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
-                <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
+                <div style={{ fontSize:13, color:"#6B7280" }}>{fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
                 {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && <div style={{ fontSize:11, color:"#6B7280", marginTop:3 }}>📷 {(job.photosBefore?.length||0)} before · {(job.photosAfter?.length||0)} after</div>}
-                {job.adasRequired && <span style={{ fontSize:11, background:"#FEF3C7", color:"#92400E", padding:"1px 7px", borderRadius:99, fontWeight:600 }}>ADAS</span>}
               </div>
               <StatusBadge status={job.status} />
             </div>
@@ -956,9 +955,6 @@ function JobForm({ data, onClose, editJob }) {
         </div>
       </Field>
       <div style={{ display:"flex", gap:10 }}>
-        <div style={{ flex:1 }}><Field label="Job Type"><Select value={jobType} onChange={setJobType} options={JOB_TYPES} /></Field></div>
-      </div>
-      <div style={{ display:"flex", gap:10 }}>
         <div style={{ flex:1 }}><Field label="Status"><Select value={status} onChange={setStatus} options={Object.keys(STATUS_META)} /></Field></div>
       </div>
 
@@ -987,12 +983,6 @@ function JobForm({ data, onClose, editJob }) {
         ))}
         <Btn size="sm" variant="ghost" onClick={addRepair} style={{ width:"100%", justifyContent:"center" }}>+ Add repair</Btn>
       </div>
-      <Field label="ADAS Calibration">
-        <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151" }}>
-          <input type="checkbox" checked={adasRequired} onChange={e => setAdasRequired(e.target.checked)} style={{ width:16, height:16 }} />
-          Required
-        </label>
-      </Field>
       <Field label="Payment Type"><Select value={paymentType} onChange={setPaymentType} options={PAYMENT_TYPES} /></Field>
       {paymentType==="Insurance" && (
         <>
@@ -1108,9 +1098,7 @@ function sendJobCard(job, customer, vehicle, invoice) {
       ${row("Driver", driver)}
       ${row("Vehicle", car)}
       ${row("Location", location)}
-      ${row("Job Type", job.jobType)}
       ${(job.repairs?.length ? job.repairs : [{type:job.damageType,side:job.damageSide,position:job.damagePosition}]).map((r,i) => row(job.repairs?.length>1?`Repair ${i+1}`:"Damage", [r.type, r.side, r.position].filter(Boolean).join(" · "))).join("")}
-      ${job.adasRequired ? row("ADAS", "Required & Completed") : ""}
       ${row("Payment", job.paymentType)}
       ${job.paymentType === "Insurance" ? row("Insurance", [job.insuranceCo, job.claimNo].filter(Boolean).join(" · ")) : ""}
       ${row("Notes", job.notes)}
@@ -1176,7 +1164,7 @@ function addToCalendar(job, customer, vehicle) {
   const car      = vehicle ? `${vehicle.make} ${vehicle.model} ${reg}`.trim() : "";
   const location = [job.locAddress1, job.locAddress2, job.locTown, job.locPostcode].filter(Boolean).join(", ");
 
-  const title    = `${job.jobType} — ${company}${driver ? ` (${driver})` : ""}${car ? ` · ${car}` : ""}`;
+  const title    = `Windscreen Repair — ${company}${driver ? ` (${driver})` : ""}${car ? ` · ${car}` : ""}`;
   const notes    = [
     driver   ? `Driver: ${driver}`   : "",
     car      ? `Vehicle: ${car}`     : "",
@@ -1264,11 +1252,9 @@ function JobDetail({ data, id, setView }) {
         <Row label="Date"         value={fmtDate(job.date)} />
         <Row label="Time"         value={job.jobTime || null} />
         <Row label="Location"     value={[job.locAddress1, job.locAddress2, job.locTown, job.locCounty, job.locPostcode].filter(Boolean).join(", ") || null} />
-        <Row label="Job Type"     value={job.jobType} />
         {(job.repairs?.length ? job.repairs : [{ id:"x", type:job.damageType, side:job.damageSide, position:job.damagePosition }]).map((r, i) => (
           <Row key={r.id || i} label={job.repairs?.length > 1 ? `Repair ${i+1}` : "Damage"} value={[r.type, r.side, r.position].filter(Boolean).join(" · ") || null} />
         ))}
-        <Row label="ADAS"         value={job.adasRequired ? "Required" : null} />
         <Row label="Payment"      value={job.paymentType} />
         <Row label="Insurance Co" value={job.insuranceCo} />
         <Row label="Claim No."    value={job.claimNo} />
