@@ -689,7 +689,10 @@ function JobsList({ data, setView, initialFilter }) {
           <Card key={job.id} onClick={() => setView({ screen:"jobDetail", id:job.id })}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.company || cust?.companyContact || job.driverName || "No Company"}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                  <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.company || cust?.companyContact || job.driverName || "No Company"}</div>
+                  {cust?.onStop && <span style={{ background:"#DC2626", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6, letterSpacing:"0.03em" }}>ON STOP</span>}
+                </div>
                 {job.driverName && cust?.company && <div style={{ fontSize:13, color:"#374151", fontWeight:600 }}>Driver: {job.driverName}</div>}
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{job.jobType} · {fmtDate(job.date)}{job.jobTime ? ` · ${job.jobTime}` : ""}</div>
@@ -1697,15 +1700,46 @@ function ResponsiveStyles({ device }) {
 
 // ── Reports ───────────────────────────────────────────────────────────────────
 function ReportsView({ data }) {
-  // Build last 12 months (oldest to newest)
   const now = new Date();
-  const months = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}), year: d.getFullYear() });
+  // Period mode: "rolling" (last 12 months), or a specific calendar/financial year
+  const [period, setPeriod] = useState("rolling");
+
+  // Build the list of selectable years from the data
+  const allDates = [
+    ...(data.invoices || []).map(i => i.createdAt),
+    ...(data.jobs || []).map(j => j.date),
+  ].filter(Boolean);
+  const yearsPresent = Array.from(new Set(allDates.map(d => parseInt(d.slice(0,4))))).filter(Boolean);
+  const thisYear = now.getFullYear();
+  if (!yearsPresent.includes(thisYear)) yearsPresent.push(thisYear);
+  yearsPresent.sort((a,b) => b - a);
+
+  // Work out the 12 months to show based on the selected period
+  let months = [];
+  if (period === "rolling") {
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}) });
+    }
+  } else if (period.startsWith("cal-")) {
+    const y = parseInt(period.slice(4));
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(y, m, 1);
+      months.push({ key: `${y}-${String(m+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}) });
+    }
+  } else if (period.startsWith("fin-")) {
+    // Financial year April (start) to March (next year)
+    const y = parseInt(period.slice(4));
+    for (let m = 3; m < 12; m++) { // Apr..Dec of start year
+      const d = new Date(y, m, 1);
+      months.push({ key: `${y}-${String(m+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}) });
+    }
+    for (let m = 0; m < 3; m++) { // Jan..Mar of next year
+      const d = new Date(y+1, m, 1);
+      months.push({ key: `${y+1}-${String(m+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}) });
+    }
   }
 
-  // Revenue: billed (by invoice created date) and received (by paid date)
   const billed = {}, received = {}, jobCount = {};
   months.forEach(m => { billed[m.key]=0; received[m.key]=0; jobCount[m.key]=0; });
 
@@ -1719,11 +1753,15 @@ function ReportsView({ data }) {
   });
 
   const outstanding = (data.invoices || []).filter(i => !i.paid).reduce((s,i) => s+(parseFloat(i.total)||0), 0);
-  const receivedYear = months.reduce((s,m) => s + received[m.key], 0);
-  const billedYear   = months.reduce((s,m) => s + billed[m.key], 0);
+  const receivedTotal = months.reduce((s,m) => s + received[m.key], 0);
+  const billedTotal   = months.reduce((s,m) => s + billed[m.key], 0);
 
   const maxRev = Math.max(1, ...months.map(m => Math.max(billed[m.key], received[m.key])));
   const maxJobs = Math.max(1, ...months.map(m => jobCount[m.key]));
+
+  const periodLabel = period === "rolling" ? "Last 12 months"
+    : period.startsWith("cal-") ? `Year ${period.slice(4)}`
+    : `FY ${period.slice(4)}/${(parseInt(period.slice(4))+1).toString().slice(2)}`;
 
   const Bar = ({ value, max, color }) => (
     <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", alignItems:"center", height:120 }}>
@@ -1733,17 +1771,26 @@ function ReportsView({ data }) {
 
   return (
     <div>
-      <h2 style={{ margin:"0 0 16px", fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Reports</h2>
+      <h2 style={{ margin:"0 0 12px", fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Reports</h2>
 
-      {/* Summary cards */}
+      {/* Period selector */}
+      <div style={{ marginBottom:16 }}>
+        <select value={period} onChange={e => setPeriod(e.target.value)}
+          style={{ width:"100%", padding:"12px 14px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:15, fontFamily:"inherit", background:"#fff", appearance:"none" }}>
+          <option value="rolling">Last 12 months</option>
+          {yearsPresent.map(y => <option key={"cal"+y} value={`cal-${y}`}>Calendar year {y}</option>)}
+          {yearsPresent.map(y => <option key={"fin"+y} value={`fin-${y}`}>Financial year {y}/{(y+1).toString().slice(2)} (Apr–Mar)</option>)}
+        </select>
+      </div>
+
       <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
         <div style={{ flex:1, minWidth:100, background:"#ECFDF5", borderRadius:12, padding:14, border:"1px solid #A7F3D0" }}>
-          <div style={{ fontSize:22, fontWeight:800, color:"#059669" }}>£{receivedYear.toFixed(0)}</div>
-          <div style={{ fontSize:11, color:"#047857", fontWeight:600 }}>Received (12 mo)</div>
+          <div style={{ fontSize:22, fontWeight:800, color:"#059669" }}>£{receivedTotal.toFixed(0)}</div>
+          <div style={{ fontSize:11, color:"#047857", fontWeight:600 }}>Received</div>
         </div>
         <div style={{ flex:1, minWidth:100, background:"#EFF6FF", borderRadius:12, padding:14, border:"1px solid #BFDBFE" }}>
-          <div style={{ fontSize:22, fontWeight:800, color:"#1D4ED8" }}>£{billedYear.toFixed(0)}</div>
-          <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:600 }}>Billed (12 mo)</div>
+          <div style={{ fontSize:22, fontWeight:800, color:"#1D4ED8" }}>£{billedTotal.toFixed(0)}</div>
+          <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:600 }}>Billed</div>
         </div>
         <div style={{ flex:1, minWidth:100, background:"#FEF2F2", borderRadius:12, padding:14, border:"1px solid #FECACA" }}>
           <div style={{ fontSize:22, fontWeight:800, color:"#DC2626" }}>£{outstanding.toFixed(0)}</div>
@@ -1751,10 +1798,9 @@ function ReportsView({ data }) {
         </div>
       </div>
 
-      {/* Revenue chart */}
       <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", marginBottom:16 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
-          <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151" }}>Revenue by month</h3>
+          <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151" }}>Revenue · {periodLabel}</h3>
           <div style={{ display:"flex", gap:12, fontSize:11 }}>
             <span style={{ color:"#1D4ED8", fontWeight:600 }}>■ Billed</span>
             <span style={{ color:"#059669", fontWeight:600 }}>■ Received</span>
@@ -1773,9 +1819,8 @@ function ReportsView({ data }) {
         </div>
       </div>
 
-      {/* Jobs chart */}
       <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6" }}>
-        <h3 style={{ margin:"0 0 10px", fontSize:14, fontWeight:700, color:"#374151" }}>Jobs by month</h3>
+        <h3 style={{ margin:"0 0 10px", fontSize:14, fontWeight:700, color:"#374151" }}>Jobs · {periodLabel}</h3>
         <div style={{ display:"flex", alignItems:"flex-end", gap:3 }}>
           {months.map(m => (
             <div key={m.key} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center" }}>
