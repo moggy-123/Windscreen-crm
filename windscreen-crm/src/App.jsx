@@ -1619,8 +1619,8 @@ export default function App() {
               // local-only: keep only if recently created (not yet uploaded)
               // local-only row: keep only if it was never uploaded (genuinely new).
               // If it was uploaded before, its absence from cloud means it was deleted elsewhere.
-              // Never-uploaded local record = pending upload (offline). Keep it regardless of age.
-              if (!wasUploaded(x.id)) byId[x.id] = x;
+              // Local-only record: keep unless tombstoned (filtered above).
+              byId[x.id] = x;
             }
           });
           return Object.values(byId);
@@ -1651,6 +1651,10 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public" }, async (payload) => {
         if (SAVING_IN_PROGRESS) return; // don't interfere with an active save
         try {
+          // If this is a DELETE event, tombstone that exact id so it's removed everywhere
+          if (payload?.eventType === "DELETE" && payload?.old?.id) {
+            addTombstone(payload.old.id);
+          }
           const cloud = await pullFromCloud();
           const local = loadData();
           const deleted = getTombstones();
@@ -1668,8 +1672,8 @@ export default function App() {
                 byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
               } else {
                 // local-only: keep only if genuinely new (never uploaded)
-                // Never-uploaded local record = pending upload (offline). Keep regardless of age.
-                if (!wasUploaded(x.id)) byId[x.id] = x;
+                // Local-only record: keep unless tombstoned (filtered above).
+                byId[x.id] = x;
                 // otherwise it was deleted on another device — drop it
               }
             });
@@ -1753,10 +1757,10 @@ export default function App() {
             if (byId[x.id]) {
               byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
             } else {
-              // local-only row: keep only if it was never uploaded (genuinely new).
-              // If it was uploaded before, its absence from cloud means it was deleted elsewhere.
-              // Never-uploaded local record = pending upload (offline). Keep it regardless of age.
-              if (!wasUploaded(x.id)) byId[x.id] = x; // keep only very recently created local-only rows
+              // Local-only record: keep it. Genuine deletes are handled via tombstones
+              // (filtered above), so anything here is either new, pending upload, or
+              // briefly missing due to replication lag — never drop it on a poll.
+              byId[x.id] = x;
             }
           });
           return Object.values(byId);
