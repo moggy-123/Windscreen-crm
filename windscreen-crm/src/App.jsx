@@ -1468,7 +1468,7 @@ function scheduleNotifications(data) {
 }
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
-function CalendarView({ data, setView }) {
+function CalendarView({ data, setView, device }) {
   const [mode, setMode] = useState("month"); // "month" | "agenda" | "day"
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -1501,6 +1501,8 @@ function CalendarView({ data, setView }) {
     const cells = [];
     for (let i = 0; i < startOffset; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    const cellMinH = device === "phone" ? 52 : device === "tablet" ? 92 : 110;
+    const maxEntries = device === "phone" ? 2 : 4;
     return (
       <div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
@@ -1509,7 +1511,7 @@ function CalendarView({ data, setView }) {
           <Btn size="sm" variant="ghost" onClick={() => setCursor(new Date(year, month+1, 1))}>›</Btn>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:5 }}>
-          {dayNames.map(d => <div key={d} style={{ textAlign:"center", fontSize:12, fontWeight:700, color:"#9CA3AF", padding:"6px 0" }}>{d}</div>)}
+          {dayNames.map(d => <div key={d} style={{ textAlign:"center", fontSize:12, fontWeight:700, color:"#9CA3AF", padding:"6px 0" }}>{device==="phone" ? d[0] : d}</div>)}
           {cells.map((d, i) => {
             if (d === null) return <div key={"e"+i} />;
             const iso = toISO(year, month, d);
@@ -1517,14 +1519,28 @@ function CalendarView({ data, setView }) {
             const isToday = iso === todayISO;
             return (
               <div key={iso} onClick={() => { setSelectedDate(iso); setMode("day"); }}
-                style={{ minHeight:"13vh", borderRadius:10, padding:6, background: isToday ? "#EFF6FF" : "#fff", border: isToday ? "2px solid #2563EB" : "1px solid #F3F4F6", cursor:"pointer", display:"flex", flexDirection:"column" }}>
-                <div style={{ fontSize:15, fontWeight:700, color: isToday ? "#2563EB" : "#374151" }}>{d}</div>
-                {dayJobs.slice(0,4).map(j => (
-                  <div key={j.id} style={{ fontSize:9, fontWeight:600, color:"#fff", background:(STATUS_META[j.status]||STATUS_META.Booked).color, borderRadius:3, padding:"1px 3px", marginTop:2, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
-                    {j.jobTime ? j.jobTime + " " : ""}{custName(j)}
-                  </div>
-                ))}
-                {dayJobs.length > 4 && <div style={{ fontSize:10, color:"#9CA3AF", marginTop:1 }}>+{dayJobs.length-4} more</div>}
+                style={{ minHeight:cellMinH, borderRadius:10, padding:device==="phone"?4:6, background: isToday ? "#EFF6FF" : "#fff", border: isToday ? "2px solid #2563EB" : "1px solid #F3F4F6", cursor:"pointer", display:"flex", flexDirection:"column" }}>
+                <div style={{ fontSize:device==="phone"?13:15, fontWeight:700, color: isToday ? "#2563EB" : "#374151" }}>{d}</div>
+                {device === "phone" ? (
+                  // Compact: coloured dots on phone
+                  dayJobs.length > 0 && (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:2, marginTop:2 }}>
+                      {dayJobs.slice(0,4).map(j => (
+                        <div key={j.id} style={{ width:6, height:6, borderRadius:"50%", background:(STATUS_META[j.status]||STATUS_META.Booked).color }} />
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  // Roomy: job labels on tablet/desktop
+                  <>
+                    {dayJobs.slice(0,maxEntries).map(j => (
+                      <div key={j.id} style={{ fontSize:9, fontWeight:600, color:"#fff", background:(STATUS_META[j.status]||STATUS_META.Booked).color, borderRadius:3, padding:"1px 3px", marginTop:2, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                        {j.jobTime ? j.jobTime + " " : ""}{custName(j)}
+                      </div>
+                    ))}
+                    {dayJobs.length > maxEntries && <div style={{ fontSize:10, color:"#9CA3AF", marginTop:1 }}>+{dayJobs.length-maxEntries} more</div>}
+                  </>
+                )}
               </div>
             );
           })}
@@ -1935,7 +1951,7 @@ export default function App() {
         {view.screen==="customerDetail" && <CustomerDetail data={data} id={view.id} setView={setView} />}
         {view.screen==="vehicleDetail"  && <VehicleDetail  data={data} id={view.id} customerId={view.customerId} setView={setView} />}
         {view.screen==="jobs"           && <JobsList       data={data} setView={setView} initialFilter={view.filter} />}
-        {view.screen==="calendar"       && <CalendarView   data={data} setView={setView} />}
+        {view.screen==="calendar"       && <CalendarView   data={data} setView={setView} device={device} />}
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
