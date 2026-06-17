@@ -1356,12 +1356,12 @@ function InvoicesList({ data, setView, initialFilter }) {
   }).sort((a,b) => b.createdAt?.localeCompare(a.createdAt));
 
   const total = enriched.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
-  const pill  = (active) => ({ padding:"6px 14px", borderRadius:99, fontSize:13, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit" });
+  const pill  = (active) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit", whiteSpace:"nowrap" });
 
   return (
     <div>
       <h2 style={{ margin:"0 0 14px", fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Invoices</h2>
-      <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+      <div style={{ display:"flex", gap:10, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
         {["Unpaid","Paid","All"].map(f => <button key={f} style={pill(filter===f)} onClick={() => setFilter(f)}>{f}</button>)}
       </div>
       {enriched.length > 0 && (
