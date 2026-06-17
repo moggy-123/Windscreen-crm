@@ -651,7 +651,7 @@ function JobsList({ data, setView, initialFilter }) {
     return true;
   }).sort((a,b) => b.date.localeCompare(a.date));
 
-  const pill = (active) => ({ padding:"6px 14px", borderRadius:99, fontSize:13, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit" });
+  const pill = (active) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit", whiteSpace:"nowrap" });
 
   return (
     <div>
@@ -659,7 +659,7 @@ function JobsList({ data, setView, initialFilter }) {
         <h2 style={{ margin:0, fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Jobs</h2>
         <Btn size="sm" onClick={() => setView({ screen:"newJob" })}><Icon name="plus" size={14} /> New</Btn>
       </div>
-      <div style={{ display:"flex", gap:6, marginBottom:14, overflowX:"auto", paddingBottom:4 }}>
+      <div style={{ display:"flex", gap:10, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
         {["Today","Open","Complete","All"].map(f => <button key={f} style={pill(filter===f)} onClick={() => setFilter(f)}>{f}</button>)}
       </div>
       {filtered.length === 0 && <p style={{ color:"#9CA3AF", textAlign:"center", fontSize:14 }}>No jobs found</p>}
@@ -1469,8 +1469,9 @@ function scheduleNotifications(data) {
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
 function CalendarView({ data, setView }) {
-  const [mode, setMode] = useState("month"); // "month" | "agenda"
+  const [mode, setMode] = useState("month"); // "month" | "agenda" | "day"
   const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
 
@@ -1502,30 +1503,68 @@ function CalendarView({ data, setView }) {
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
     return (
       <div>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <Btn size="sm" variant="ghost" onClick={() => setCursor(new Date(year, month-1, 1))}>‹</Btn>
-          <div style={{ fontWeight:800, fontSize:16, color:"#1E3A5F" }}>{monthNames[month]} {year}</div>
+          <div style={{ fontWeight:800, fontSize:18, color:"#1E3A5F" }}>{monthNames[month]} {year}</div>
           <Btn size="sm" variant="ghost" onClick={() => setCursor(new Date(year, month+1, 1))}>›</Btn>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
-          {dayNames.map(d => <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:"#9CA3AF", padding:"4px 0" }}>{d}</div>)}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:5 }}>
+          {dayNames.map(d => <div key={d} style={{ textAlign:"center", fontSize:12, fontWeight:700, color:"#9CA3AF", padding:"6px 0" }}>{d}</div>)}
           {cells.map((d, i) => {
             if (d === null) return <div key={"e"+i} />;
             const iso = toISO(year, month, d);
             const dayJobs = jobsByDate[iso] || [];
             const isToday = iso === todayISO;
             return (
-              <div key={iso} onClick={() => dayJobs.length && setSelectedDay(iso)}
-                style={{ minHeight:54, borderRadius:8, padding:4, background: isToday ? "#EFF6FF" : "#fff", border: isToday ? "1.5px solid #2563EB" : "1px solid #F3F4F6", cursor: dayJobs.length ? "pointer" : "default" }}>
-                <div style={{ fontSize:12, fontWeight:700, color: isToday ? "#2563EB" : "#374151" }}>{d}</div>
-                {dayJobs.slice(0,3).map(j => (
-                  <div key={j.id} style={{ height:4, borderRadius:2, marginTop:2, background: (STATUS_META[j.status]||STATUS_META.Booked).color }} />
+              <div key={iso} onClick={() => { setSelectedDate(iso); setMode("day"); }}
+                style={{ minHeight:"13vh", borderRadius:10, padding:6, background: isToday ? "#EFF6FF" : "#fff", border: isToday ? "2px solid #2563EB" : "1px solid #F3F4F6", cursor:"pointer", display:"flex", flexDirection:"column" }}>
+                <div style={{ fontSize:15, fontWeight:700, color: isToday ? "#2563EB" : "#374151" }}>{d}</div>
+                {dayJobs.slice(0,4).map(j => (
+                  <div key={j.id} style={{ fontSize:9, fontWeight:600, color:"#fff", background:(STATUS_META[j.status]||STATUS_META.Booked).color, borderRadius:3, padding:"1px 3px", marginTop:2, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                    {j.jobTime ? j.jobTime + " " : ""}{custName(j)}
+                  </div>
                 ))}
-                {dayJobs.length > 3 && <div style={{ fontSize:9, color:"#9CA3AF", marginTop:1 }}>+{dayJobs.length-3}</div>}
+                {dayJobs.length > 4 && <div style={{ fontSize:10, color:"#9CA3AF", marginTop:1 }}>+{dayJobs.length-4} more</div>}
               </div>
             );
           })}
         </div>
+      </div>
+    );
+  }
+
+  // ── Day view ──
+  function DayView() {
+    const d = selectedDate || todayISO;
+    const dayJobs = jobsByDate[d] || [];
+    const dt = new Date(d + "T00:00:00");
+    const prevDay = () => { const x = new Date(dt); x.setDate(x.getDate()-1); setSelectedDate(toISO(x.getFullYear(), x.getMonth(), x.getDate())); };
+    const nextDay = () => { const x = new Date(dt); x.setDate(x.getDate()+1); setSelectedDate(toISO(x.getFullYear(), x.getMonth(), x.getDate())); };
+    const weekday = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][dt.getDay()];
+    return (
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <Btn size="sm" variant="ghost" onClick={prevDay}>‹</Btn>
+          <div style={{ textAlign:"center" }}>
+            <div style={{ fontWeight:800, fontSize:17, color:"#1E3A5F" }}>{weekday}</div>
+            <div style={{ fontSize:13, color:"#6B7280" }}>{fmtDate(d)}</div>
+          </div>
+          <Btn size="sm" variant="ghost" onClick={nextDay}>›</Btn>
+        </div>
+        {dayJobs.length === 0 && <p style={{ fontSize:14, color:"#9CA3AF", textAlign:"center", marginTop:30 }}>No jobs on this day</p>}
+        {dayJobs.map(j => (
+          <Card key={j.id} onClick={() => setView({ screen:"jobDetail", id:j.id })}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:16, color:"#1E3A5F" }}>{j.jobTime || "—"}</div>
+                <div style={{ fontWeight:600, fontSize:14, marginTop:2 }}>{custName(j)}</div>
+                <div style={{ fontSize:12, color:"#9CA3AF", marginTop:1 }}>{j.jobType}{j.damageType ? " · " + j.damageType : ""}</div>
+                {(j.locTown || j.locAddress1) && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:1 }}>📍 {[j.locAddress1, j.locTown].filter(Boolean).join(", ")}</div>}
+              </div>
+              <StatusBadge status={j.status} />
+            </div>
+          </Card>
+        ))}
       </div>
     );
   }
@@ -1561,26 +1600,13 @@ function CalendarView({ data, setView }) {
     <div>
       <div style={{ display:"flex", gap:8, marginBottom:16 }}>
         <Btn variant={mode==="month"?"primary":"ghost"} size="sm" onClick={() => setMode("month")} style={{ flex:1, justifyContent:"center" }}>Month</Btn>
+        <Btn variant={mode==="day"?"primary":"ghost"} size="sm" onClick={() => { if (!selectedDate) setSelectedDate(todayISO); setMode("day"); }} style={{ flex:1, justifyContent:"center" }}>Day</Btn>
         <Btn variant={mode==="agenda"?"primary":"ghost"} size="sm" onClick={() => setMode("agenda")} style={{ flex:1, justifyContent:"center" }}>Agenda</Btn>
       </div>
 
-      {mode === "month" ? <MonthGrid /> : <Agenda />}
-
-      {selectedDay && (
-        <Modal title={fmtDate(selectedDay)} onClose={() => setSelectedDay(null)}>
-          {(jobsByDate[selectedDay] || []).map(j => (
-            <Card key={j.id} onClick={() => { setSelectedDay(null); setView({ screen:"jobDetail", id:j.id }); }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
-                  <div style={{ fontWeight:600, fontSize:14 }}>{j.jobTime ? j.jobTime + " · " : ""}{custName(j)}</div>
-                  <div style={{ fontSize:12, color:"#9CA3AF" }}>{j.jobType}{j.damageType ? " · " + j.damageType : ""}</div>
-                </div>
-                <StatusBadge status={j.status} />
-              </div>
-            </Card>
-          ))}
-        </Modal>
-      )}
+      {mode === "month" && <MonthGrid />}
+      {mode === "day" && <DayView />}
+      {mode === "agenda" && <Agenda />}
     </div>
   );
 }
