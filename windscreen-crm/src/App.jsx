@@ -402,26 +402,35 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
 function CustomersList({ data, setView }) {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const filtered = data.customers.filter(c =>
-    c.company?.toLowerCase().includes(search.toLowerCase()) ||
-    c.companyContact?.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone?.includes(search) ||
-    c.postcode?.toLowerCase().includes(search.toLowerCase()) ||
-    c.town?.toLowerCase().includes(search.toLowerCase())
-  );
+  const [hidePrivate, setHidePrivate] = useState(false);
+  const filtered = data.customers.filter(c => {
+    if (hidePrivate && c.custType === "Private") return false;
+    return (
+      c.company?.toLowerCase().includes(search.toLowerCase()) ||
+      c.companyContact?.toLowerCase().includes(search.toLowerCase()) ||
+      c.phone?.includes(search) ||
+      c.postcode?.toLowerCase().includes(search.toLowerCase()) ||
+      c.town?.toLowerCase().includes(search.toLowerCase())
+    );
+  });
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
         <h2 style={{ margin:0, fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Customers</h2>
         <Btn size="sm" onClick={() => setShowForm(true)}><Icon name="plus" size={14} /> Add</Btn>
       </div>
-      <input style={{ ...inputStyle, marginBottom:12 }} placeholder="Search name, phone, town, postcode…" value={search} onChange={e => setSearch(e.target.value)} />
+      <input style={{ ...inputStyle, marginBottom:10 }} placeholder="Search name, phone, town, postcode…" value={search} onChange={e => setSearch(e.target.value)} />
+      <button onClick={() => setHidePrivate(v => !v)}
+        style={{ marginBottom:12, padding:"10px 16px", borderRadius:99, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", background: hidePrivate ? "#1E3A5F" : "#F3F4F6", color: hidePrivate ? "#fff" : "#6B7280", fontFamily:"inherit" }}>
+        {hidePrivate ? "✓ Hiding private (showing trade only)" : "Hide private customers"}
+      </button>
       {filtered.length === 0 && <p style={{ color:"#9CA3AF", textAlign:"center", fontSize:14 }}>No customers found</p>}
       {filtered.map(c => (
         <Card key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
             <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{c.company || c.companyContact || "No name"}</div>
             {c.onStop && <span style={{ background:"#DC2626", color:"#fff", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:6, whiteSpace:"nowrap", letterSpacing:"0.03em" }}>ON STOP</span>}
+            {c.custType === "Private" && !c.onStop && <span style={{ background:"#E5E7EB", color:"#6B7280", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:6, whiteSpace:"nowrap" }}>PRIVATE</span>}
           </div>
           {c.companyContact && <div style={{ fontSize:13, color:"#1E3A5F", fontWeight:600 }}>{c.companyContact}</div>}
           <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.phone}{c.town ? ` · ${c.town}` : ""}{c.postcode ? ` · ${c.postcode}` : ""}</div>
@@ -446,11 +455,12 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [postcode, setPostcode] = useState(editCustomer?.postcode || "");
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
   const [onStop,   setOnStop]   = useState(editCustomer?.onStop   || false);
+  const [custType, setCustType] = useState(editCustomer?.custType || "Trade");
 
   async function save() {
     if (!company) return;
     const customers = [...data.customers];
-    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes, onStop };
+    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes, onStop, custType };
     if (editCustomer) {
       const idx = customers.findIndex(c => c.id === editCustomer.id);
       customers[idx] = { ...editCustomer, ...rec };
@@ -464,6 +474,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     <Modal title={editCustomer ? "Edit Customer" : "New Customer"} onClose={onClose}>
       <div style={{ marginTop:8 }} />
       <Field label="Company Name" required><Input value={company} onChange={setCompany} placeholder="Acme Ltd" /></Field>
+      <Field label="Customer Type"><Select value={custType} onChange={setCustType} options={["Trade","Private"]} /></Field>
       <Field label="Company Contact"><Input value={companyContact} onChange={setCompanyContact} placeholder="Contact name at company" /></Field>
       <Field label="Phone"><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
       <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
@@ -1721,6 +1732,16 @@ function ReportsView({ data }) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({ key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}) });
     }
+  } else if (period === "all") {
+    // From the earliest record's month to now
+    const earliest = allDates.length ? allDates.reduce((a,b) => a < b ? a : b) : `${now.getFullYear()}-01`;
+    const [ey, em] = earliest.slice(0,7).split("-").map(Number);
+    let d = new Date(ey, em-1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 1);
+    while (d <= end) {
+      months.push({ key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`, label: d.toLocaleDateString("en-GB",{month:"short"}) + (d.getMonth()===0 ? " " + String(d.getFullYear()).slice(2) : "") });
+      d = new Date(d.getFullYear(), d.getMonth()+1, 1);
+    }
   } else if (period.startsWith("cal-")) {
     const y = parseInt(period.slice(4));
     for (let m = 0; m < 12; m++) {
@@ -1760,6 +1781,7 @@ function ReportsView({ data }) {
   const maxJobs = Math.max(1, ...months.map(m => jobCount[m.key]));
 
   const periodLabel = period === "rolling" ? "Last 12 months"
+    : period === "all" ? "All time"
     : period.startsWith("cal-") ? `Year ${period.slice(4)}`
     : `FY ${period.slice(4)}/${(parseInt(period.slice(4))+1).toString().slice(2)}`;
 
@@ -1778,6 +1800,7 @@ function ReportsView({ data }) {
         <select value={period} onChange={e => setPeriod(e.target.value)}
           style={{ width:"100%", padding:"12px 14px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:15, fontFamily:"inherit", background:"#fff", appearance:"none" }}>
           <option value="rolling">Last 12 months</option>
+          <option value="all">All time</option>
           {yearsPresent.map(y => <option key={"cal"+y} value={`cal-${y}`}>Calendar year {y}</option>)}
           {yearsPresent.map(y => <option key={"fin"+y} value={`fin-${y}`}>Financial year {y}/{(y+1).toString().slice(2)} (Apr–Mar)</option>)}
         </select>
