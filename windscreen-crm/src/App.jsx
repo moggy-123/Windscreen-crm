@@ -1618,8 +1618,8 @@ export default function App() {
               // local-only: keep only if recently created (not yet uploaded)
               // local-only row: keep only if it was never uploaded (genuinely new).
               // If it was uploaded before, its absence from cloud means it was deleted elsewhere.
-              const age = now - (x.updatedAt || 0);
-              if (!wasUploaded(x.id) && age < 60000) byId[x.id] = x;
+              // Never-uploaded local record = pending upload (offline). Keep it regardless of age.
+              if (!wasUploaded(x.id)) byId[x.id] = x;
             }
           });
           return Object.values(byId);
@@ -1667,8 +1667,8 @@ export default function App() {
                 byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
               } else {
                 // local-only: keep only if genuinely new (never uploaded)
-                const age = now - (x.updatedAt || 0);
-                if (!wasUploaded(x.id) && age < 60000) byId[x.id] = x;
+                // Never-uploaded local record = pending upload (offline). Keep regardless of age.
+                if (!wasUploaded(x.id)) byId[x.id] = x;
                 // otherwise it was deleted on another device — drop it
               }
             });
@@ -1724,6 +1724,16 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // When the connection comes back, immediately push any pending (offline-created) records
+  useEffect(() => {
+    const onBackOnline = () => {
+      const d = loadData();
+      pushChangedOnly(d).catch(() => {});
+    };
+    window.addEventListener("online", onBackOnline);
+    return () => window.removeEventListener("online", onBackOnline);
+  }, []);
+
   // Polling fallback: every 20s, re-check the cloud and drop anything deleted elsewhere.
   // This catches deletes that realtime doesn't reliably broadcast.
   useEffect(() => {
@@ -1744,8 +1754,8 @@ export default function App() {
             } else {
               // local-only row: keep only if it was never uploaded (genuinely new).
               // If it was uploaded before, its absence from cloud means it was deleted elsewhere.
-              const age = now - (x.updatedAt || 0);
-              if (!wasUploaded(x.id) && age < 60000) byId[x.id] = x; // keep only very recently created local-only rows
+              // Never-uploaded local record = pending upload (offline). Keep it regardless of age.
+              if (!wasUploaded(x.id)) byId[x.id] = x; // keep only very recently created local-only rows
             }
           });
           return Object.values(byId);
@@ -1760,6 +1770,8 @@ export default function App() {
         const before = JSON.stringify(local.customers?.length) + local.jobs?.length + local.vehicles?.length + local.invoices?.length;
         const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length;
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
+        // Push any local records that haven't been uploaded yet (e.g. created offline)
+        pushChangedOnly(merged).catch(() => {});
         // Only re-render if something actually changed, to avoid disrupting typing
         setData(prev => {
           const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0);
