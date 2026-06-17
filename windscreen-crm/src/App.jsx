@@ -402,7 +402,7 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
 function CustomersList({ data, setView }) {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [hidePrivate, setHidePrivate] = useState(false);
+  const [hidePrivate, setHidePrivate] = useState(true);
   const filtered = data.customers.filter(c => {
     if (hidePrivate && c.custType === "Private") return false;
     return (
