@@ -1766,7 +1766,11 @@ function ReportsView({ data }) {
 
   (data.invoices || []).forEach(inv => {
     const amt = parseFloat(inv.total) || 0;
-    if (inv.createdAt) { const k = inv.createdAt.slice(0,7); if (k in billed) billed[k] += amt; }
+    // Bucket "billed" by the JOB date (when work was done), falling back to invoice date
+    const job = (data.jobs || []).find(j => j.id === inv.jobId);
+    const billedDate = job?.date || inv.createdAt;
+    if (billedDate) { const k = billedDate.slice(0,7); if (k in billed) billed[k] += amt; }
+    // "Received" stays bucketed by the date it was actually paid
     if (inv.paid && inv.paidDate) { const k = inv.paidDate.slice(0,7); if (k in received) received[k] += amt; }
   });
   (data.jobs || []).forEach(j => {
