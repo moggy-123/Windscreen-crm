@@ -481,15 +481,30 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [custType, setCustType] = useState(editCustomer?.custType || "Trade");
   const [followUpDate, setFollowUpDate] = useState(editCustomer?.followUpDate || "");
   const [followUpNote, setFollowUpNote] = useState(editCustomer?.followUpNote || "");
-  const [contacts, setContacts] = useState(editCustomer?.contacts || []);
-  const addContact    = () => setContacts(cs => [...cs, { id: uid(), name:"", role:"Director", phone:"", email:"" }]);
+  // Unified contacts list. One contact is flagged main:true. For existing customers
+  // without a contacts list yet, seed it from their old single company-contact fields.
+  const [contacts, setContacts] = useState(() => {
+    if (editCustomer?.contacts?.length) return editCustomer.contacts;
+    if (editCustomer) return [{ id: uid(), name: editCustomer.companyContact || "", role: "Main Contact", phone: editCustomer.phone || "", email: editCustomer.email || "", main: true }];
+    return [{ id: uid(), name:"", role:"Main Contact", phone:"", email:"", main:true }];
+  });
+  const addContact    = () => setContacts(cs => [...cs, { id: uid(), name:"", role:"Director", phone:"", email:"", main: cs.length===0 }]);
   const updateContact = (id, field, value) => setContacts(cs => cs.map(c => c.id === id ? { ...c, [field]: value } : c));
-  const removeContact = (id) => setContacts(cs => cs.filter(c => c.id !== id));
+  const removeContact = (id) => setContacts(cs => {
+    const filtered = cs.filter(c => c.id !== id);
+    // If we removed the main contact, make the first remaining one main
+    if (!filtered.some(c => c.main) && filtered.length) filtered[0].main = true;
+    return filtered;
+  });
+  const setMainContact = (id) => setContacts(cs => cs.map(c => ({ ...c, main: c.id === id })));
 
   async function save() {
     if (!company) return;
     const customers = [...data.customers];
-    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes, onStop, custType, followUpDate, followUpNote, contacts };
+    // Keep the legacy single fields in sync with whoever is the main contact,
+    // so customer cards, dropdowns and call buttons keep working.
+    const main = contacts.find(c => c.main) || contacts[0] || {};
+    const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, followUpDate, followUpNote, contacts };
     if (editCustomer) {
       const idx = customers.findIndex(c => c.id === editCustomer.id);
       customers[idx] = { ...editCustomer, ...rec };
@@ -504,20 +519,26 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
       <div style={{ marginTop:8 }} />
       <Field label="Company Name" required><Input value={company} onChange={setCompany} placeholder="Acme Ltd" /></Field>
       <Field label="Customer Type"><Select value={custType} onChange={setCustType} options={["Trade","Private"]} /></Field>
-      <Field label="Company Contact"><Input value={companyContact} onChange={setCompanyContact} placeholder="Contact name at company" /></Field>
-      <Field label="Phone"><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
-      <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
+      {custType === "Private" && (
+        <>
+          <Field label="Contact Name"><Input value={companyContact} onChange={setCompanyContact} placeholder="Contact name" /></Field>
+          <Field label="Phone"><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
+          <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
+        </>
+      )}
       {custType === "Trade" && (
         <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:10, padding:12, marginBottom:14 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:"#1E3A5F", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>Additional Contacts</div>
+          <div style={{ fontSize:12, fontWeight:700, color:"#1E3A5F", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>Contacts</div>
           {contacts.map((ct, idx) => (
-            <div key={ct.id} style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:8, padding:10, marginBottom:8 }}>
+            <div key={ct.id} style={{ background:"#fff", border: ct.main ? "1.5px solid #F59E0B" : "1px solid #F3F4F6", borderRadius:8, padding:10, marginBottom:8 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                <span style={{ fontSize:12, fontWeight:700, color:"#1E3A5F" }}>Contact {idx + 1}</span>
-                <button onClick={() => removeContact(ct.id)} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:600, cursor:"pointer" }}>Remove</button>
+                <button onClick={() => setMainContact(ct.id)} style={{ background: ct.main ? "#FEF3C7" : "#F3F4F6", color: ct.main ? "#92400E" : "#6B7280", border:"none", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                  {ct.main ? "★ Main contact" : "☆ Set as main"}
+                </button>
+                {contacts.length > 1 && <button onClick={() => removeContact(ct.id)} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:600, cursor:"pointer" }}>Remove</button>}
               </div>
               <div style={{ marginBottom:6 }}><Input value={ct.name} onChange={v => updateContact(ct.id, "name", v)} placeholder="Contact name" /></div>
-              <div style={{ marginBottom:6 }}><Select value={ct.role} onChange={v => updateContact(ct.id, "role", v)} options={["Director","Owner","Manager","Salesman","Mechanic","Accounts","Other"]} /></div>
+              <div style={{ marginBottom:6 }}><Select value={ct.role} onChange={v => updateContact(ct.id, "role", v)} options={["Main Contact","Director","Owner","Manager","Salesman","Mechanic","Accounts","Other"]} /></div>
               <div style={{ marginBottom:6 }}><Input value={ct.phone} onChange={v => updateContact(ct.id, "phone", v)} placeholder="Phone" type="tel" /></div>
               <Input value={ct.email} onChange={v => updateContact(ct.id, "email", v)} placeholder="Email" type="email" />
             </div>
@@ -657,11 +678,11 @@ function CustomerDetail({ data, id, setView }) {
       {customer.contacts?.length > 0 && (
         <div style={{ marginTop:16 }}>
           <h3 style={{ margin:"0 0 8px", fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Contacts</h3>
-          {customer.contacts.map(ct => (
+          {[...customer.contacts].sort((a,b) => (b.main?1:0)-(a.main?1:0)).map(ct => (
             <Card key={ct.id}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
                 <div>
-                  <div style={{ fontWeight:700, fontSize:15, color:"#1E3A5F" }}>{ct.name || "Unnamed"}</div>
+                  <div style={{ fontWeight:700, fontSize:15, color:"#1E3A5F" }}>{ct.name || "Unnamed"} {ct.main && <span style={{ fontSize:11, color:"#92400E", background:"#FEF3C7", padding:"2px 7px", borderRadius:6, fontWeight:700 }}>★ Main</span>}</div>
                   {ct.role && <div style={{ fontSize:12, color:"#6B7280", fontWeight:600 }}>{ct.role}</div>}
                   {ct.phone && <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{ct.phone}</div>}
                   {ct.email && <div style={{ fontSize:12, color:"#9CA3AF" }}>{ct.email}</div>}
