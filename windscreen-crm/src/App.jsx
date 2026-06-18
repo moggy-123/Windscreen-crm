@@ -526,6 +526,39 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   );
 }
 
+// ── Repair Terms message (Text / WhatsApp) ────────────────────────────────────
+function RepairTermsModal({ customer, onClose }) {
+  const [price, setPrice] = useState("40.00");
+
+  const message =
+`The cost of the repair is £${price}. Please bear in mind it's not a cosmetic repair, the main purpose is to restore strength and integrity to the screen. There is also a slight chance during the repair that the screen can crack due to various conditions, we can NOT be held liable if a crack developed during or after the repair.
+
+Please reply if you are happy for me to carry out the repair knowing the points above.`;
+
+  // Normalise UK number for WhatsApp (needs international format, no leading 0)
+  const waNumber = (customer.phone || "").replace(/[^0-9]/g, "").replace(/^0/, "44");
+  const smsLink = `sms:${customer.phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(message)}`;
+  const waLink  = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+
+  return (
+    <Modal title="Send Repair Terms" onClose={onClose}>
+      <Field label="Repair Price (£)"><Input type="number" value={price} onChange={setPrice} placeholder="40.00" /></Field>
+      <div style={{ background:"#F9FAFB", borderRadius:8, padding:"12px 14px", marginBottom:16, fontSize:13, color:"#374151", whiteSpace:"pre-wrap", lineHeight:1.5, maxHeight:200, overflowY:"auto" }}>
+        {message}
+      </div>
+      <div style={{ display:"flex", gap:8 }}>
+        <a href={waLink} target="_blank" rel="noreferrer" style={{ textDecoration:"none", flex:1 }}>
+          <Btn style={{ width:"100%", justifyContent:"center", background:"#25D366" }}>💬 WhatsApp</Btn>
+        </a>
+        <a href={smsLink} style={{ textDecoration:"none", flex:1 }}>
+          <Btn variant="primary" style={{ width:"100%", justifyContent:"center" }}>✉️ Text</Btn>
+        </a>
+      </div>
+      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:10, textAlign:"center" }}>Opens your messaging app with the text ready to send</p>
+    </Modal>
+  );
+}
+
 // ── Customer Detail ───────────────────────────────────────────────────────────
 function CustomerDetail({ data, id, setView }) {
   const customer = data.customers.find(c => c.id === id);
@@ -533,6 +566,7 @@ function CustomerDetail({ data, id, setView }) {
   const jobs     = data.jobs.filter(j => j.customerId === id).sort((a,b) => b.date.localeCompare(a.date));
   const [showEdit, setShowEdit]       = useState(false);
   const [showVehicle, setShowVehicle] = useState(false);
+  const [showTerms, setShowTerms]     = useState(false);
   if (!customer) return <p>Not found</p>;
 
   const addrParts = [customer.address1, customer.address2, customer.town, customer.county, customer.postcode].filter(Boolean);
@@ -591,10 +625,12 @@ function CustomerDetail({ data, id, setView }) {
               <Btn size="sm" variant="ghost">✉️ Email</Btn>
             </a>
           )}
+          {customer.phone && <Btn size="sm" variant="ghost" onClick={() => setShowTerms(true)}>💬 Send Terms</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
       </Card>
+      {showTerms && <RepairTermsModal customer={customer} onClose={() => setShowTerms(false)} />}
 
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", margin:"16px 0 8px" }}>
         <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Vehicles</h3>
