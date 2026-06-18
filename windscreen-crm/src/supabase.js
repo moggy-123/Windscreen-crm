@@ -15,6 +15,7 @@ const customerToDb = c => ({
   cust_type: c.custType || "Trade",
   follow_up_date: c.followUpDate || null,
   follow_up_note: c.followUpNote || "",
+  contacts: c.contacts || [],
   updated_at: c.updatedAt || Date.now(),
   created_at: c.createdAt || new Date().toISOString(),
 });
@@ -26,6 +27,7 @@ const customerFromDb = r => ({
   custType: r.cust_type || "Trade",
   followUpDate: r.follow_up_date || "",
   followUpNote: r.follow_up_note || "",
+  contacts: r.contacts || [],
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
