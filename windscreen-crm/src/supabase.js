@@ -13,6 +13,8 @@ const customerToDb = c => ({
   town: c.town, county: c.county, postcode: c.postcode, notes: c.notes,
   on_stop: !!c.onStop,
   cust_type: c.custType || "Trade",
+  follow_up_date: c.followUpDate || null,
+  follow_up_note: c.followUpNote || "",
   updated_at: c.updatedAt || Date.now(),
   created_at: c.createdAt || new Date().toISOString(),
 });
@@ -22,6 +24,8 @@ const customerFromDb = r => ({
   town: r.town, county: r.county, postcode: r.postcode, notes: r.notes,
   onStop: r.on_stop,
   custType: r.cust_type || "Trade",
+  followUpDate: r.follow_up_date || "",
+  followUpNote: r.follow_up_note || "",
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
