@@ -322,6 +322,10 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
   const openJobs = data.jobs.filter(j => !["Paid","Complete"].includes(j.status));
   const unpaidInvoices = data.invoices.filter(i => !i.paid);
   const unpaidTotal = unpaidInvoices.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
+  // Follow-ups due today or overdue
+  const dueFollowUps = data.customers
+    .filter(c => c.followUpDate && c.followUpDate <= todayStr)
+    .sort((a,b) => a.followUpDate.localeCompare(b.followUpDate));
 
   const StatCard = ({ label, value, color, sub, onClick }) => (
     <div onClick={onClick} style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", boxShadow:"0 1px 3px rgba(0,0,0,.07)", flex:1, minWidth:100, cursor: onClick ? "pointer" : "default" }}>
@@ -356,6 +360,25 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
         <StatCard label="Open Jobs" value={openJobs.length} color="#D97706" onClick={() => setView({ screen:"jobs", filter:"Open" })} />
         <StatCard label="Outstanding" value={`£${unpaidTotal.toFixed(0)}`} color="#059669" sub={`${unpaidInvoices.length} invoices`} onClick={() => setView({ screen:"invoices", filter:"Unpaid" })} />
       </div>
+      {dueFollowUps.length > 0 && (
+        <div style={{ marginBottom:20 }}>
+          <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📞 Follow-ups Due</h3>
+          {dueFollowUps.map(c => (
+            <Card key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:15, color:"#1E3A5F" }}>{c.company || c.companyContact || "Customer"}</div>
+                  {c.followUpNote && <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.followUpNote}</div>}
+                  <div style={{ fontSize:12, color: c.followUpDate < todayStr ? "#DC2626" : "#D97706", fontWeight:600, marginTop:2 }}>
+                    {c.followUpDate < todayStr ? "⚠️ Overdue · " : "Due today · "}{fmtDate(c.followUpDate)}
+                  </div>
+                </div>
+                {c.phone && <a href={`tel:${c.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#1E3A5F", color:"#fff", borderRadius:8, padding:"10px 14px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>📞 Call</a>}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
       <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Today's Jobs</h3>
       {todayJobs.length === 0 && <Card><p style={{ margin:0, color:"#9CA3AF", fontSize:14, textAlign:"center" }}>No jobs scheduled today</p></Card>}
       {todayJobs.map(job => {
@@ -456,11 +479,13 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
   const [onStop,   setOnStop]   = useState(editCustomer?.onStop   || false);
   const [custType, setCustType] = useState(editCustomer?.custType || "Trade");
+  const [followUpDate, setFollowUpDate] = useState(editCustomer?.followUpDate || "");
+  const [followUpNote, setFollowUpNote] = useState(editCustomer?.followUpNote || "");
 
   async function save() {
     if (!company) return;
     const customers = [...data.customers];
-    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes, onStop, custType };
+    const rec = { company, companyContact, phone, email, address1, address2, town, county, postcode, notes, onStop, custType, followUpDate, followUpNote };
     if (editCustomer) {
       const idx = customers.findIndex(c => c.id === editCustomer.id);
       customers[idx] = { ...editCustomer, ...rec };
@@ -484,6 +509,12 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
       <Field label="County"><Input value={county} onChange={setCounty} placeholder="Avon" /></Field>
       <Field label="Postcode"><Input value={postcode} onChange={setPostcode} placeholder="BS1 1AA" /></Field>
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
+      <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:10, padding:12, marginBottom:14 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:"#1E3A5F", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>📞 Follow-up Reminder</div>
+        <Field label="Call back on"><Input type="date" value={followUpDate} onChange={setFollowUpDate} /></Field>
+        <Field label="About"><Input value={followUpNote} onChange={setFollowUpNote} placeholder="e.g. screen repair Monday" /></Field>
+        {followUpDate && <button onClick={() => { setFollowUpDate(""); setFollowUpNote(""); }} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Clear reminder</button>}
+      </div>
       <div style={{ marginBottom:14 }}>
         <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"12px 14px", borderRadius:8, border:`1.5px solid ${onStop ? "#FCA5A5" : "#E5E7EB"}`, background: onStop ? "#FEF2F2" : "#fff" }}>
           <input type="checkbox" checked={onStop} onChange={e => setOnStop(e.target.checked)} style={{ width:18, height:18 }} />
@@ -530,6 +561,12 @@ function CustomerDetail({ data, id, setView }) {
       {customer.onStop && (
         <div style={{ background:"#DC2626", color:"#fff", borderRadius:10, padding:"12px 16px", marginBottom:14, fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:8 }}>
           🛑 ACCOUNT ON STOP — do not carry out work until paid
+        </div>
+      )}
+      {customer.followUpDate && (
+        <div style={{ background:"#FFF7ED", border:"1px solid #FED7AA", borderRadius:10, padding:"12px 16px", marginBottom:14, fontSize:14 }}>
+          <span style={{ fontWeight:700, color:"#92400E" }}>📞 Follow up {fmtDate(customer.followUpDate)}</span>
+          {customer.followUpNote && <span style={{ color:"#B45309" }}> — {customer.followUpNote}</span>}
         </div>
       )}
       <Card>
