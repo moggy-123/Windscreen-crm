@@ -461,7 +461,7 @@ function CustomersList({ data, setView }) {
       c.postcode?.toLowerCase().includes(search.toLowerCase()) ||
       c.town?.toLowerCase().includes(search.toLowerCase())
     );
-  });
+  }).sort((a,b) => (a.company || a.companyContact || "").localeCompare(b.company || b.companyContact || "", undefined, { sensitivity:"base" }));
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
@@ -1026,6 +1026,8 @@ function LocationPopup({ customerId, data, initial, onSave, onClose }) {
 // ── Job Form ──────────────────────────────────────────────────────────────────
 function JobForm({ data, onClose, editJob }) {
   const [customerId,    setCustomerId]    = useState(editJob?.customerId    || "");
+  const [custSearch,    setCustSearch]    = useState("");
+  const [custDropOpen,  setCustDropOpen]  = useState(false);
   const [driverName,    setDriverName]    = useState(editJob?.driverName    || "");
   const [vehicleId,     setVehicleId]     = useState(editJob?.vehicleId     || "");
   const [date,          setDate]          = useState(editJob?.date          || todayISO());
@@ -1087,10 +1089,37 @@ function JobForm({ data, onClose, editJob }) {
     <>
     <Modal title={editJob ? "Edit Job" : "New Job"} onClose={onClose}>
       <Field label="Customer" required>
-        <select style={{ ...inputStyle, appearance:"none" }} value={customerId} onChange={e => { setCustomerId(e.target.value); setVehicleId(""); }}>
-          <option value="">Select customer…</option>
-          {data.customers.map(c => <option key={c.id} value={c.id}>{c.company || c.companyContact || 'Unnamed'}{c.onStop ? " 🛑" : ""}</option>)}
-        </select>
+        {(() => {
+          const selected = data.customers.find(c => c.id === customerId);
+          const sortedCusts = [...data.customers].sort((a,b) => (a.company || a.companyContact || "").localeCompare(b.company || b.companyContact || "", undefined, { sensitivity:"base" }));
+          const matches = custSearch.trim()
+            ? sortedCusts.filter(c => (c.company || "").toLowerCase().includes(custSearch.toLowerCase()) || (c.companyContact || "").toLowerCase().includes(custSearch.toLowerCase()) || (c.phone || "").includes(custSearch) || (c.town || "").toLowerCase().includes(custSearch.toLowerCase()))
+            : sortedCusts;
+          if (customerId && !custDropOpen) {
+            // Show the selected customer with a change button
+            return (
+              <div style={{ display:"flex", alignItems:"center", gap:8, ...inputStyle, cursor:"default" }}>
+                <span style={{ flex:1, fontWeight:600 }}>{selected ? (selected.company || selected.companyContact || "Unnamed") : "Select customer…"}{selected?.onStop ? " 🛑" : ""}</span>
+                <button onClick={() => { setCustDropOpen(true); setCustSearch(""); }} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Change</button>
+              </div>
+            );
+          }
+          return (
+            <div>
+              <input autoFocus style={{ ...inputStyle, marginBottom:6 }} placeholder="Search customer by name, phone, town…" value={custSearch} onChange={e => setCustSearch(e.target.value)} />
+              <div style={{ maxHeight:220, overflowY:"auto", border:"1px solid #E5E7EB", borderRadius:8 }}>
+                {matches.length === 0 && <div style={{ padding:12, fontSize:13, color:"#9CA3AF" }}>No customers found</div>}
+                {matches.map(c => (
+                  <div key={c.id} onClick={() => { setCustomerId(c.id); setVehicleId(""); setCustDropOpen(false); setCustSearch(""); }}
+                    style={{ padding:"10px 12px", borderBottom:"1px solid #F3F4F6", cursor:"pointer", fontSize:14, background: c.id===customerId ? "#EFF6FF" : "#fff" }}>
+                    <div style={{ fontWeight:600 }}>{c.company || c.companyContact || "Unnamed"}{c.onStop ? " 🛑" : ""}</div>
+                    {(c.town || c.phone) && <div style={{ fontSize:12, color:"#9CA3AF" }}>{[c.town, c.phone].filter(Boolean).join(" · ")}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </Field>
       {(() => {
         const cust = data.customers.find(c => c.id === customerId);
