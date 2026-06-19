@@ -396,10 +396,11 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
               <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
                 <button onClick={() => clearFollowUp(c.id)} style={{ background:"#DCFCE7", color:"#15803D", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Done</button>
                 <button onClick={() => snoozeFollowUp(c.id, 3)} style={{ background:"#F3F4F6", color:"#374151", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+3 days</button>
-                <label style={{ background:"#F3F4F6", color:"#374151", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:600, cursor:"pointer", position:"relative", display:"inline-flex", alignItems:"center" }}>
-                  📅 Pick date
-                  <input type="date" onChange={e => snoozeToDate(c.id, e.target.value)} style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", width:"100%" }} />
-                </label>
+                <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#F3F4F6", borderRadius:8, padding:"6px 10px" }}>
+                  <span style={{ fontSize:13, fontWeight:600, color:"#374151" }}>📅 New date:</span>
+                  <input type="date" defaultValue={c.followUpDate} onChange={e => snoozeToDate(c.id, e.target.value)}
+                    style={{ border:"none", background:"transparent", fontSize:13, fontFamily:"inherit", color:"#1E3A5F", fontWeight:600 }} />
+                </div>
               </div>
             </Card>
           ))}
