@@ -543,11 +543,12 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   return (
     <Modal title={editCustomer ? "Edit Customer" : "New Customer"} onClose={onClose}>
       <div style={{ marginTop:8 }} />
-      <Field label="Company Name" required><Input value={company} onChange={setCompany} placeholder="Acme Ltd" /></Field>
       <Field label="Customer Type"><Select value={custType} onChange={setCustType} options={["Trade","Private"]} /></Field>
+      <Field label={custType === "Private" ? "Customer Name" : "Company Name"} required>
+        <Input value={company} onChange={setCompany} placeholder={custType === "Private" ? "John Smith" : "Acme Ltd"} />
+      </Field>
       {custType === "Private" && (
         <>
-          <Field label="Contact Name"><Input value={companyContact} onChange={setCompanyContact} placeholder="Contact name" /></Field>
           <Field label="Phone"><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
           <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
         </>
