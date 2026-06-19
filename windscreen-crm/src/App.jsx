@@ -395,7 +395,6 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
               </div>
               <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
                 <button onClick={() => clearFollowUp(c.id)} style={{ background:"#DCFCE7", color:"#15803D", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Done</button>
-                <button onClick={() => snoozeFollowUp(c.id, 3)} style={{ background:"#F3F4F6", color:"#374151", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+3 days</button>
                 <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#F3F4F6", borderRadius:8, padding:"6px 10px" }}>
                   <span style={{ fontSize:13, fontWeight:600, color:"#374151" }}>📅 New date:</span>
                   <input type="date" defaultValue={c.followUpDate} onChange={e => snoozeToDate(c.id, e.target.value)}
