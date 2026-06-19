@@ -1961,10 +1961,6 @@ function ReportsView({ data }) {
       </div>
 
       <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-        <div style={{ flex:1, minWidth:100, background:"#ECFDF5", borderRadius:12, padding:14, border:"1px solid #A7F3D0" }}>
-          <div style={{ fontSize:22, fontWeight:800, color:"#059669" }}>£{receivedTotal.toFixed(0)}</div>
-          <div style={{ fontSize:11, color:"#047857", fontWeight:600 }}>Received</div>
-        </div>
         <div style={{ flex:1, minWidth:100, background:"#EFF6FF", borderRadius:12, padding:14, border:"1px solid #BFDBFE" }}>
           <div style={{ fontSize:22, fontWeight:800, color:"#1D4ED8" }}>£{billedTotal.toFixed(0)}</div>
           <div style={{ fontSize:11, color:"#1D4ED8", fontWeight:600 }}>Billed</div>
@@ -1978,18 +1974,12 @@ function ReportsView({ data }) {
       <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", marginBottom:16 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
           <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151" }}>Revenue · {periodLabel}</h3>
-          <div style={{ display:"flex", gap:12, fontSize:11 }}>
-            <span style={{ color:"#1D4ED8", fontWeight:600 }}>■ Billed</span>
-            <span style={{ color:"#059669", fontWeight:600 }}>■ Received</span>
-          </div>
+          <span style={{ color:"#1D4ED8", fontWeight:600, fontSize:11 }}>■ Billed</span>
         </div>
         <div style={{ display:"flex", alignItems:"flex-end", gap:3, marginTop:10 }}>
           {months.map(m => (
             <div key={m.key} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center" }}>
-              <div style={{ display:"flex", gap:1, alignItems:"flex-end", width:"100%", justifyContent:"center" }}>
-                <Bar value={billed[m.key]} max={maxRev} color="#3B82F6" />
-                <Bar value={received[m.key]} max={maxRev} color="#10B981" />
-              </div>
+              <Bar value={billed[m.key]} max={maxRev} color="#3B82F6" />
               <div style={{ fontSize:9, color:"#9CA3AF", marginTop:4 }}>{m.label}</div>
             </div>
           ))}
@@ -1997,7 +1987,10 @@ function ReportsView({ data }) {
       </div>
 
       <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6" }}>
-        <h3 style={{ margin:"0 0 10px", fontSize:14, fontWeight:700, color:"#374151" }}>Jobs · {periodLabel}</h3>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151" }}>Jobs · {periodLabel}</h3>
+          <span style={{ fontSize:13, fontWeight:800, color:"#F59E0B" }}>{months.reduce((s,m) => s + jobCount[m.key], 0)} total</span>
+        </div>
         <div style={{ display:"flex", alignItems:"flex-end", gap:3 }}>
           {months.map(m => (
             <div key={m.key} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center" }}>
