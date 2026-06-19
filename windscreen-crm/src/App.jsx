@@ -335,6 +335,24 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
     </div>
   );
 
+  // Follow-up actions
+  async function clearFollowUp(custId) {
+    const customers = data.customers.map(c => c.id === custId ? { ...c, followUpDate:"", followUpNote:"" } : c);
+    await saveAndReload({ ...data, customers });
+  }
+  async function snoozeFollowUp(custId, days) {
+    const base = new Date();
+    base.setDate(base.getDate() + days);
+    const newDate = `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
+    const customers = data.customers.map(c => c.id === custId ? { ...c, followUpDate:newDate } : c);
+    await saveAndReload({ ...data, customers });
+  }
+  async function snoozeToDate(custId, newDate) {
+    if (!newDate) return;
+    const customers = data.customers.map(c => c.id === custId ? { ...c, followUpDate:newDate } : c);
+    await saveAndReload({ ...data, customers });
+  }
+
   return (
     <div>
       {notifStatus === "default" && (
@@ -364,9 +382,9 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
         <div style={{ marginBottom:20 }}>
           <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📞 Follow-ups Due</h3>
           {dueFollowUps.map(c => (
-            <Card key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}>
+            <Card key={c.id}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
-                <div>
+                <div onClick={() => setView({ screen:"customerDetail", id:c.id })} style={{ cursor:"pointer", flex:1 }}>
                   <div style={{ fontWeight:700, fontSize:15, color:"#1E3A5F" }}>{c.company || c.companyContact || "Customer"}</div>
                   {c.followUpNote && <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.followUpNote}</div>}
                   <div style={{ fontSize:12, color: c.followUpDate < todayStr ? "#DC2626" : "#D97706", fontWeight:600, marginTop:2 }}>
@@ -374,6 +392,14 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
                   </div>
                 </div>
                 {c.phone && <a href={`tel:${c.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#1E3A5F", color:"#fff", borderRadius:8, padding:"10px 14px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>📞 Call</a>}
+              </div>
+              <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
+                <button onClick={() => clearFollowUp(c.id)} style={{ background:"#DCFCE7", color:"#15803D", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Done</button>
+                <button onClick={() => snoozeFollowUp(c.id, 3)} style={{ background:"#F3F4F6", color:"#374151", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+3 days</button>
+                <label style={{ background:"#F3F4F6", color:"#374151", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:600, cursor:"pointer", position:"relative", display:"inline-flex", alignItems:"center" }}>
+                  📅 Pick date
+                  <input type="date" onChange={e => snoozeToDate(c.id, e.target.value)} style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", width:"100%" }} />
+                </label>
               </div>
             </Card>
           ))}
