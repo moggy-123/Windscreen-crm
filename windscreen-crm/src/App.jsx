@@ -5,13 +5,12 @@ const DB_KEY = "wscrm_data";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
-  "In Progress": { color: "#D97706", bg: "#FFFBEB" },
   Complete:      { color: "#059669", bg: "#ECFDF5" },
   Invoiced:      { color: "#7C3AED", bg: "#F5F3FF" },
   Paid:          { color: "#374151", bg: "#F9FAFB" },
 };
 
-const DAMAGE_TYPES    = ["Chip", "Crack", "Shatter", "Scratch", "Other"];
+const DAMAGE_TYPES    = ["Chip", "Crack", "Scratch"];
 const JOB_TYPES       = ["Repair", "Replace"];
 const PAYMENT_TYPES   = ["Private", "Insurance"];
 
@@ -668,9 +667,15 @@ function CustomerDetail({ data, id, setView }) {
         </div>
       )}
       {customer.followUpDate && (
-        <div style={{ background:"#FFF7ED", border:"1px solid #FED7AA", borderRadius:10, padding:"12px 16px", marginBottom:14, fontSize:14 }}>
-          <span style={{ fontWeight:700, color:"#92400E" }}>📞 Follow up {fmtDate(customer.followUpDate)}</span>
-          {customer.followUpNote && <span style={{ color:"#B45309" }}> — {customer.followUpNote}</span>}
+        <div style={{ background:"#FFF7ED", border:"1px solid #FED7AA", borderRadius:10, padding:"12px 16px", marginBottom:14, fontSize:14, display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+          <div>
+            <span style={{ fontWeight:700, color:"#92400E" }}>📞 Follow up {fmtDate(customer.followUpDate)}</span>
+            {customer.followUpNote && <span style={{ color:"#B45309" }}> — {customer.followUpNote}</span>}
+          </div>
+          <button onClick={async () => {
+            const customers = data.customers.map(c => c.id === customer.id ? { ...c, followUpDate:"", followUpNote:"" } : c);
+            await saveAndReload({ ...data, customers });
+          }} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>Delete</button>
         </div>
       )}
       <Card>
@@ -1405,7 +1410,7 @@ function JobDetail({ data, id, setView }) {
   const technician = data.technicians.find(t => t.id === job.technicianId);
   const invoice    = data.invoices.find(i => i.jobId === id);
 
-  const nextStatuses = { "Booked":["In Progress"], "In Progress":["Complete"], "Complete":["Invoiced"], "Invoiced":["Paid"], "Paid":[] };
+  const nextStatuses = { "Booked":["Complete"], "Complete":["Invoiced"], "Invoiced":["Paid"], "Paid":[] };
 
   async function updateStatus(s) {
     await saveAndReload({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
@@ -1651,7 +1656,7 @@ function scheduleNotifications(data) {
   const now  = new Date();
   const today = now.toISOString().split("T")[0];
   const todayJobs = data.jobs.filter(j =>
-    j.date === today && ["Booked", "In Progress"].includes(j.status)
+    j.date === today && ["Booked"].includes(j.status)
   );
 
   // 9am daily summary
