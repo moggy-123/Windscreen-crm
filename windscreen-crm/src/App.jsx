@@ -1595,11 +1595,17 @@ function InvoiceForm({ data, jobId, onClose }) {
 // ── Invoices List ─────────────────────────────────────────────────────────────
 function InvoicesList({ data, setView, initialFilter }) {
   const [filter, setFilter] = useState(initialFilter || "Unpaid");
+  const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
+  const invOverdue = (inv, jobDate) => !inv.paid && ((jobDate || inv.createdAt || "") < oneMonthAgo) && (jobDate || inv.createdAt);
+  const anyOverdue = data.invoices.some(inv => {
+    const job = data.jobs.find(j => j.id === inv.jobId);
+    return invOverdue(inv, job?.date);
+  });
   const enriched = data.invoices.map(inv => {
     const job      = data.jobs.find(j => j.id === inv.jobId);
     const customer = job ? data.customers.find(c => c.id === job.customerId) : null;
     const vehicle  = job?.vehicleId ? data.vehicles.find(v => v.id === job.vehicleId) : null;
-    return { ...inv, job, customer, vehicle };
+    return { ...inv, job, customer, vehicle, overdue: invOverdue(inv, job?.date) };
   }).filter(inv => {
     if (filter==="Unpaid") return !inv.paid;
     if (filter==="Paid")   return  inv.paid;
@@ -1607,13 +1613,18 @@ function InvoicesList({ data, setView, initialFilter }) {
   }).sort((a,b) => (b.job?.date||b.createdAt||"").localeCompare(a.job?.date||a.createdAt||""));
 
   const total = enriched.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
-  const pill  = (active) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit", whiteSpace:"nowrap" });
+  const pill  = (active, red) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border: red && !active ? "2px solid #DC2626" : "none", background:active?(red?"#DC2626":"#1E3A5F"):"#F3F4F6", color:active?"#fff":(red?"#DC2626":"#6B7280"), fontFamily:"inherit", whiteSpace:"nowrap" });
 
   return (
     <div>
       <h2 style={{ margin:"0 0 14px", fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Invoices</h2>
+      {anyOverdue && (
+        <div style={{ background:"#DC2626", color:"#fff", borderRadius:10, padding:"10px 14px", marginBottom:12, fontSize:14, fontWeight:700 }}>
+          ⚠️ You have unpaid invoices over 1 month overdue
+        </div>
+      )}
       <div style={{ display:"flex", gap:10, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
-        {["Unpaid","Paid","All"].map(f => <button key={f} style={pill(filter===f)} onClick={() => setFilter(f)}>{f}</button>)}
+        {["Unpaid","Paid","All"].map(f => <button key={f} style={pill(filter===f, f==="Unpaid" && anyOverdue)} onClick={() => setFilter(f)}>{f}</button>)}
       </div>
       {enriched.length > 0 && (
         <Card style={{ background:"#EFF6FF", borderColor:"#BFDBFE" }}>
@@ -1634,7 +1645,7 @@ function InvoicesList({ data, setView, initialFilter }) {
             </div>
             <div style={{ textAlign:"right" }}>
               <div style={{ fontWeight:800, fontSize:16, color:inv.paid?"#059669":"#1E3A5F" }}>£{parseFloat(inv.total).toFixed(2)}</div>
-              <div style={{ fontSize:11, color:inv.paid?"#059669":"#D97706", fontWeight:600 }}>{inv.paid?"Paid":"Unpaid"}</div>
+              <div style={{ fontSize:11, color:inv.paid?"#059669":inv.overdue?"#DC2626":"#D97706", fontWeight:600 }}>{inv.paid?"Paid":inv.overdue?"OVERDUE":"Unpaid"}</div>
             </div>
           </div>
         </Card>
