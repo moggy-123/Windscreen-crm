@@ -431,8 +431,9 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
         </Btn>
       </div>
 
-      <div style={{ marginTop:20 }}>
-        <Btn onClick={() => setView({ screen:"reports" })} style={{ width:"100%", justifyContent:"center" }}>📊 View Reports</Btn>
+      <div style={{ marginTop:20, display:"flex", gap:10 }}>
+        <Btn onClick={() => setView({ screen:"reports" })} style={{ flex:1, justifyContent:"center" }}>📊 Reports</Btn>
+        <Btn onClick={() => setView({ screen:"mileage" })} variant="ghost" style={{ flex:1, justifyContent:"center" }}>🚗 Mileage</Btn>
       </div>
 
       <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
@@ -844,14 +845,29 @@ function VehicleDetail({ data, id, customerId, setView }) {
 // ── Jobs List ─────────────────────────────────────────────────────────────────
 function JobsList({ data, setView, initialFilter }) {
   const [filter, setFilter] = useState(initialFilter || "Open");
+
+  // Find which job ids have an invoice, and which are unpaid/overdue
+  const invoiceByJob = {};
+  (data.invoices || []).forEach(inv => { invoiceByJob[inv.jobId] = inv; });
+  const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
+  const isUnpaid = (j) => { const inv = invoiceByJob[j.id]; return inv && !inv.paid; };
+  const isOverdue = (j) => {
+    const inv = invoiceByJob[j.id];
+    if (!inv || inv.paid) return false;
+    const dateRef = (j.date || inv.createdAt || "");
+    return dateRef && dateRef < oneMonthAgo;
+  };
+  const anyOverdue = data.jobs.some(isOverdue);
+
   const filtered = data.jobs.filter(j => {
     if (filter==="Today")    return j.date === todayISO();
-    if (filter==="Open")     return !["Paid"].includes(j.status);
+    if (filter==="Open")     return !invoiceByJob[j.id];          // not invoiced yet
+    if (filter==="Unpaid")   return isUnpaid(j);                  // invoiced but not paid
     if (filter==="Complete") return ["Complete","Paid"].includes(j.status);
     return true;
   }).sort((a,b) => b.date.localeCompare(a.date));
 
-  const pill = (active) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border:"none", background:active?"#1E3A5F":"#F3F4F6", color:active?"#fff":"#6B7280", fontFamily:"inherit", whiteSpace:"nowrap" });
+  const pill = (active, red) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border: red && !active ? "2px solid #DC2626" : "none", background:active?(red?"#DC2626":"#1E3A5F"):"#F3F4F6", color:active?"#fff":(red?"#DC2626":"#6B7280"), fontFamily:"inherit", whiteSpace:"nowrap" });
 
   return (
     <div>
@@ -859,8 +875,15 @@ function JobsList({ data, setView, initialFilter }) {
         <h2 style={{ margin:0, fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Jobs</h2>
         <Btn size="sm" onClick={() => setView({ screen:"newJob" })}><Icon name="plus" size={14} /> New</Btn>
       </div>
+      {anyOverdue && (
+        <div style={{ background:"#DC2626", color:"#fff", borderRadius:10, padding:"10px 14px", marginBottom:12, fontSize:14, fontWeight:700 }}>
+          ⚠️ You have unpaid invoices over 1 month overdue
+        </div>
+      )}
       <div style={{ display:"flex", gap:10, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
-        {["Today","Open","Complete","All"].map(f => <button key={f} style={pill(filter===f)} onClick={() => setFilter(f)}>{f}</button>)}
+        {["Today","Open","Unpaid","Complete","All"].map(f => (
+          <button key={f} style={pill(filter===f, f==="Unpaid" && anyOverdue)} onClick={() => setFilter(f)}>{f}</button>
+        ))}
       </div>
       {filtered.length === 0 && <p style={{ color:"#9CA3AF", textAlign:"center", fontSize:14 }}>No jobs found</p>}
       {filtered.map(job => {
@@ -873,6 +896,7 @@ function JobsList({ data, setView, initialFilter }) {
                 <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                   <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{cust?.company || cust?.companyContact || job.driverName || "No Company"}</div>
                   {cust?.onStop && <span style={{ background:"#DC2626", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6, letterSpacing:"0.03em" }}>ON STOP</span>}
+                  {isOverdue(job) ? <span style={{ background:"#DC2626", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6 }}>OVERDUE</span> : isUnpaid(job) ? <span style={{ background:"#FEF3C7", color:"#92400E", fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6 }}>UNPAID</span> : null}
                 </div>
                 {job.driverName && cust?.company && <div style={{ fontSize:13, color:"#374151", fontWeight:600 }}>Driver: {job.driverName}</div>}
                 <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{veh ? `${veh.make} ${veh.model} · ${veh.reg}` : "No vehicle"}</div>
@@ -2040,6 +2064,89 @@ function ReportsView({ data }) {
   );
 }
 
+// ── Mileage Log ───────────────────────────────────────────────────────────────
+const MILEAGE_KEY = "wscrm_mileage";
+function loadMileage() {
+  try { return JSON.parse(localStorage.getItem(MILEAGE_KEY) || "[]"); } catch { return []; }
+}
+function saveMileage(list) {
+  try { localStorage.setItem(MILEAGE_KEY, JSON.stringify(list)); } catch {}
+}
+// Financial year (Apr–Mar) that a given YYYY-MM-DD date falls into; returns the start year
+function finYearOf(dateStr) {
+  const [y, m] = dateStr.split("-").map(Number);
+  return m >= 4 ? y : y - 1;
+}
+function MileageView({ setView }) {
+  const [entries, setEntries] = useState(loadMileage());
+  const [date, setDate] = useState(todayISO());
+  const [miles, setMiles] = useState("");
+  const [note, setNote] = useState("");
+
+  function add() {
+    const m = parseFloat(miles);
+    if (!m || m <= 0) return;
+    const next = [...entries, { id: uid(), date, miles: m, note }].sort((a,b) => b.date.localeCompare(a.date));
+    setEntries(next); saveMileage(next);
+    setMiles(""); setNote("");
+  }
+  function remove(id) {
+    const next = entries.filter(e => e.id !== id);
+    setEntries(next); saveMileage(next);
+  }
+
+  // Totals by financial year
+  const byFinYear = {};
+  entries.forEach(e => { const fy = finYearOf(e.date); byFinYear[fy] = (byFinYear[fy] || 0) + e.miles; });
+  const finYears = Object.keys(byFinYear).map(Number).sort((a,b) => b - a);
+  const currentFY = finYearOf(todayISO());
+
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"dashboard" })}><Icon name="back" size={14} /> Back</Btn>
+      </div>
+      <h2 style={{ margin:"0 0 16px", fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Mileage Log</h2>
+
+      {/* Financial year totals */}
+      <div style={{ display:"flex", gap:10, marginBottom:18, flexWrap:"wrap" }}>
+        {finYears.length === 0 && <div style={{ fontSize:14, color:"#9CA3AF" }}>No mileage logged yet.</div>}
+        {finYears.map(fy => (
+          <div key={fy} style={{ flex:1, minWidth:120, background: fy===currentFY ? "#EFF6FF" : "#F9FAFB", borderRadius:12, padding:14, border: fy===currentFY ? "1px solid #BFDBFE" : "1px solid #F3F4F6" }}>
+            <div style={{ fontSize:22, fontWeight:800, color:"#1E3A5F" }}>{byFinYear[fy].toLocaleString()}</div>
+            <div style={{ fontSize:11, color:"#6B7280", fontWeight:600 }}>miles · FY {fy}/{(fy+1).toString().slice(2)}{fy===currentFY ? " (current)" : ""}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add entry */}
+      <Card>
+        <div style={{ fontSize:13, fontWeight:700, color:"#1E3A5F", marginBottom:10 }}>Add Mileage</div>
+        <Field label="Date"><Input type="date" value={date} onChange={setDate} /></Field>
+        <Field label="Miles"><Input type="number" value={miles} onChange={setMiles} placeholder="e.g. 24" /></Field>
+        <Field label="Note (optional)"><Input value={note} onChange={setNote} placeholder="e.g. Bristol to Cheddar – job" /></Field>
+        <Btn onClick={add} style={{ width:"100%", justifyContent:"center" }} disabled={!miles}>Add</Btn>
+      </Card>
+
+      {/* Entries list */}
+      <div style={{ marginTop:16 }}>
+        {entries.length > 0 && <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>History</h3>}
+        {entries.map(e => (
+          <Card key={e.id}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:15, color:"#1E3A5F" }}>{e.miles.toLocaleString()} miles</div>
+                <div style={{ fontSize:12, color:"#6B7280" }}>{fmtDate(e.date)}{e.note ? " · " + e.note : ""}</div>
+              </div>
+              <button onClick={() => remove(e.id)} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Delete</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
   const [view, setViewState]        = useState({ screen:"dashboard" });
@@ -2327,6 +2434,7 @@ export default function App() {
         {view.screen==="jobs"           && <JobsList       data={data} setView={setView} initialFilter={view.filter} />}
         {view.screen==="calendar"       && <CalendarView   data={data} setView={setView} device={device} />}
         {view.screen==="reports"        && <ReportsView    data={data} />}
+        {view.screen==="mileage"        && <MileageView    setView={setView} />}
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
