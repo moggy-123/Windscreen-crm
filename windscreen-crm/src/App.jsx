@@ -2097,6 +2097,7 @@ function MileageView({ data, setView }) {
     await saveAndReload({ ...data, mileage });
   }
   async function remove(id) {
+    if (!window.confirm("Delete this mileage entry? This cannot be undone.")) return;
     try { await deleteRecord("mileage", id); } catch (e) { alert("Delete failed: " + (e?.message || JSON.stringify(e))); return; }
     addTombstone(id);
     const mileage = (data.mileage || []).filter(e => e.id !== id);
