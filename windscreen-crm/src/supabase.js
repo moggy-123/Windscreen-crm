@@ -78,6 +78,16 @@ const invoiceFromDb = r => ({
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
+const mileageToDb = m => ({
+  id: m.id, date: m.date, miles: m.miles, note: m.note || "",
+  updated_at: m.updatedAt || Date.now(),
+  created_at: m.createdAt || new Date().toISOString(),
+});
+const mileageFromDb = r => ({
+  id: r.id, date: r.date, miles: r.miles, note: r.note,
+  updatedAt: r.updated_at, createdAt: r.created_at,
+});
+
 // ── Pull all data from Supabase ─────────────────────────────────────────────
 export async function pullFromCloud() {
   const [c, v, j, i] = await Promise.all([
@@ -89,11 +99,18 @@ export async function pullFromCloud() {
   if (c.error || v.error || j.error || i.error) {
     throw new Error("Pull failed");
   }
+  // Mileage pulled separately so a missing table (before SQL is run) doesn't break the app
+  let mileage = [];
+  try {
+    const m = await supabase.from("mileage").select("*");
+    if (!m.error) mileage = (m.data || []).map(mileageFromDb);
+  } catch {}
   return {
     customers:   (c.data || []).map(customerFromDb),
     vehicles:    (v.data || []).map(vehicleFromDb),
     jobs:        (j.data || []).map(jobFromDb),
     invoices:    (i.data || []).map(invoiceFromDb),
+    mileage,
     technicians: [],
   };
 }
@@ -107,6 +124,7 @@ export async function pushToCloud(data) {
     { name: "vehicles",  rows: (data.vehicles  || []).map(vehicleToDb)  },
     { name: "jobs",      rows: (data.jobs      || []).map(jobToDb)      },
     { name: "invoices",  rows: (data.invoices  || []).map(invoiceToDb)  },
+    { name: "mileage",   rows: (data.mileage   || []).map(mileageToDb)  },
   ];
 
   for (const t of tables) {
@@ -123,7 +141,7 @@ export async function pushToCloud(data) {
 
 // Push only ONE record (used for single saves — fast, avoids re-uploading everything)
 export async function pushOne(table, record) {
-  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb };
+  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb };
   const { error } = await supabase.from(table).upsert(map[table](record));
   if (error) {
     const msg = error.message || error.details || error.hint || JSON.stringify(error);
@@ -133,7 +151,7 @@ export async function pushOne(table, record) {
 
 // ── Push a single record ────────────────────────────────────────────────────
 export async function upsertRecord(table, record) {
-  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb };
+  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb };
   const { error } = await supabase.from(table).upsert(map[table](record));
   if (error) throw error;
 }
