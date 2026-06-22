@@ -2083,10 +2083,11 @@ function finYearOf(dateStr) {
   return m >= 4 ? y : y - 1;
 }
 function MileageView({ data, setView }) {
-  const entries = [...(data.mileage || [])].sort((a,b) => b.date.localeCompare(a.date));
+  const allEntries = [...(data.mileage || [])].sort((a,b) => b.date.localeCompare(a.date));
   const [date, setDate] = useState(todayISO());
   const [miles, setMiles] = useState("");
   const [note, setNote] = useState("");
+  const [yearFilter, setYearFilter] = useState("all");
 
   async function add() {
     const m = parseFloat(miles);
@@ -2104,9 +2105,12 @@ function MileageView({ data, setView }) {
 
   // Totals by financial year
   const byFinYear = {};
-  entries.forEach(e => { const fy = finYearOf(e.date); byFinYear[fy] = (byFinYear[fy] || 0) + e.miles; });
+  allEntries.forEach(e => { const fy = finYearOf(e.date); byFinYear[fy] = (byFinYear[fy] || 0) + e.miles; });
   const finYears = Object.keys(byFinYear).map(Number).sort((a,b) => b - a);
   const currentFY = finYearOf(todayISO());
+
+  // Entries shown depend on the selected year
+  const entries = yearFilter === "all" ? allEntries : allEntries.filter(e => finYearOf(e.date) === Number(yearFilter));
 
   return (
     <div>
@@ -2132,9 +2136,24 @@ function MileageView({ data, setView }) {
         <Field label="Note (optional)"><Input value={note} onChange={setNote} placeholder="e.g. Bristol to Cheddar – job" /></Field>
         <Btn onClick={add} style={{ width:"100%", justifyContent:"center" }} disabled={!miles}>Add</Btn>
       </Card>
+      <p style={{ fontSize:12, color:"#9CA3AF", margin:"8px 2px 0" }}>Tip: to record last year's mileage, just set the date to a day in that year.</p>
 
       <div style={{ marginTop:16 }}>
-        {entries.length > 0 && <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>History</h3>}
+        {allEntries.length > 0 && (
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+            <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:0, textTransform:"uppercase", letterSpacing:"0.05em" }}>History</h3>
+            <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
+              style={{ padding:"8px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:14, fontFamily:"inherit", background:"#fff" }}>
+              <option value="all">All years</option>
+              {finYears.map(fy => <option key={fy} value={fy}>FY {fy}/{(fy+1).toString().slice(2)}</option>)}
+            </select>
+          </div>
+        )}
+        {yearFilter !== "all" && (
+          <div style={{ fontSize:13, fontWeight:700, color:"#1E3A5F", marginBottom:10 }}>
+            {byFinYear[Number(yearFilter)]?.toLocaleString() || 0} miles total · FY {yearFilter}/{(Number(yearFilter)+1).toString().slice(2)}
+          </div>
+        )}
         {entries.map(e => (
           <Card key={e.id}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
