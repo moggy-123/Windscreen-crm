@@ -39,7 +39,7 @@ function loadData() {
       return data;
     }
   } catch {}
-  return { customers: [], vehicles: [], jobs: [], invoices: [], technicians: [] };
+  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], technicians: [] };
 }
 
 // One-time cleanup: remove the old duplicate lastsync copy
@@ -157,6 +157,7 @@ async function pushChangedOnly(data) {
     { name: "vehicles",  key: "vehicles"  },
     { name: "jobs",      key: "jobs"      },
     { name: "invoices",  key: "invoices"  },
+    { name: "mileage",   key: "mileage"   },
   ];
 
   let failed = 0;
@@ -2076,34 +2077,29 @@ function ReportsView({ data }) {
 }
 
 // ── Mileage Log ───────────────────────────────────────────────────────────────
-const MILEAGE_KEY = "wscrm_mileage";
-function loadMileage() {
-  try { return JSON.parse(localStorage.getItem(MILEAGE_KEY) || "[]"); } catch { return []; }
-}
-function saveMileage(list) {
-  try { localStorage.setItem(MILEAGE_KEY, JSON.stringify(list)); } catch {}
-}
 // Financial year (Apr–Mar) that a given YYYY-MM-DD date falls into; returns the start year
 function finYearOf(dateStr) {
   const [y, m] = dateStr.split("-").map(Number);
   return m >= 4 ? y : y - 1;
 }
-function MileageView({ setView }) {
-  const [entries, setEntries] = useState(loadMileage());
+function MileageView({ data, setView }) {
+  const entries = [...(data.mileage || [])].sort((a,b) => b.date.localeCompare(a.date));
   const [date, setDate] = useState(todayISO());
   const [miles, setMiles] = useState("");
   const [note, setNote] = useState("");
 
-  function add() {
+  async function add() {
     const m = parseFloat(miles);
     if (!m || m <= 0) return;
-    const next = [...entries, { id: uid(), date, miles: m, note }].sort((a,b) => b.date.localeCompare(a.date));
-    setEntries(next); saveMileage(next);
+    const mileage = [...(data.mileage || []), { id: uid(), date, miles: m, note, createdAt: todayISO() }];
     setMiles(""); setNote("");
+    await saveAndReload({ ...data, mileage });
   }
-  function remove(id) {
-    const next = entries.filter(e => e.id !== id);
-    setEntries(next); saveMileage(next);
+  async function remove(id) {
+    try { await deleteRecord("mileage", id); } catch (e) { alert("Delete failed: " + (e?.message || JSON.stringify(e))); return; }
+    addTombstone(id);
+    const mileage = (data.mileage || []).filter(e => e.id !== id);
+    await saveAndReload({ ...data, mileage });
   }
 
   // Totals by financial year
@@ -2119,7 +2115,6 @@ function MileageView({ setView }) {
       </div>
       <h2 style={{ margin:"0 0 16px", fontSize:20, fontWeight:800, color:"#1E3A5F" }}>Mileage Log</h2>
 
-      {/* Financial year totals */}
       <div style={{ display:"flex", gap:10, marginBottom:18, flexWrap:"wrap" }}>
         {finYears.length === 0 && <div style={{ fontSize:14, color:"#9CA3AF" }}>No mileage logged yet.</div>}
         {finYears.map(fy => (
@@ -2130,7 +2125,6 @@ function MileageView({ setView }) {
         ))}
       </div>
 
-      {/* Add entry */}
       <Card>
         <div style={{ fontSize:13, fontWeight:700, color:"#1E3A5F", marginBottom:10 }}>Add Mileage</div>
         <Field label="Date"><Input type="date" value={date} onChange={setDate} /></Field>
@@ -2139,7 +2133,6 @@ function MileageView({ setView }) {
         <Btn onClick={add} style={{ width:"100%", justifyContent:"center" }} disabled={!miles}>Add</Btn>
       </Card>
 
-      {/* Entries list */}
       <div style={{ marginTop:16 }}>
         {entries.length > 0 && <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>History</h3>}
         {entries.map(e => (
@@ -2258,6 +2251,7 @@ export default function App() {
             vehicles:  merge(cloud.vehicles,  local.vehicles || []),
             jobs:      merge(cloud.jobs,      local.jobs || []),
             invoices:  merge(cloud.invoices,  local.invoices || []),
+            mileage:   merge(cloud.mileage,   local.mileage || []),
             technicians: local.technicians || [],
           };
           localStorage.setItem(DB_KEY, JSON.stringify(merged));
@@ -2344,6 +2338,7 @@ export default function App() {
           vehicles:  merge(cloud.vehicles,  local.vehicles || []),
           jobs:      merge(cloud.jobs,      local.jobs || []),
           invoices:  merge(cloud.invoices,  local.invoices || []),
+          mileage:   merge(cloud.mileage,   local.mileage || []),
           technicians: local.technicians || [],
         };
         const before = JSON.stringify(local.customers?.length) + local.jobs?.length + local.vehicles?.length + local.invoices?.length;
@@ -2445,7 +2440,7 @@ export default function App() {
         {view.screen==="jobs"           && <JobsList       data={data} setView={setView} initialFilter={view.filter} />}
         {view.screen==="calendar"       && <CalendarView   data={data} setView={setView} device={device} />}
         {view.screen==="reports"        && <ReportsView    data={data} />}
-        {view.screen==="mileage"        && <MileageView    setView={setView} />}
+        {view.screen==="mileage"        && <MileageView    data={data} setView={setView} />}
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
