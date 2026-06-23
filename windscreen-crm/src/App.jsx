@@ -525,6 +525,11 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   });
   const setMainContact = (id) => setContacts(cs => cs.map(c => ({ ...c, main: c.id === id })));
 
+  // Inline vehicle (private customers, new only) — optional
+  const [vehMake, setVehMake] = useState("");
+  const [vehModel, setVehModel] = useState("");
+  const [vehReg, setVehReg] = useState("");
+
   async function save() {
     if (!company) return;
     const customers = [...data.customers];
@@ -532,13 +537,23 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     // so customer cards, dropdowns and call buttons keep working.
     const main = contacts.find(c => c.main) || contacts[0] || {};
     const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, followUpDate, followUpNote, contacts };
+    let newData = { ...data };
+    let savedCustomerId;
     if (editCustomer) {
       const idx = customers.findIndex(c => c.id === editCustomer.id);
       customers[idx] = { ...editCustomer, ...rec };
+      savedCustomerId = editCustomer.id;
     } else {
-      customers.push({ id:uid(), ...rec, createdAt:todayISO() });
+      savedCustomerId = uid();
+      customers.push({ id:savedCustomerId, ...rec, createdAt:todayISO() });
     }
-    await saveAndReload({ ...data, customers });
+    newData.customers = customers;
+    // If an inline vehicle was entered (new private customer), add it too
+    if (!editCustomer && (vehMake || vehModel || vehReg)) {
+      const vehicles = [...(data.vehicles || []), { id: uid(), customerId: savedCustomerId, make: vehMake, model: vehModel, reg: vehReg, createdAt: todayISO() }];
+      newData.vehicles = vehicles;
+    }
+    await saveAndReload(newData);
   }
 
   return (
@@ -552,6 +567,14 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
         <>
           <Field label="Phone"><Input value={phone} onChange={setPhone} placeholder="07700 900000" type="tel" /></Field>
           <Field label="Email"><Input value={email} onChange={setEmail} placeholder="jane@email.com" type="email" /></Field>
+          {!editCustomer && (
+            <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:10, padding:12, marginBottom:14 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:"#1E3A5F", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>Vehicle (optional)</div>
+              <div style={{ marginBottom:6 }}><Input value={vehMake} onChange={setVehMake} placeholder="Make (e.g. Ford)" /></div>
+              <div style={{ marginBottom:6 }}><Input value={vehModel} onChange={setVehModel} placeholder="Model (e.g. Focus)" /></div>
+              <Input value={vehReg} onChange={setVehReg} placeholder="Reg (e.g. AB12 CDE)" />
+            </div>
+          )}
         </>
       )}
       {custType === "Trade" && (
@@ -736,9 +759,14 @@ function CustomerDetail({ data, id, setView }) {
         <Btn size="sm" onClick={() => setShowVehicle(true)}><Icon name="plus" size={13} /> Add</Btn>
       </div>
       {vehicles.map(v => (
-        <Card key={v.id} onClick={() => setView({ screen:"vehicleDetail", id:v.id, customerId:id })}>
-          <div style={{ fontWeight:600, fontSize:14 }}>{v.make} {v.model}</div>
-          <div style={{ fontSize:13, color:"#6B7280" }}>{v.reg}</div>
+        <Card key={v.id}>
+          <div onClick={() => setView({ screen:"vehicleDetail", id:v.id, customerId:id })} style={{ cursor:"pointer" }}>
+            <div style={{ fontWeight:600, fontSize:14 }}>{v.make} {v.model}</div>
+            <div style={{ fontSize:13, color:"#6B7280" }}>{v.reg}</div>
+          </div>
+          <div style={{ marginTop:8 }}>
+            <Btn size="sm" onClick={() => setView({ screen:"newJob", prefill:{ customerId:id, vehicleId:v.id } })}><Icon name="plus" size={12} /> Add Job</Btn>
+          </div>
         </Card>
       ))}
       {vehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No vehicles added</p>}
@@ -818,7 +846,8 @@ function VehicleDetail({ data, id, customerId, setView }) {
         <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{vehicle.make} {vehicle.model}</div>
         <div style={{ fontSize:15, color:"#6B7280", marginTop:4 }}>{vehicle.reg}</div>
         {customer && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:6 }}>Owner: {customer.company || customer.companyContact || "—"}</div>}
-        <div style={{ display:"flex", gap:8, marginTop:12 }}>
+        <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+          <Btn size="sm" onClick={() => setView({ screen:"newJob", prefill:{ customerId: vehicle.customerId, vehicleId: vehicle.id } })}><Icon name="plus" size={13} /> Add Job</Btn>
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteVehicle}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
@@ -1055,12 +1084,12 @@ function LocationPopup({ customerId, data, initial, onSave, onClose }) {
 }
 
 // ── Job Form ──────────────────────────────────────────────────────────────────
-function JobForm({ data, onClose, editJob }) {
-  const [customerId,    setCustomerId]    = useState(editJob?.customerId    || "");
+function JobForm({ data, onClose, editJob, prefill }) {
+  const [customerId,    setCustomerId]    = useState(editJob?.customerId    || prefill?.customerId || "");
   const [custSearch,    setCustSearch]    = useState("");
   const [custDropOpen,  setCustDropOpen]  = useState(false);
   const [driverName,    setDriverName]    = useState(editJob?.driverName    || "");
-  const [vehicleId,     setVehicleId]     = useState(editJob?.vehicleId     || "");
+  const [vehicleId,     setVehicleId]     = useState(editJob?.vehicleId     || prefill?.vehicleId || "");
   const [date,          setDate]          = useState(editJob?.date          || todayISO());
   const [jobTime,       setJobTime]       = useState(editJob?.jobTime       || "");
   const [locAddress1,   setLocAddress1]   = useState(editJob?.locAddress1   || "");
@@ -2466,7 +2495,7 @@ export default function App() {
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
       </div>
 
-      {view.screen==="newJob" && <JobForm data={data} onClose={() => setView({ screen:"jobs" })} />}
+      {view.screen==="newJob" && <JobForm data={data} prefill={view.prefill} onClose={() => setView({ screen:"jobs" })} />}
 
       {/* Bottom Nav */}
       <div className="crm-shell" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", background:"#fff", borderTop:"1px solid #E5E7EB", display:"flex", zIndex:50 }}>
