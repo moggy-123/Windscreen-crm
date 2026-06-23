@@ -1189,7 +1189,12 @@ function JobForm({ data, onClose, editJob, prefill }) {
           </div>
         ) : null;
       })()}
-      <Field label="Driver / Customer Name"><Input value={driverName} onChange={setDriverName} placeholder="Name of the driver or car owner" /></Field>
+      {(() => {
+        const selCust = data.customers.find(c => c.id === customerId);
+        // Private customers are the driver themselves, so no separate driver field needed
+        if (selCust?.custType === "Private") return null;
+        return <Field label="Driver / Customer Name"><Input value={driverName} onChange={setDriverName} placeholder="Name of the driver or car owner" /></Field>;
+      })()}
       {customerId && (
         <Field label="Vehicle">
           <select style={{ ...inputStyle, appearance:"none" }} value={vehicleId} onChange={e => setVehicleId(e.target.value)}>
