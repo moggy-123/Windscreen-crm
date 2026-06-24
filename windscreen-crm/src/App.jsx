@@ -1462,6 +1462,7 @@ function JobDetail({ data, id, setView }) {
   const job = data.jobs.find(j => j.id === id);
   const [showEdit,    setShowEdit]    = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showEditInvoice, setShowEditInvoice] = useState(false);
   if (!job) return <p>Not found</p>;
 
   const customer   = data.customers.find(c => c.id === job.customerId);
@@ -1543,13 +1544,16 @@ function JobDetail({ data, id, setView }) {
               <div style={{ fontWeight:700, fontSize:14, color:"#065F46" }}>Invoice · £{invoice.total}</div>
               <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? "✓ Paid" : "Awaiting payment"}</div>
             </div>
-            {!invoice.paid && (
-              <Btn size="sm" variant="ghost" onClick={async () => {
-                const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
-                const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
-                await saveAndReload({ ...data, invoices, jobs });
-              }}>Mark Paid</Btn>
-            )}
+            <div style={{ display:"flex", gap:8 }}>
+              <Btn size="sm" variant="ghost" onClick={() => setShowEditInvoice(true)}>Edit</Btn>
+              {!invoice.paid && (
+                <Btn size="sm" variant="ghost" onClick={async () => {
+                  const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
+                  const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
+                  await saveAndReload({ ...data, invoices, jobs });
+                }}>Mark Paid</Btn>
+              )}
+            </div>
           </div>
         </Card>
       )}
@@ -1577,33 +1581,40 @@ function JobDetail({ data, id, setView }) {
       </Btn>
       {showEdit    && <JobForm     data={data} editJob={job} onClose={() => setShowEdit(false)}    />}
       {showInvoice && <InvoiceForm data={data} jobId={id}   onClose={() => setShowInvoice(false)} />}
+      {showEditInvoice && invoice && <InvoiceForm data={data} jobId={id} editInvoice={invoice} onClose={() => setShowEditInvoice(false)} />}
     </div>
   );
 }
 
 // ── Invoice Form ──────────────────────────────────────────────────────────────
-function InvoiceForm({ data, jobId, onClose }) {
+function InvoiceForm({ data, jobId, editInvoice, onClose }) {
   const job = data.jobs.find(j => j.id === jobId);
-  // Auto-fill details from the job's repairs
+  // Auto-fill details from the job's repairs (for new invoices)
   const autoDetails = (() => {
     const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
     return reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
   })();
-  const [details, setDetails] = useState(autoDetails);
-  const [labour, setLabour] = useState("");
-  const [parts,  setParts]  = useState("");
-  const [vat,    setVat]    = useState(false);
+  const [details, setDetails] = useState(editInvoice?.details ?? autoDetails);
+  const [labour, setLabour] = useState(editInvoice?.labour ?? "");
+  const [parts,  setParts]  = useState(editInvoice?.parts ?? "");
+  const [vat,    setVat]    = useState(editInvoice?.vat ?? false);
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
-    const invoices = [...data.invoices, { id:uid(), jobId, details, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
-    const jobs     = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
-    await saveAndReload({ ...data, invoices, jobs });
+    let invoices;
+    if (editInvoice) {
+      invoices = data.invoices.map(i => i.id === editInvoice.id ? { ...i, details, labour, parts, vat, total: total.toFixed(2) } : i);
+      await saveAndReload({ ...data, invoices });
+    } else {
+      invoices = [...data.invoices, { id:uid(), jobId, details, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
+      const jobs = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
+      await saveAndReload({ ...data, invoices, jobs });
+    }
   }
 
   return (
-    <Modal title="Create Invoice" onClose={onClose}>
+    <Modal title={editInvoice ? "Edit Invoice" : "Create Invoice"} onClose={onClose}>
       <Field label="Details / Work Done">
         <textarea value={details} onChange={e => setDetails(e.target.value)} rows={3}
           style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }}
