@@ -13,6 +13,7 @@ const customerToDb = c => ({
   town: c.town, county: c.county, postcode: c.postcode, notes: c.notes,
   on_stop: !!c.onStop,
   cust_type: c.custType || "Trade",
+  cust_number: c.custNumber || null,
   follow_up_date: c.followUpDate || null,
   follow_up_note: c.followUpNote || "",
   contacts: c.contacts || [],
@@ -25,6 +26,7 @@ const customerFromDb = r => ({
   town: r.town, county: r.county, postcode: r.postcode, notes: r.notes,
   onStop: r.on_stop,
   custType: r.cust_type || "Trade",
+  custNumber: r.cust_number,
   followUpDate: r.follow_up_date || "",
   followUpNote: r.follow_up_note || "",
   contacts: r.contacts || [],
@@ -179,11 +181,24 @@ export async function uploadPhoto(dataUrl, jobId) {
   const res = await fetch(dataUrl);
   const blob = await res.blob();
   const filename = `${jobId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
-  const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(filename, blob, {
+
+  // Guard against weak-signal hangs: if the upload takes too long, treat it as failed
+  // so the photo stays PENDING and is retried later, rather than being silently lost.
+  const uploadPromise = supabase.storage.from(PHOTO_BUCKET).upload(filename, blob, {
     contentType: "image/jpeg",
     upsert: false,
   });
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Upload timed out (weak signal)")), 20000));
+
+  const { error } = await Promise.race([uploadPromise, timeout]);
   if (error) throw error;
+
+  // Verify the file is actually present in storage before declaring success.
+  // On flaky connections an upload can appear to complete without landing.
+  const { data: listed, error: listErr } = await supabase.storage.from(PHOTO_BUCKET).list(jobId, { search: filename.split("/").pop() });
+  if (listErr) throw listErr;
+  if (!listed || listed.length === 0) throw new Error("Upload not confirmed — will retry");
+
   const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(filename);
   return { url: data.publicUrl, path: filename };
 }
