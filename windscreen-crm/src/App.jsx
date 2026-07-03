@@ -975,7 +975,12 @@ function PhotoUploader({ label, photos = [], onChange, jobId }) {
       for (const file of files) {
         const dataUrl = await resizeImage(file);
         const photoId = uid();
-        // Try to upload to cloud storage immediately
+        // If clearly offline, save as pending immediately — no waiting, no risk of loss
+        if (!navigator.onLine) {
+          newPhotos.push({ id: photoId, pending: dataUrl, jobId: jobId || "unassigned" });
+          continue;
+        }
+        // Otherwise try to upload to cloud storage immediately
         try {
           const { url, path } = await uploadPhoto(dataUrl, jobId || "unassigned");
           newPhotos.push({ id: photoId, url, path });
