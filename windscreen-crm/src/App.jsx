@@ -320,7 +320,8 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
       if (!b.jobTime) return -1;
       return a.jobTime.localeCompare(b.jobTime);
     });
-  const openJobs = data.jobs.filter(j => !["Paid","Complete"].includes(j.status));
+  // "Open" = work still to carry out (Booked). Money owed is shown separately as Outstanding.
+  const openJobs = data.jobs.filter(j => j.status === "Booked");
   const unpaidInvoices = data.invoices.filter(i => !i.paid);
   const unpaidTotal = unpaidInvoices.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
   // Follow-ups due today or overdue
@@ -892,7 +893,7 @@ function JobsList({ data, setView, initialFilter }) {
 
   const filtered = data.jobs.filter(j => {
     if (filter==="Today")    return j.date === todayISO();
-    if (filter==="Open")     return !invoiceByJob[j.id];          // not invoiced yet
+    if (filter==="Open")     return j.status === "Booked";        // still to do
     if (filter==="Unpaid")   return isUnpaid(j);                  // invoiced but not paid
     if (filter==="Complete") return ["Complete","Paid"].includes(j.status);
     return true;
