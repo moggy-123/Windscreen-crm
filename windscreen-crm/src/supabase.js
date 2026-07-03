@@ -206,3 +206,13 @@ export async function deletePhoto(path) {
   if (!path) return;
   await supabase.storage.from(PHOTO_BUCKET).remove([path]);
 }
+
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
