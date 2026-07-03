@@ -29,10 +29,11 @@ function loadData() {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       const data = JSON.parse(raw);
-      // Strip any leftover base64 photo data (old format) but keep URL references
+      // Keep uploaded photos (have a url) AND pending photos (waiting to upload offline).
+      // Only drop malformed entries that have neither.
       if (data.jobs) {
         data.jobs = data.jobs.map(j => {
-          const strip = arr => (arr || []).filter(p => p && p.url); // keep only uploaded (url) photos
+          const strip = arr => (arr || []).filter(p => p && (p.url || p.pending)); // keep uploaded OR pending
           return { ...j, photosBefore: strip(j.photosBefore), photosAfter: strip(j.photosAfter) };
         });
       }
