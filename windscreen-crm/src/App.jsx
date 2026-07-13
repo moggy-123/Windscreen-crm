@@ -1096,6 +1096,7 @@ function JobForm({ data, onClose, editJob, prefill }) {
   const [custSearch,    setCustSearch]    = useState("");
   const [custDropOpen,  setCustDropOpen]  = useState(false);
   const [driverName,    setDriverName]    = useState(editJob?.driverName    || "");
+  const [contactName,   setContactName]   = useState(editJob?.contactName   || "");
   const [vehicleId,     setVehicleId]     = useState(editJob?.vehicleId     || prefill?.vehicleId || "");
   const [date,          setDate]          = useState(editJob?.date          || todayISO());
   const [jobTime,       setJobTime]       = useState(editJob?.jobTime       || "");
@@ -1136,7 +1137,7 @@ function JobForm({ data, onClose, editJob, prefill }) {
     if (!customerId) return;
     const jobs = [...data.jobs];
     const first = repairs[0] || {};
-    const rec = { customerId, driverName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, repairs, damageType: first.type || "", damageSide: first.side || "", damagePosition: first.position || "", adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
+    const rec = { customerId, driverName, contactName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, repairs, damageType: first.type || "", damageSide: first.side || "", damagePosition: first.position || "", adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
     if (editJob) {
       const idx = jobs.findIndex(j => j.id === editJob.id);
       jobs[idx] = { ...editJob, ...rec };
@@ -1200,7 +1201,20 @@ function JobForm({ data, onClose, editJob, prefill }) {
         const selCust = data.customers.find(c => c.id === customerId);
         // Private customers are the driver themselves, so no separate driver field needed
         if (selCust?.custType === "Private") return null;
-        return <Field label="Driver / Customer Name"><Input value={driverName} onChange={setDriverName} placeholder="Name of the driver or car owner" /></Field>;
+        const contacts = selCust?.contacts || [];
+        return (
+          <>
+            {contacts.length > 0 && (
+              <Field label="Company Contact (optional)">
+                <select style={{ ...inputStyle, appearance:"none" }} value={contactName} onChange={e => setContactName(e.target.value)}>
+                  <option value="">Select a contact…</option>
+                  {contacts.map(ct => <option key={ct.id} value={ct.name}>{ct.name}{ct.role ? ` (${ct.role})` : ""}</option>)}
+                </select>
+              </Field>
+            )}
+            <Field label="Driver / Customer Name (optional)"><Input value={driverName} onChange={setDriverName} placeholder="Name of the driver or car owner" /></Field>
+          </>
+        );
       })()}
       {customerId && (
         <Field label="Vehicle">
@@ -1511,6 +1525,7 @@ function JobDetail({ data, id, setView }) {
       <Card>
         <Row label="Company"      value={customer?.company || null} />
         <Row label="Contact"      value={customer?.companyContact || null} />
+        <Row label="Contact"      value={job.contactName || null} />
         <Row label="Driver"       value={job.driverName || null} />
         <Row label="Phone"        value={customer?.phone} />
         <Row label="Address"      value={[customer?.address1, customer?.town, customer?.postcode].filter(Boolean).join(", ")} />
