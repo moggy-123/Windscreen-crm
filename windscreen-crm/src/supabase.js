@@ -41,7 +41,7 @@ const vehicleFromDb = r => ({
 });
 
 const jobToDb = j => ({
-  id: j.id, customer_id: j.customerId, driver_name: j.driverName, vehicle_id: j.vehicleId || null,
+  id: j.id, customer_id: j.customerId, driver_name: j.driverName, contact_name: j.contactName || null, vehicle_id: j.vehicleId || null,
   date: j.date, job_time: j.jobTime, loc_address1: j.locAddress1, loc_address2: j.locAddress2,
   loc_town: j.locTown, loc_county: j.locCounty, loc_postcode: j.locPostcode,
   job_type: j.jobType, damage_type: j.damageType, damage_side: j.damageSide,
@@ -54,7 +54,7 @@ const jobToDb = j => ({
   created_at: j.createdAt || new Date().toISOString(),
 });
 const jobFromDb = r => ({
-  id: r.id, customerId: r.customer_id, driverName: r.driver_name, vehicleId: r.vehicle_id,
+  id: r.id, customerId: r.customer_id, driverName: r.driver_name, contactName: r.contact_name, vehicleId: r.vehicle_id,
   date: r.date, jobTime: r.job_time, locAddress1: r.loc_address1, locAddress2: r.loc_address2,
   locTown: r.loc_town, locCounty: r.loc_county, locPostcode: r.loc_postcode,
   jobType: r.job_type, damageType: r.damage_type, damageSide: r.damage_side,
