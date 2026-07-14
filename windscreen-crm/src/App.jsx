@@ -1491,7 +1491,7 @@ function JobDetail({ data, id, setView }) {
   const technician = data.technicians.find(t => t.id === job.technicianId);
   const invoice    = data.invoices.find(i => i.jobId === id);
 
-  const nextStatuses = { "Booked":["Complete"], "Complete":["Invoiced"], "Invoiced":["Paid"], "Paid":[] };
+  const nextStatuses = { "Booked":["Complete"], "Complete":[], "Invoiced":[], "Paid":[] };
 
   async function updateStatus(s) {
     await saveAndReload({ ...data, jobs: data.jobs.map(j => j.id===id ? {...j,status:s} : j) });
@@ -1569,7 +1569,7 @@ function JobDetail({ data, id, setView }) {
             <div style={{ display:"flex", gap:8 }}>
               <Btn size="sm" variant="ghost" onClick={() => setShowEditInvoice(true)}>Edit</Btn>
               {!invoice.paid && (
-                <Btn size="sm" variant="ghost" onClick={async () => {
+                <Btn size="sm" onClick={async () => {
                   const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
                   const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
                   await saveAndReload({ ...data, invoices, jobs });
