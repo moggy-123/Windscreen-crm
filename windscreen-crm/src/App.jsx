@@ -656,15 +656,18 @@ Please reply if you are happy for me to carry out the repair knowing the points 
 }
 
 // ── Damage Report (list of vehicles to send to a trade client) ────────────────
-function DamageReportModal({ customer, vehicles, onClose }) {
+function DamageReportModal({ customer, vehicles, data, onClose }) {
+  // A vehicle counts as "repaired" if it has any job that's Complete, Invoiced or Paid
+  const isRepaired = (vehId) => (data?.jobs || []).some(j => j.vehicleId === vehId && ["Complete","Invoiced","Paid"].includes(j.status));
   const [selected, setSelected] = useState(() => {
-    const s = {}; (vehicles || []).forEach(v => { s[v.id] = true; }); return s;
+    const s = {}; (vehicles || []).forEach(v => { s[v.id] = !isRepaired(v.id); }); return s;
   });
   const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our recent inspection. Please let us know which you would like us to repair.");
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
 
   function generate() {
     const chosen = (vehicles || []).filter(v => selected[v.id]);
+    const logoUrl = window.location.origin + "/logo.png";
     const fmtD = new Date().toLocaleDateString("en-GB");
     const rows = chosen.map((v, i) => `
       <tr>
@@ -685,7 +688,7 @@ function DamageReportModal({ customer, vehicles, onClose }) {
 </div>
 <div style="max-width:700px;margin:0 auto;padding:24px;background:#fff;">
   <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:14px;margin-bottom:18px;">
-    <img src="/logo.png" style="width:56px;height:56px;object-fit:contain;" />
+    <img src="${logoUrl}" style="width:56px;height:56px;object-fit:contain;" />
     <div>
       <div style="font-size:20px;font-weight:800;color:#1E3A5F;">Windscreen Repairs (Bristol)</div>
       <div style="font-size:12px;color:#6B7280;">3 Goosander Grove, Cheddar, BS27 3FY · 07946 222246</div>
@@ -728,10 +731,11 @@ function DamageReportModal({ customer, vehicles, onClose }) {
           {vehicles.map(v => (
             <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
               <input type="checkbox" checked={!!selected[v.id]} onChange={() => toggle(v.id)} style={{ width:18, height:18 }} />
-              <div>
+              <div style={{ flex:1 }}>
                 <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg || "No reg"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model].filter(Boolean).join(" ") || "—"}</div>
               </div>
+              {isRepaired(v.id) && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>REPAIRED</span>}
             </label>
           ))}
           <Btn onClick={generate} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
@@ -824,7 +828,7 @@ function CustomerDetail({ data, id, setView }) {
         </div>
       </Card>
       {showTerms && <RepairTermsModal customer={customer} onClose={() => setShowTerms(false)} />}
-      {showDamageReport && <DamageReportModal customer={customer} vehicles={vehicles} onClose={() => setShowDamageReport(false)} />}
+      {showDamageReport && <DamageReportModal customer={customer} vehicles={vehicles} data={data} onClose={() => setShowDamageReport(false)} />}
 
       {customer.contacts?.length > 0 && (
         <div style={{ marginTop:16 }}>
