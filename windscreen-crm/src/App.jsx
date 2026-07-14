@@ -655,6 +655,95 @@ Please reply if you are happy for me to carry out the repair knowing the points 
   );
 }
 
+// ── Damage Report (list of vehicles to send to a trade client) ────────────────
+function DamageReportModal({ customer, vehicles, onClose }) {
+  const [selected, setSelected] = useState(() => {
+    const s = {}; (vehicles || []).forEach(v => { s[v.id] = true; }); return s;
+  });
+  const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our recent inspection. Please let us know which you would like us to repair.");
+  const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
+
+  function generate() {
+    const chosen = (vehicles || []).filter(v => selected[v.id]);
+    const fmtD = new Date().toLocaleDateString("en-GB");
+    const rows = chosen.map((v, i) => `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${v.reg || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
+      </tr>`).join("");
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Windscreen Damage Report</title>
+<style>
+  body { margin:0; padding:0; background:#F8FAFC; font-family:Arial,sans-serif; }
+  @media print { .no-print { display:none !important; } body { background:#fff; } }
+</style></head><body>
+<div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+  <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
+  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+</div>
+<div style="max-width:700px;margin:0 auto;padding:24px;background:#fff;">
+  <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:14px;margin-bottom:18px;">
+    <img src="/logo.png" style="width:56px;height:56px;object-fit:contain;" />
+    <div>
+      <div style="font-size:20px;font-weight:800;color:#1E3A5F;">Windscreen Repairs (Bristol)</div>
+      <div style="font-size:12px;color:#6B7280;">3 Goosander Grove, Cheddar, BS27 3FY · 07946 222246</div>
+      <div style="font-size:12px;color:#6B7280;">info@windscreenrepairsbristol.co.uk</div>
+    </div>
+  </div>
+  <div style="font-size:16px;font-weight:800;color:#1E3A5F;margin-bottom:4px;">Windscreen Damage Report</div>
+  <div style="font-size:13px;color:#6B7280;margin-bottom:2px;">Prepared for: <b style="color:#111827;">${customer.company || customer.companyContact || ""}</b></div>
+  <div style="font-size:13px;color:#6B7280;margin-bottom:14px;">Date: ${fmtD}</div>
+  <div style="font-size:13px;color:#374151;line-height:1.5;margin-bottom:16px;">${note.replace(/</g,"&lt;")}</div>
+  <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;">
+    <thead><tr style="background:#F9FAFB;">
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">#</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Reg</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Make &amp; Model</th>
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="3" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles selected</td></tr>'}</tbody>
+  </table>
+  <div style="font-size:12px;color:#9CA3AF;margin-top:20px;">${chosen.length} vehicle(s) listed · Windscreen Repairs (Bristol)</div>
+</div>
+</body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  }
+
+  const count = Object.values(selected).filter(Boolean).length;
+
+  return (
+    <Modal title="Damage Report" onClose={onClose}>
+      {(vehicles || []).length === 0 ? (
+        <p style={{ fontSize:14, color:"#9CA3AF" }}>This customer has no vehicles added.</p>
+      ) : (
+        <>
+          <Field label="Covering note">
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
+              style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
+          </Field>
+          <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Select vehicles to include</div>
+          {vehicles.map(v => (
+            <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
+              <input type="checkbox" checked={!!selected[v.id]} onChange={() => toggle(v.id)} style={{ width:18, height:18 }} />
+              <div>
+                <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg || "No reg"}</div>
+                <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model].filter(Boolean).join(" ") || "—"}</div>
+              </div>
+            </label>
+          ))}
+          <Btn onClick={generate} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
+            📄 Generate PDF ({count})
+          </Btn>
+          <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Opens the report — tap "Save as PDF", then attach it to an email to your client.</p>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 // ── Customer Detail ───────────────────────────────────────────────────────────
 function CustomerDetail({ data, id, setView }) {
   const customer = data.customers.find(c => c.id === id);
@@ -663,6 +752,7 @@ function CustomerDetail({ data, id, setView }) {
   const [showEdit, setShowEdit]       = useState(false);
   const [showVehicle, setShowVehicle] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
+  const [showDamageReport, setShowDamageReport] = useState(false);
   if (!customer) return <p>Not found</p>;
 
   const addrParts = [customer.address1, customer.address2, customer.town, customer.county, customer.postcode].filter(Boolean);
@@ -728,11 +818,13 @@ function CustomerDetail({ data, id, setView }) {
             </a>
           )}
           {customer.phone && customer.custType === "Private" && <Btn size="sm" variant="ghost" onClick={() => setShowTerms(true)}>💬 Send Terms</Btn>}
+          {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
       </Card>
       {showTerms && <RepairTermsModal customer={customer} onClose={() => setShowTerms(false)} />}
+      {showDamageReport && <DamageReportModal customer={customer} vehicles={vehicles} onClose={() => setShowDamageReport(false)} />}
 
       {customer.contacts?.length > 0 && (
         <div style={{ marginTop:16 }}>
