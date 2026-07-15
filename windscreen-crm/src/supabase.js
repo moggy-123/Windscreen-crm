@@ -106,12 +106,14 @@ const inspectionFromDb = r => ({
 
 const commToDb = c => ({
   id: c.id, customer_id: c.customerId || null,
+  contact_id: c.contactId || null, contact_name: c.contactName || "",
   type: c.type || "Note", direction: c.direction || "out", note: c.note || "",
   timestamp: c.timestamp || Date.now(), created_at: c.createdAt || new Date().toISOString(),
   updated_at: c.updatedAt || Date.now(),
 });
 const commFromDb = r => ({
-  id: r.id, customerId: r.customer_id, type: r.type, direction: r.direction,
+  id: r.id, customerId: r.customer_id, contactId: r.contact_id, contactName: r.contact_name,
+  type: r.type, direction: r.direction,
   note: r.note, timestamp: r.timestamp, createdAt: r.created_at, updatedAt: r.updated_at,
 });
 
