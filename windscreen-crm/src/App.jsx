@@ -149,6 +149,31 @@ function getTombstones() {
   try { return JSON.parse(localStorage.getItem("wscrm_deleted") || "[]"); } catch { return []; }
 }
 
+// Merge a cloud array with a local array for one table.
+// - Present in both: newest updatedAt wins (protects an edit made while offline).
+// - Local-only AND previously confirmed synced (wasUploaded): it was deleted on another
+//   device — drop it here too, and tombstone it so it can't resurrect from a stale cache.
+// - Local-only AND never uploaded before: genuinely new/offline-created — keep it.
+function mergeRecords(cloudArr, localArr) {
+  const deleted = getTombstones();
+  const byId = {};
+  (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
+  (localArr || []).forEach(x => {
+    if (deleted.includes(x.id)) return;
+    if (byId[x.id]) {
+      const localTime = x.updatedAt || 0;
+      const cloudTime = byId[x.id].updatedAt || 0;
+      byId[x.id] = localTime >= cloudTime ? x : byId[x.id];
+    } else if (wasUploaded(x.id)) {
+      addTombstone(x.id);
+      removeSig(x.id);
+    } else {
+      byId[x.id] = x;
+    }
+  });
+  return Object.values(byId);
+}
+
 // Compare against last-synced signatures and push only changed/new records
 async function pushChangedOnly(data) {
   let sigs = {};
@@ -2893,29 +2918,9 @@ export default function App() {
         const cloud = await pullFromCloud();
         if (cancelled) return;
         const local = loadData();
-        // Merge by id: whichever copy (cloud or local) has the newer updatedAt wins.
-        // This protects local edits made while the cloud still had the old version.
-        const merge = (cloudArr, localArr) => {
-          const deleted = getTombstones();
-          const now = Date.now();
-          const byId = {};
-          (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
-          (localArr || []).forEach(x => {
-            if (deleted.includes(x.id)) return;
-            if (byId[x.id]) {
-              const localTime = x.updatedAt || 0;
-              const cloudTime = byId[x.id].updatedAt || 0;
-              byId[x.id] = localTime >= cloudTime ? x : byId[x.id];
-            } else {
-              // local-only: keep only if recently created (not yet uploaded)
-              // local-only row: keep only if it was never uploaded (genuinely new).
-              // If it was uploaded before, its absence from cloud means it was deleted elsewhere.
-              // Local-only record: keep unless tombstoned (filtered above).
-              byId[x.id] = x;
-            }
-          });
-          return Object.values(byId);
-        };
+        // Merge by id: whichever copy (cloud or local) has the newer updatedAt wins,
+        // and anything previously synced but now missing from the cloud is treated as deleted.
+        const merge = mergeRecords;
         const merged = {
           customers:   merge(cloud.customers,   local.customers || []),
           vehicles:    merge(cloud.vehicles,    local.vehicles || []),
@@ -2949,28 +2954,9 @@ export default function App() {
           }
           const cloud = await pullFromCloud();
           const local = loadData();
-          const deleted = getTombstones();
-          // Cloud is authoritative. A record is kept if it's in the cloud.
-          // Local-only records are kept ONLY if created in the last 60s (genuinely new,
-          // not yet uploaded) — otherwise they were deleted elsewhere and must go.
-          const now = Date.now();
-          const merge = (cloudArr, localArr) => {
-            const byId = {};
-            (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
-            (localArr || []).forEach(x => {
-              if (deleted.includes(x.id)) return;
-              if (byId[x.id]) {
-                // exists in cloud — newest wins
-                byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
-              } else {
-                // local-only: keep only if genuinely new (never uploaded)
-                // Local-only record: keep unless tombstoned (filtered above).
-                byId[x.id] = x;
-                // otherwise it was deleted on another device — drop it
-              }
-            });
-            return Object.values(byId);
-          };
+          // Cloud is authoritative for anything it has. Local-only records are kept only
+          // if genuinely new (never uploaded) — see mergeRecords for the full logic.
+          const merge = mergeRecords;
           const merged = {
             customers: merge(cloud.customers, local.customers || []),
             vehicles:  merge(cloud.vehicles,  local.vehicles || []),
@@ -3041,40 +3027,24 @@ export default function App() {
       try {
         const cloud = await pullFromCloud();
         const local = loadData();
-        const deleted = getTombstones();
-        const now = Date.now();
-        const merge = (cloudArr, localArr) => {
-          const byId = {};
-          (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
-          (localArr || []).forEach(x => {
-            if (deleted.includes(x.id)) return;
-            if (byId[x.id]) {
-              byId[x.id] = (x.updatedAt || 0) >= (byId[x.id].updatedAt || 0) ? x : byId[x.id];
-            } else {
-              // Local-only record: keep it. Genuine deletes are handled via tombstones
-              // (filtered above), so anything here is either new, pending upload, or
-              // briefly missing due to replication lag — never drop it on a poll.
-              byId[x.id] = x;
-            }
-          });
-          return Object.values(byId);
-        };
+        const merge = mergeRecords;
         const merged = {
           customers: merge(cloud.customers, local.customers || []),
           vehicles:  merge(cloud.vehicles,  local.vehicles || []),
           jobs:      merge(cloud.jobs,      local.jobs || []),
           invoices:  merge(cloud.invoices,  local.invoices || []),
           mileage:   merge(cloud.mileage,   local.mileage || []),
+          inspections: merge(cloud.inspections, local.inspections || []),
           technicians: local.technicians || [],
         };
-        const before = JSON.stringify(local.customers?.length) + local.jobs?.length + local.vehicles?.length + local.invoices?.length;
-        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length;
+        const before = JSON.stringify(local.customers?.length) + local.jobs?.length + local.vehicles?.length + local.invoices?.length + (local.inspections?.length||0);
+        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length + merged.inspections.length;
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
         // Push any local records that haven't been uploaded yet (e.g. created offline)
         pushChangedOnly(merged).catch(() => {});
         // Only re-render if something actually changed, to avoid disrupting typing
         setData(prev => {
-          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0);
+          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0)+(prev.inspections?.length||0);
           if (prevCount !== after) return merged;
           return prev;
         });
