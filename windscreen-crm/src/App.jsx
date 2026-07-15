@@ -40,7 +40,7 @@ function loadData() {
       return data;
     }
   } catch {}
-  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], technicians: [] };
+  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], inspections: [], technicians: [] };
 }
 
 // One-time cleanup: remove the old duplicate lastsync copy
@@ -74,6 +74,7 @@ function stampData(data) {
     vehicles:  stamp(data.vehicles,  prev.vehicles),
     jobs:      stamp(data.jobs,      prev.jobs),
     invoices:  stamp(data.invoices,  prev.invoices),
+    inspections: stamp(data.inspections, prev.inspections),
   };
 }
 
@@ -159,6 +160,7 @@ async function pushChangedOnly(data) {
     { name: "jobs",      key: "jobs"      },
     { name: "invoices",  key: "invoices"  },
     { name: "mileage",   key: "mileage"   },
+    { name: "inspections", key: "inspections" },
   ];
 
   let failed = 0;
@@ -437,6 +439,9 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
       <div style={{ marginTop:20, display:"flex", gap:10 }}>
         <Btn onClick={() => setView({ screen:"reports" })} style={{ flex:1, justifyContent:"center" }}>📊 Reports</Btn>
         <Btn onClick={() => setView({ screen:"mileage" })} variant="ghost" style={{ flex:1, justifyContent:"center" }}>🚗 Mileage</Btn>
+      </div>
+      <div style={{ marginTop:10 }}>
+        <Btn onClick={() => setView({ screen:"inspections" })} variant="ghost" style={{ width:"100%", justifyContent:"center" }}>🔍 Site Inspections</Btn>
       </div>
 
       <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
@@ -823,6 +828,7 @@ function CustomerDetail({ data, id, setView }) {
           )}
           {customer.phone && customer.custType === "Private" && <Btn size="sm" variant="ghost" onClick={() => setShowTerms(true)}>💬 Send Terms</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
+          {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
@@ -966,6 +972,500 @@ function VehicleDetail({ data, id, customerId, setView }) {
       {jobs.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No jobs for this vehicle yet</p>}
 
       {showEdit && <VehicleForm data={data} onClose={() => setShowEdit(false)} editVehicle={vehicle} />}
+    </div>
+  );
+}
+
+// ── Site Inspections ─────────────────────────────────────────────────────────
+function describeRepair(r) {
+  return [r.type, r.side, r.position].filter(Boolean).join(" · ");
+}
+
+// Small popup for recording one vehicle found during a walkaround
+function InspectionVehicleForm({ onSave, onClose, editVehicle }) {
+  const [reg,    setReg]    = useState(editVehicle?.reg    || "");
+  const [make,   setMake]   = useState(editVehicle?.make   || "");
+  const [model,  setModel]  = useState(editVehicle?.model  || "");
+  const [colour, setColour] = useState(editVehicle?.colour || "");
+  const [repairs, setRepairs] = useState(() =>
+    editVehicle?.repairs?.length ? editVehicle.repairs : [{ id: uid(), type: "Chip", side: "", position: "" }]
+  );
+  const updateRepair = (id, field, value) => setRepairs(rs => rs.map(r => r.id === id ? { ...r, [field]: value } : r));
+  const addRepair = () => setRepairs(rs => [...rs, { id: uid(), type: "Chip", side: "", position: "" }]);
+  const removeRepair = (id) => setRepairs(rs => rs.length > 1 ? rs.filter(r => r.id !== id) : rs);
+
+  function save() {
+    if (!reg) return;
+    onSave({
+      id: editVehicle?.id || uid(),
+      reg: reg.toUpperCase(), make, model, colour,
+      repairs: repairs.filter(r => r.type),
+      bookedJobId: editVehicle?.bookedJobId || null,
+      bookedVehicleId: editVehicle?.bookedVehicleId || null,
+    });
+    onClose();
+  }
+
+  return (
+    <Modal title={editVehicle ? "Edit Vehicle" : "Add Vehicle"} onClose={onClose}>
+      <Field label="Registration" required><Input value={reg} onChange={setReg} placeholder="AB12 CDE" /></Field>
+      <div style={{ display:"flex", gap:10 }}>
+        <div style={{ flex:1 }}><Field label="Make"><Input value={make} onChange={setMake} placeholder="Ford" /></Field></div>
+        <div style={{ flex:1 }}><Field label="Model"><Input value={model} onChange={setModel} placeholder="Focus" /></Field></div>
+      </div>
+      <Field label="Colour"><Input value={colour} onChange={setColour} placeholder="Silver" /></Field>
+
+      <div style={{ marginBottom:14 }}>
+        <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>Damage</label>
+        {repairs.map((r, idx) => (
+          <div key={r.id} style={{ background:"#F8FAFC", border:"1px solid #F3F4F6", borderRadius:10, padding:12, marginBottom:8 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <span style={{ fontSize:12, fontWeight:700, color:"#1E3A5F" }}>Damage {idx + 1}</span>
+              {repairs.length > 1 && (
+                <button onClick={() => removeRepair(r.id)} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:600, cursor:"pointer" }}>Remove</button>
+              )}
+            </div>
+            <div style={{ marginBottom:8 }}>
+              <Select value={r.type} onChange={v => updateRepair(r.id, "type", v)} options={DAMAGE_TYPES} />
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ flex:1 }}>
+                <Select value={r.side} onChange={v => updateRepair(r.id, "side", v)} options={["Drivers Side","Passenger Side","Middle"]} placeholder="Side…" />
+              </div>
+              <div style={{ flex:1 }}>
+                <Select value={r.position} onChange={v => updateRepair(r.id, "position", v)} options={["Top Right","Top Left","Top Centre","Centre","Bottom Right","Bottom Left","Bottom Centre"]} placeholder="Position…" />
+              </div>
+            </div>
+          </div>
+        ))}
+        <Btn size="sm" variant="ghost" onClick={addRepair} style={{ width:"100%", justifyContent:"center" }}>+ Add another chip/crack</Btn>
+      </div>
+
+      <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!reg}>
+        {editVehicle ? "Save Changes" : "Add to Inspection"}
+      </Btn>
+    </Modal>
+  );
+}
+
+// New Inspection — builds the vehicle list locally while walking round, saves once at the end
+function InspectionForm({ data, setView, prefillCustomerId }) {
+  const [mode, setMode]             = useState("existing");
+  const [customerId, setCustomerId] = useState(prefillCustomerId || "");
+  const [custSearch, setCustSearch] = useState("");
+  const [siteName, setSiteName]         = useState("");
+  const [contactName, setContactName]   = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [address, setAddress]           = useState("");
+  const [date, setDate]                 = useState(todayISO());
+  const [notes, setNotes]               = useState("");
+  const [vehicles, setVehicles]         = useState([]);
+  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [editingVehicle, setEditingVehicle]   = useState(null);
+
+  const sortedCusts = [...data.customers].sort((a,b) => (a.company || a.companyContact || "").localeCompare(b.company || b.companyContact || "", undefined, { sensitivity:"base" }));
+  const matches = custSearch.trim()
+    ? sortedCusts.filter(c => (c.company||"").toLowerCase().includes(custSearch.toLowerCase()) || (c.companyContact||"").toLowerCase().includes(custSearch.toLowerCase()) || (c.town||"").toLowerCase().includes(custSearch.toLowerCase()))
+    : sortedCusts;
+  const selectedCust = data.customers.find(c => c.id === customerId);
+
+  function addVehicle(v) { setVehicles(vs => [...vs, v]); }
+  function updateVehicle(v) { setVehicles(vs => vs.map(x => x.id === v.id ? v : x)); }
+  function removeVehicle(id) { if (!window.confirm("Remove this vehicle from the inspection?")) return; setVehicles(vs => vs.filter(x => x.id !== id)); }
+
+  const canSave = mode === "existing" ? !!customerId : !!siteName.trim();
+
+  async function save() {
+    if (!canSave) return;
+    const inspection = {
+      id: uid(),
+      customerId: mode === "existing" ? customerId : "",
+      siteName: mode === "existing" ? "" : siteName,
+      contactName: mode === "existing" ? "" : contactName,
+      contactPhone: mode === "existing" ? "" : contactPhone,
+      contactEmail: mode === "existing" ? "" : contactEmail,
+      address: mode === "existing" ? "" : address,
+      date, notes, vehicles,
+      createdAt: todayISO(),
+    };
+    try {
+      await saveAndReload({ ...data, inspections: [...(data.inspections||[]), inspection] });
+    } catch (e) {
+      alert("Save failed: " + (e?.message || e));
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"inspections" })}><Icon name="back" size={14} /> Back</Btn>
+      </div>
+      <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:"0 0 12px" }}>New Site Inspection</h2>
+
+      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+        <button onClick={() => setMode("existing")} style={{ flex:1, padding:"10px", borderRadius:8, border: mode==="existing" ? "2px solid #1E3A5F" : "1.5px solid #E5E7EB", background: mode==="existing" ? "#EFF6FF" : "#fff", fontWeight:700, fontSize:13, cursor:"pointer", color:"#1E3A5F" }}>Existing Customer</button>
+        <button onClick={() => setMode("new")} style={{ flex:1, padding:"10px", borderRadius:8, border: mode==="new" ? "2px solid #1E3A5F" : "1.5px solid #E5E7EB", background: mode==="new" ? "#EFF6FF" : "#fff", fontWeight:700, fontSize:13, cursor:"pointer", color:"#1E3A5F" }}>New Site</button>
+      </div>
+
+      {mode === "existing" ? (
+        <Field label="Customer" required>
+          {customerId ? (
+            <div style={{ display:"flex", alignItems:"center", gap:8, ...inputStyle, cursor:"default" }}>
+              <span style={{ flex:1, fontWeight:600 }}>{selectedCust ? (selectedCust.company || selectedCust.companyContact || "Unnamed") : "Select customer…"}</span>
+              <button onClick={() => setCustomerId("")} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Change</button>
+            </div>
+          ) : (
+            <div>
+              <input autoFocus style={{ ...inputStyle, marginBottom:6 }} placeholder="Search customer…" value={custSearch} onChange={e => setCustSearch(e.target.value)} />
+              <div style={{ maxHeight:220, overflowY:"auto", border:"1px solid #E5E7EB", borderRadius:8 }}>
+                {matches.length === 0 && <div style={{ padding:12, fontSize:13, color:"#9CA3AF" }}>No customers found</div>}
+                {matches.map(c => (
+                  <div key={c.id} onClick={() => { setCustomerId(c.id); setCustSearch(""); }}
+                    style={{ padding:"10px 12px", borderBottom:"1px solid #F3F4F6", cursor:"pointer", fontSize:14 }}>
+                    <div style={{ fontWeight:600 }}>{c.company || c.companyContact || "Unnamed"}</div>
+                    {(c.town || c.phone) && <div style={{ fontSize:12, color:"#9CA3AF" }}>{[c.town, c.phone].filter(Boolean).join(" · ")}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Field>
+      ) : (
+        <>
+          <Field label="Site / Company Name" required><Input value={siteName} onChange={setSiteName} placeholder="e.g. ABC Fleet Depot" /></Field>
+          <Field label="Contact Name"><Input value={contactName} onChange={setContactName} placeholder="On-site contact" /></Field>
+          <div style={{ display:"flex", gap:10 }}>
+            <div style={{ flex:1 }}><Field label="Contact Phone"><Input value={contactPhone} onChange={setContactPhone} placeholder="07…" /></Field></div>
+            <div style={{ flex:1 }}><Field label="Contact Email"><Input value={contactEmail} onChange={setContactEmail} placeholder="name@company.com" /></Field></div>
+          </div>
+          <Field label="Site Address"><Input value={address} onChange={setAddress} placeholder="Address / postcode" /></Field>
+        </>
+      )}
+
+      <Field label="Inspection Date"><Input type="date" value={date} onChange={setDate} /></Field>
+      <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", margin:"18px 0 8px" }}>
+        <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Vehicles Found ({vehicles.length})</h3>
+        <Btn size="sm" onClick={() => { setEditingVehicle(null); setShowVehicleForm(true); }}><Icon name="plus" size={13} /> Add</Btn>
+      </div>
+      {vehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>Walk around and tap "Add" for each damaged vehicle you find.</p>}
+      {vehicles.map(v => (
+        <Card key={v.id}>
+          <div onClick={() => { setEditingVehicle(v); setShowVehicleForm(true); }} style={{ cursor:"pointer" }}>
+            <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg}</div>
+            <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model, v.colour].filter(Boolean).join(" · ") || "—"}</div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
+              {(v.repairs||[]).map(r => (
+                <span key={r.id} style={{ fontSize:11, fontWeight:600, color:"#92400E", background:"#FEF3C7", padding:"3px 8px", borderRadius:6 }}>{describeRepair(r) || r.type}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop:8 }}>
+            <Btn size="sm" variant="danger" onClick={() => removeVehicle(v.id)}><Icon name="trash" size={12} /> Remove</Btn>
+          </div>
+        </Card>
+      ))}
+
+      <Btn onClick={save} disabled={!canSave} style={{ width:"100%", justifyContent:"center", marginTop:18 }}>💾 Save Inspection</Btn>
+
+      {showVehicleForm && (
+        <InspectionVehicleForm
+          editVehicle={editingVehicle}
+          onSave={(v) => editingVehicle ? updateVehicle(v) : addVehicle(v)}
+          onClose={() => setShowVehicleForm(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// List of saved inspections
+function InspectionsList({ data, setView }) {
+  const inspections = [...(data.inspections||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+  const nameFor = (insp) => {
+    if (insp.customerId) {
+      const c = data.customers.find(c => c.id === insp.customerId);
+      return c ? (c.company || c.companyContact || "Unnamed") : "Unnamed";
+    }
+    return insp.siteName || "Unnamed site";
+  };
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:0 }}>Site Inspections</h2>
+        <Btn size="sm" onClick={() => setView({ screen:"newInspection" })}><Icon name="plus" size={13} /> New</Btn>
+      </div>
+      {inspections.length === 0 && <Card><p style={{ margin:0, color:"#9CA3AF", fontSize:14, textAlign:"center" }}>No inspections yet</p></Card>}
+      {inspections.map(insp => (
+        <Card key={insp.id} onClick={() => setView({ screen:"inspectionDetail", id:insp.id })}>
+          <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{nameFor(insp)}</div>
+          <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{fmtDate(insp.date)} · {(insp.vehicles||[]).length} vehicle(s)</div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// Report + "book selected vehicles in" modal
+function InspectionReportModal({ data, inspection, onClose }) {
+  const customer = inspection.customerId ? data.customers.find(c => c.id === inspection.customerId) : null;
+  const [selected, setSelected] = useState(() => {
+    const s = {}; (inspection.vehicles||[]).forEach(v => { s[v.id] = !v.bookedJobId; }); return s;
+  });
+  const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our site inspection. Please let us know which you would like us to repair.");
+  const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
+  const count = Object.values(selected).filter(Boolean).length;
+
+  function openReportWindow(chosen, cust) {
+    const logoUrl = window.location.origin + "/logo.png";
+    const fmtD = new Date().toLocaleDateString("en-GB");
+    const toEmail = cust?.email || inspection.contactEmail || "";
+    const subject = encodeURIComponent(`Windscreen Inspection Report — ${cust?.company || inspection.siteName || ""}`);
+    const bodyText = encodeURIComponent(`Please find our site inspection report attached.\n\nWindscreen Repairs (Bristol)\n07946 222246\nwww.windscreenrepairsbristol.co.uk`);
+    const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${bodyText}`;
+
+    const rows = (inspection.vehicles||[]).map((v, i) => {
+      const isChosen = chosen.some(c => c.id === v.id);
+      const damage = (v.repairs||[]).map(describeRepair).filter(Boolean).join("; ") || "—";
+      return `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${v.reg || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${v.colour || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${damage}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;text-align:center;">${isChosen ? "✅" : ""}</td>
+      </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Site Inspection Report</title>
+<style>
+  body { margin:0; padding:0; background:#F8FAFC; font-family:Arial,sans-serif; }
+  @media print { .no-print { display:none !important; } body { background:#fff; } }
+</style></head><body>
+<div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+  <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
+  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  <a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>
+</div>
+<div style="max-width:760px;margin:0 auto;padding:24px;background:#fff;">
+  <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:14px;margin-bottom:18px;">
+    <img src="${logoUrl}" style="width:56px;height:56px;object-fit:contain;" />
+    <div>
+      <div style="font-size:20px;font-weight:800;color:#1E3A5F;">Windscreen Repairs (Bristol)</div>
+      <div style="font-size:12px;color:#6B7280;">3 Goosander Grove, Cheddar, BS27 3FY · 07946 222246</div>
+      <div style="font-size:12px;color:#6B7280;">info@windscreenrepairsbristol.co.uk</div>
+    </div>
+  </div>
+  <div style="font-size:16px;font-weight:800;color:#1E3A5F;margin-bottom:4px;">Site Inspection Report</div>
+  <div style="font-size:13px;color:#6B7280;margin-bottom:2px;">Site: <b style="color:#111827;">${cust?.company || inspection.siteName || ""}</b></div>
+  <div style="font-size:13px;color:#6B7280;margin-bottom:14px;">Inspection date: ${fmtDate(inspection.date)} · Report date: ${fmtD}</div>
+  <div style="font-size:13px;color:#374151;line-height:1.5;margin-bottom:16px;">${note.replace(/</g,"&lt;")}</div>
+  <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;">
+    <thead><tr style="background:#F9FAFB;">
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">#</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Reg</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Make &amp; Model</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Colour</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Damage</th>
+      <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;">To Repair</th>
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="6" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles</td></tr>'}</tbody>
+  </table>
+  <div style="font-size:12px;color:#9CA3AF;margin-top:20px;">${(inspection.vehicles||[]).length} vehicle(s) inspected · ${chosen.length} selected for repair · Windscreen Repairs (Bristol)</div>
+</div>
+</body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  }
+
+  async function generateAndBook() {
+    const chosen = (inspection.vehicles||[]).filter(v => selected[v.id]);
+    if (chosen.length === 0) return;
+
+    let customers = [...data.customers];
+    let vehicles  = [...data.vehicles];
+    let jobs      = [...data.jobs];
+    let custId = inspection.customerId;
+
+    // Create the customer record if this was a "new site" inspection with no existing customer yet
+    if (!custId) {
+      custId = uid();
+      customers.push({
+        id: custId,
+        company: inspection.siteName || "",
+        companyContact: inspection.contactName || "",
+        phone: inspection.contactPhone || "",
+        email: inspection.contactEmail || "",
+        address1: inspection.address || "",
+        custType: "Trade",
+        contacts: [],
+      });
+    }
+    const cust = customers.find(c => c.id === custId);
+
+    const updatedInspVehicles = (inspection.vehicles||[]).map(v => ({ ...v }));
+
+    chosen.forEach(v => {
+      let vehRec = vehicles.find(x => x.customerId === custId && (x.reg||"").toUpperCase() === (v.reg||"").toUpperCase());
+      if (!vehRec) {
+        vehRec = { id: uid(), customerId: custId, make: v.make || "", model: v.model || "", reg: (v.reg||"").toUpperCase() };
+        vehicles.push(vehRec);
+      }
+      const job = {
+        id: uid(),
+        customerId: custId,
+        vehicleId: vehRec.id,
+        driverName: inspection.contactName || "",
+        date: todayISO(),
+        jobType: "Repair",
+        repairs: v.repairs || [],
+        damageType: v.repairs?.[0]?.type || "",
+        damageSide: v.repairs?.[0]?.side || "",
+        damagePosition: v.repairs?.[0]?.position || "",
+        status: "Booked",
+        notes: [v.colour ? `Colour: ${v.colour}` : "", `Booked from site inspection${inspection.date ? " on " + fmtDate(inspection.date) : ""}.`].filter(Boolean).join(" — "),
+        paymentType: "Private",
+        photosBefore: [], photosAfter: [],
+        createdAt: todayISO(),
+      };
+      jobs.push(job);
+
+      const idx = updatedInspVehicles.findIndex(x => x.id === v.id);
+      if (idx > -1) updatedInspVehicles[idx] = { ...updatedInspVehicles[idx], bookedJobId: job.id, bookedVehicleId: vehRec.id };
+    });
+
+    const inspections = data.inspections.map(i => i.id === inspection.id ? { ...i, customerId: custId, vehicles: updatedInspVehicles } : i);
+
+    openReportWindow(chosen, cust);
+
+    try {
+      await saveAndReload({ ...data, customers, vehicles, jobs, inspections });
+    } catch (e) {
+      alert("Save failed: " + (e?.message || e));
+    }
+  }
+
+  return (
+    <Modal title="Report & Book In" onClose={onClose}>
+      <Field label="Covering note">
+        <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
+          style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
+      </Field>
+      <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Select vehicles to book in for repair</div>
+      {(inspection.vehicles||[]).map(v => (
+        <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
+          <input type="checkbox" checked={!!selected[v.id]} onChange={() => toggle(v.id)} style={{ width:18, height:18 }} />
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg || "No reg"}</div>
+            <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model, v.colour].filter(Boolean).join(" · ") || "—"}</div>
+            <div style={{ fontSize:12, color:"#9CA3AF" }}>{(v.repairs||[]).map(describeRepair).filter(Boolean).join("; ")}</div>
+          </div>
+          {v.bookedJobId && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>ALREADY BOOKED</span>}
+        </label>
+      ))}
+      <Btn onClick={generateAndBook} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
+        📄 Generate Report & Book {count} In
+      </Btn>
+      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Opens the report to email, and creates a job for each vehicle ticked above.</p>
+    </Modal>
+  );
+}
+
+// Detail screen for one inspection — add more vehicles later, generate the report, book vehicles in
+function InspectionDetail({ data, id, setView }) {
+  const inspection = (data.inspections||[]).find(i => i.id === id);
+  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [editingVehicle, setEditingVehicle]   = useState(null);
+  const [showReport, setShowReport]           = useState(false);
+  if (!inspection) return <p>Not found</p>;
+
+  const customer = inspection.customerId ? data.customers.find(c => c.id === inspection.customerId) : null;
+  const displayName = customer ? (customer.company || customer.companyContact) : inspection.siteName;
+
+  async function saveVehicleList(vehicles) {
+    const inspections = data.inspections.map(i => i.id === id ? { ...i, vehicles } : i);
+    try {
+      await saveAndReload({ ...data, inspections });
+    } catch (e) {
+      alert("Save failed: " + (e?.message || e));
+    }
+  }
+  function addVehicle(v) { saveVehicleList([...(inspection.vehicles||[]), v]); }
+  function updateVehicle(v) { saveVehicleList((inspection.vehicles||[]).map(x => x.id === v.id ? v : x)); }
+  function removeVehicle(vid) {
+    if (!window.confirm("Remove this vehicle from the inspection?")) return;
+    saveVehicleList((inspection.vehicles||[]).filter(x => x.id !== vid));
+  }
+
+  async function deleteInspection() {
+    if (!window.confirm("Delete this inspection? This won't delete any jobs already booked from it.")) return;
+    try { await deleteRecord("inspections", id); } catch (e) { alert("Delete failed: " + (e?.message||e)); return; }
+    addTombstone(id);
+    removeSig(id);
+    const d = loadData();
+    localStorage.setItem(DB_KEY, JSON.stringify({ ...d, inspections: (d.inspections||[]).filter(i => i.id !== id) }));
+    window.location.reload();
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"inspections" })}><Icon name="back" size={14} /> Back</Btn>
+      </div>
+      <Card>
+        <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{displayName || "Site Inspection"}</div>
+        <div style={{ fontSize:13, color:"#6B7280", marginTop:4 }}>{fmtDate(inspection.date)}</div>
+        {!customer && inspection.contactName && <div style={{ fontSize:13, color:"#6B7280", marginTop:4 }}>Contact: {inspection.contactName}</div>}
+        {!customer && inspection.contactPhone && <div style={{ fontSize:13, color:"#6B7280" }}>{inspection.contactPhone}</div>}
+        {!customer && inspection.contactEmail && <div style={{ fontSize:13, color:"#6B7280" }}>{inspection.contactEmail}</div>}
+        {!customer && inspection.address && <div style={{ fontSize:13, color:"#6B7280" }}>{inspection.address}</div>}
+        {inspection.notes && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:6 }}>{inspection.notes}</div>}
+        <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+          <Btn size="sm" onClick={() => setShowReport(true)} disabled={(inspection.vehicles||[]).length===0}>📄 Report & Book In</Btn>
+          <Btn size="sm" variant="danger" onClick={deleteInspection}><Icon name="trash" size={13} /> Delete</Btn>
+        </div>
+      </Card>
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", margin:"16px 0 8px" }}>
+        <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Vehicles ({(inspection.vehicles||[]).length})</h3>
+        <Btn size="sm" onClick={() => { setEditingVehicle(null); setShowVehicleForm(true); }}><Icon name="plus" size={13} /> Add</Btn>
+      </div>
+      {(inspection.vehicles||[]).length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No vehicles added yet</p>}
+      {(inspection.vehicles||[]).map(v => (
+        <Card key={v.id}>
+          <div onClick={() => { setEditingVehicle(v); setShowVehicleForm(true); }} style={{ cursor:"pointer" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg}</div>
+                <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model, v.colour].filter(Boolean).join(" · ") || "—"}</div>
+              </div>
+              {v.bookedJobId && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>BOOKED</span>}
+            </div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
+              {(v.repairs||[]).map(r => (
+                <span key={r.id} style={{ fontSize:11, fontWeight:600, color:"#92400E", background:"#FEF3C7", padding:"3px 8px", borderRadius:6 }}>{describeRepair(r) || r.type}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop:8 }}>
+            <Btn size="sm" variant="danger" onClick={() => removeVehicle(v.id)}><Icon name="trash" size={12} /> Remove</Btn>
+          </div>
+        </Card>
+      ))}
+
+      {showVehicleForm && (
+        <InspectionVehicleForm
+          editVehicle={editingVehicle}
+          onSave={(v) => editingVehicle ? updateVehicle(v) : addVehicle(v)}
+          onClose={() => setShowVehicleForm(false)}
+        />
+      )}
+      {showReport && <InspectionReportModal data={data} inspection={inspection} onClose={() => setShowReport(false)} />}
     </div>
   );
 }
@@ -2380,6 +2880,7 @@ export default function App() {
           vehicles:    merge(cloud.vehicles,    local.vehicles || []),
           jobs:        merge(cloud.jobs,        local.jobs || []),
           invoices:    merge(cloud.invoices,    local.invoices || []),
+          inspections: merge(cloud.inspections, local.inspections || []),
           technicians: local.technicians || [],
         };
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
@@ -2435,6 +2936,7 @@ export default function App() {
             jobs:      merge(cloud.jobs,      local.jobs || []),
             invoices:  merge(cloud.invoices,  local.invoices || []),
             mileage:   merge(cloud.mileage,   local.mileage || []),
+            inspections: merge(cloud.inspections, local.inspections || []),
             technicians: local.technicians || [],
           };
           localStorage.setItem(DB_KEY, JSON.stringify(merged));
@@ -2627,6 +3129,9 @@ export default function App() {
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
+        {view.screen==="inspections"       && <InspectionsList data={data} setView={setView} />}
+        {view.screen==="newInspection"     && <InspectionForm  data={data} setView={setView} prefillCustomerId={view.prefillCustomerId} />}
+        {view.screen==="inspectionDetail"  && <InspectionDetail data={data} id={view.id} setView={setView} />}
       </div>
 
       {view.screen==="newJob" && <JobForm data={data} prefill={view.prefill} onClose={() => setView({ screen:"jobs" })} />}
