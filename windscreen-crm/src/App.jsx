@@ -1252,15 +1252,9 @@ function InspectionsList({ data, setView }) {
   );
 }
 
-// Report + "book selected vehicles in" modal
-function InspectionReportModal({ data, inspection, onClose }) {
-  const customer = inspection.customerId ? data.customers.find(c => c.id === inspection.customerId) : null;
-  const [selected, setSelected] = useState(() => {
-    const s = {}; (inspection.vehicles||[]).forEach(v => { s[v.id] = !v.bookedJobId; }); return s;
-  });
+// Report modal — pure report generation, no booking. Send this whenever, as many times as you like.
+function SendReportModal({ data, inspection, onClose }) {
   const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our site inspection. Please let us know which you would like us to repair.");
-  const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
-  const count = Object.values(selected).filter(Boolean).length;
 
   // Pure, synchronous — mirrors the existing (working) Damage Report/Job Card pattern.
   // Never combined with a save or reload, so mobile browsers never block the popup.
@@ -1346,6 +1340,29 @@ function InspectionReportModal({ data, inspection, onClose }) {
     window.open(url, "_blank");
   }
 
+  return (
+    <Modal title="Send Report" onClose={onClose}>
+      <Field label="Covering note">
+        <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
+          style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
+      </Field>
+      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Every vehicle in this inspection is listed with a blank tick box for the customer to mark up and sign — nothing gets booked in yet.</p>
+      <Btn onClick={openReportWindow} style={{ width:"100%", justifyContent:"center" }}>
+        📄 View / Email Report
+      </Btn>
+      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Opens in a new tab — tap "Save as PDF" then attach it to an email. You can send this as many times as you need.</p>
+    </Modal>
+  );
+}
+
+// Booking modal — once the customer has told you which vehicles to repair, use this to create the jobs
+function BookVehiclesModal({ data, inspection, onClose }) {
+  const [selected, setSelected] = useState(() => {
+    const s = {}; (inspection.vehicles||[]).forEach(v => { s[v.id] = !v.bookedJobId; }); return s;
+  });
+  const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
+  const count = Object.values(selected).filter(Boolean).length;
+
   // Saves records only — deliberately never opens a popup, so it's never blocked
   // and the page reload it triggers can't interfere with a report tab.
   async function bookSelected() {
@@ -1413,12 +1430,8 @@ function InspectionReportModal({ data, inspection, onClose }) {
   }
 
   return (
-    <Modal title="Report & Book In" onClose={onClose}>
-      <Field label="Covering note">
-        <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
-          style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
-      </Field>
-      <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tick vehicles the customer wants repaired</div>
+    <Modal title="Book Vehicles In" onClose={onClose}>
+      <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tick the vehicles the customer has confirmed</div>
       {(inspection.vehicles||[]).map(v => (
         <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
           <input type="checkbox" checked={!!selected[v.id]} onChange={() => toggle(v.id)} style={{ width:18, height:18 }} />
@@ -1430,11 +1443,7 @@ function InspectionReportModal({ data, inspection, onClose }) {
           {v.bookedJobId && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>ALREADY BOOKED</span>}
         </label>
       ))}
-      <Btn onClick={openReportWindow} variant="ghost" style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
-        📄 View / Email Report
-      </Btn>
-      <p style={{ fontSize:11, color:"#9CA3AF", margin:"6px 0 14px", textAlign:"center" }}>Opens in a new tab — tap "Save as PDF" then attach it to an email.</p>
-      <Btn onClick={bookSelected} disabled={count===0} style={{ width:"100%", justifyContent:"center" }}>
+      <Btn onClick={bookSelected} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
         ✅ Book {count} Vehicle{count===1?"":"s"} In
       </Btn>
       <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Creates a job for each ticked vehicle so you can schedule the repair.</p>
@@ -1448,6 +1457,7 @@ function InspectionDetail({ data, id, setView }) {
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [editingVehicle, setEditingVehicle]   = useState(null);
   const [showReport, setShowReport]           = useState(false);
+  const [showBooking, setShowBooking]         = useState(false);
   if (!inspection) return <p>Not found</p>;
 
   const customer = inspection.customerId ? data.customers.find(c => c.id === inspection.customerId) : null;
@@ -1492,7 +1502,8 @@ function InspectionDetail({ data, id, setView }) {
         {!customer && inspection.address && <div style={{ fontSize:13, color:"#6B7280" }}>{inspection.address}</div>}
         {inspection.notes && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:6 }}>{inspection.notes}</div>}
         <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-          <Btn size="sm" onClick={() => setShowReport(true)} disabled={(inspection.vehicles||[]).length===0}>📄 Report & Book In</Btn>
+          <Btn size="sm" onClick={() => setShowReport(true)} disabled={(inspection.vehicles||[]).length===0}>📄 Send Report</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => setShowBooking(true)} disabled={(inspection.vehicles||[]).length===0}>✅ Book Vehicles In</Btn>
           <Btn size="sm" variant="danger" onClick={deleteInspection}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
       </Card>
@@ -1531,7 +1542,8 @@ function InspectionDetail({ data, id, setView }) {
           onClose={() => setShowVehicleForm(false)}
         />
       )}
-      {showReport && <InspectionReportModal data={data} inspection={inspection} onClose={() => setShowReport(false)} />}
+      {showReport && <SendReportModal data={data} inspection={inspection} onClose={() => setShowReport(false)} />}
+      {showBooking && <BookVehiclesModal data={data} inspection={inspection} onClose={() => setShowBooking(false)} />}
     </div>
   );
 }
