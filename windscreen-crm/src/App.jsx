@@ -803,21 +803,25 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
 // ── Communications Log ──────────────────────────────────────────────────────
 const COMM_ICONS = { Call: "📞", Text: "💬", WhatsApp: "💬", Email: "✉️", Note: "📝" };
 
-function CommLogModal({ customer, onSave, onClose, editEntry }) {
+function CommLogModal({ customer, contact, onSave, onClose, editEntry }) {
   const [type, setType]           = useState(editEntry?.type || "Call");
   const [direction, setDirection] = useState(editEntry?.direction || "out");
   const [note, setNote]           = useState(editEntry?.note || "");
 
-  const waNumber = (customer.phone || "").replace(/[^0-9]/g, "").replace(/^0/, "44");
-  const telLink  = customer.phone ? `tel:${customer.phone}` : "";
-  const smsLink  = customer.phone ? `sms:${customer.phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(note)}` : "";
-  const waLink   = customer.phone ? `https://wa.me/${waNumber}?text=${encodeURIComponent(note)}` : "";
-  const mailLink = customer.email ? `mailto:${customer.email}${note ? `?body=${encodeURIComponent(note)}` : ""}` : "";
+  const phone = contact?.phone || customer.phone;
+  const email = contact?.email || customer.email;
+  const waNumber = (phone || "").replace(/[^0-9]/g, "").replace(/^0/, "44");
+  const telLink  = phone ? `tel:${phone}` : "";
+  const smsLink  = phone ? `sms:${phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(note)}` : "";
+  const waLink   = phone ? `https://wa.me/${waNumber}?text=${encodeURIComponent(note)}` : "";
+  const mailLink = email ? `mailto:${email}${note ? `?body=${encodeURIComponent(note)}` : ""}` : "";
 
   function save() {
     onSave({
       id: editEntry?.id || uid(),
       customerId: customer.id,
+      contactId: contact?.id || editEntry?.contactId || "",
+      contactName: contact?.name || editEntry?.contactName || "",
       type, direction, note,
       timestamp: editEntry?.timestamp || Date.now(),
       createdAt: editEntry?.createdAt || todayISO(),
@@ -826,7 +830,8 @@ function CommLogModal({ customer, onSave, onClose, editEntry }) {
   }
 
   return (
-    <Modal title={editEntry ? "Edit Log Entry" : "Log Communication"} onClose={onClose}>
+    <Modal title={editEntry ? "Edit Log Entry" : (contact ? `Log / Message — ${contact.name || "Contact"}` : "Log Communication")} onClose={onClose}>
+      {!phone && !email && <p style={{ fontSize:13, color:"#DC2626", margin:"0 0 12px" }}>No phone or email on file for {contact ? "this contact" : "this customer"} — you can still add a note.</p>}
       <Field label="Type"><Select value={type} onChange={setType} options={["Call","Text","WhatsApp","Email","Note"]} /></Field>
       <Field label="Direction">
         <div style={{ display:"flex", gap:8 }}>
@@ -843,7 +848,7 @@ function CommLogModal({ customer, onSave, onClose, editEntry }) {
       {type === "Call" && telLink && (
         <a href={telLink} style={{ textDecoration:"none" }}><Btn variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:12 }}>📞 Call Now</Btn></a>
       )}
-      {type === "Text" && customer.phone && (
+      {type === "Text" && phone && (
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
           <a href={waLink} target="_blank" rel="noreferrer" style={{ textDecoration:"none", flex:1 }}><Btn style={{ width:"100%", justifyContent:"center", background:"#25D366" }}>💬 WhatsApp</Btn></a>
           <a href={smsLink} style={{ textDecoration:"none", flex:1 }}><Btn variant="ghost" style={{ width:"100%", justifyContent:"center" }}>Text (SMS)</Btn></a>
@@ -872,6 +877,7 @@ function CustomerDetail({ data, id, setView }) {
   const [showDamageReport, setShowDamageReport] = useState(false);
   const [showCommLog, setShowCommLog] = useState(false);
   const [editingComm, setEditingComm] = useState(null);
+  const [logContact, setLogContact]   = useState(null);
   const comms = data.communications ? data.communications.filter(c => c.customerId === id).sort((a,b) => (b.timestamp||0)-(a.timestamp||0)) : [];
   if (!customer) return <p>Not found</p>;
 
@@ -961,34 +967,15 @@ function CustomerDetail({ data, id, setView }) {
           {customer.phone && customer.custType === "Private" && <Btn size="sm" variant="ghost" onClick={() => setShowTerms(true)}>💬 Send Terms</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
-          <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
       </Card>
       {showTerms && <RepairTermsModal customer={customer} onClose={() => setShowTerms(false)} />}
       {showDamageReport && <DamageReportModal customer={customer} vehicles={vehicles} data={data} onClose={() => setShowDamageReport(false)} />}
-      {showCommLog && <CommLogModal customer={customer} editEntry={editingComm} onSave={saveComm} onClose={() => setShowCommLog(false)} />}
+      {showCommLog && <CommLogModal customer={customer} contact={logContact} editEntry={editingComm} onSave={saveComm} onClose={() => setShowCommLog(false)} />}
 
-      {comms.length > 0 && (
-        <div style={{ marginTop:16 }}>
-          <h3 style={{ margin:"0 0 8px", fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Communications Log</h3>
-          {comms.map(c => (
-            <Card key={c.id}>
-              <div onClick={() => { setEditingComm(c); setShowCommLog(true); }} style={{ cursor:"pointer" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
-                  <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{COMM_ICONS[c.type] || "📝"} {c.type} <span style={{ fontWeight:500, color:"#9CA3AF", fontSize:12 }}>· {c.direction === "in" ? "Incoming" : "Outgoing"}</span></div>
-                  <div style={{ fontSize:12, color:"#9CA3AF", whiteSpace:"nowrap" }}>{new Date(c.timestamp || Date.now()).toLocaleString("en-GB", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</div>
-                </div>
-                {c.note && <div style={{ fontSize:13, color:"#6B7280", marginTop:4, whiteSpace:"pre-wrap" }}>{c.note}</div>}
-              </div>
-              <div style={{ marginTop:8 }}>
-                <Btn size="sm" variant="danger" onClick={() => deleteComm(c.id)}><Icon name="trash" size={12} /> Delete</Btn>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
 
       {customer.contacts?.length > 0 && (
         <div style={{ marginTop:16 }}>
@@ -1006,6 +993,34 @@ function CustomerDetail({ data, id, setView }) {
               <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
                 {ct.phone && <a href={`tel:${ct.phone}`} style={{ textDecoration:"none" }}><Btn size="sm" variant="primary">📞 Call</Btn></a>}
                 {ct.email && <a href={`mailto:${ct.email}`} style={{ textDecoration:"none" }}><Btn size="sm" variant="ghost">✉️ Email</Btn></a>}
+                <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(ct); setShowCommLog(true); }}>💬 Log / Message</Btn>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {comms.length > 0 && (
+        <div style={{ marginTop:16, background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 14px 4px" }}>
+          <h3 style={{ margin:"0 0 10px", fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Communications Log ({comms.length})</h3>
+          {comms.map(c => (
+            <Card key={c.id}>
+              <div onClick={() => {
+                setEditingComm(c);
+                setLogContact(c.contactId ? (customer.contacts||[]).find(ct => ct.id === c.contactId) || null : null);
+                setShowCommLog(true);
+              }} style={{ cursor:"pointer" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+                  <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>
+                    {COMM_ICONS[c.type] || "📝"} {c.type} <span style={{ fontWeight:500, color:"#9CA3AF", fontSize:12 }}>· {c.direction === "in" ? "Incoming" : "Outgoing"}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:"#9CA3AF", whiteSpace:"nowrap" }}>{new Date(c.timestamp || Date.now()).toLocaleString("en-GB", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</div>
+                </div>
+                {c.contactName && <span style={{ display:"inline-block", marginTop:4, fontSize:11, fontWeight:700, color:"#1E3A5F", background:"#EFF6FF", padding:"2px 8px", borderRadius:6 }}>{c.contactName}</span>}
+                {c.note && <div style={{ fontSize:13, color:"#6B7280", marginTop:4, whiteSpace:"pre-wrap" }}>{c.note}</div>}
+              </div>
+              <div style={{ marginTop:8 }}>
+                <Btn size="sm" variant="danger" onClick={() => deleteComm(c.id)}><Icon name="trash" size={12} /> Delete</Btn>
               </div>
             </Card>
           ))}
