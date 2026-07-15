@@ -2916,11 +2916,32 @@ function ReportsView({ data }) {
         <div style={{ display:"flex", alignItems:"flex-end", gap:3, marginTop:10 }}>
           {months.map(m => (
             <div key={m.key} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center" }}>
+              <div style={{ fontSize:9, fontWeight:700, color:"#1D4ED8", marginBottom:2, whiteSpace:"nowrap" }}>
+                {billed[m.key] > 0 ? (billed[m.key] >= 1000 ? `£${(billed[m.key]/1000).toFixed(1)}k` : `£${Math.round(billed[m.key])}`) : ""}
+              </div>
               <Bar value={billed[m.key]} max={maxRev} color="#3B82F6" />
               <div style={{ fontSize:9, color:"#9CA3AF", marginTop:4 }}>{m.label}</div>
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 10px", fontSize:14, fontWeight:700, color:"#374151" }}>Monthly Breakdown · {periodLabel}</h3>
+        <div style={{ display:"flex", fontSize:11, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", padding:"0 4px 6px", borderBottom:"1px solid #F3F4F6" }}>
+          <div style={{ flex:1.2 }}>Month</div>
+          <div style={{ flex:1, textAlign:"right" }}>Billed</div>
+          <div style={{ flex:1, textAlign:"right" }}>Received</div>
+          <div style={{ flex:0.7, textAlign:"right" }}>Jobs</div>
+        </div>
+        {[...months].reverse().map(m => (
+          <div key={m.key} style={{ display:"flex", fontSize:13, padding:"7px 4px", borderBottom:"1px solid #F9FAFB" }}>
+            <div style={{ flex:1.2, fontWeight:600, color:"#111827" }}>{m.label}</div>
+            <div style={{ flex:1, textAlign:"right", color:"#1D4ED8", fontWeight:600 }}>£{billed[m.key].toFixed(0)}</div>
+            <div style={{ flex:1, textAlign:"right", color:"#059669" }}>£{received[m.key].toFixed(0)}</div>
+            <div style={{ flex:0.7, textAlign:"right", color:"#6B7280" }}>{jobCount[m.key] || 0}</div>
+          </div>
+        ))}
       </div>
 
       <div style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6" }}>
