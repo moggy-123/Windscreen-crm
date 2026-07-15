@@ -679,6 +679,7 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${v.reg || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
       </tr>`).join("");
 
     const html = `<!DOCTYPE html>
@@ -709,10 +710,28 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">#</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Reg</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Make &amp; Model</th>
+      <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Please Repair</th>
     </tr></thead>
-    <tbody>${rows || '<tr><td colspan="3" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles selected</td></tr>'}</tbody>
+    <tbody>${rows || '<tr><td colspan="4" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles selected</td></tr>'}</tbody>
   </table>
-  <div style="font-size:12px;color:#9CA3AF;margin-top:20px;">${chosen.length} vehicle(s) listed · Windscreen Repairs (Bristol)</div>
+  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${chosen.length} vehicle(s) listed · Windscreen Repairs (Bristol)</div>
+  <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
+    <div style="font-size:12px;color:#6B7280;margin-bottom:14px;">Please tick above the vehicles you'd like us to repair, then complete below to authorise the work.</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:4px;">
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Authorised by (name)</div>
+        <div style="border-bottom:1px solid #9CA3AF;height:6px;"></div>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Signature</div>
+        <div style="border-bottom:1px solid #9CA3AF;height:6px;"></div>
+      </div>
+      <div style="min-width:120px;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Date</div>
+        <div style="border-bottom:1px solid #9CA3AF;height:6px;"></div>
+      </div>
+    </div>
+  </div>
 </div>
 </body></html>`;
     const blob = new Blob([html], { type: "text/html" });
