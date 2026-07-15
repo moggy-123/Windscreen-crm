@@ -1218,7 +1218,10 @@ function InspectionReportModal({ data, inspection, onClose }) {
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
   const count = Object.values(selected).filter(Boolean).length;
 
-  function openReportWindow(chosen, cust) {
+  // Pure, synchronous — mirrors the existing (working) Damage Report/Job Card pattern.
+  // Never combined with a save or reload, so mobile browsers never block the popup.
+  function openReportWindow() {
+    const cust = inspection.customerId ? data.customers.find(c => c.id === inspection.customerId) : null;
     const logoUrl = window.location.origin + "/logo.png";
     const fmtD = new Date().toLocaleDateString("en-GB");
     const toEmail = cust?.email || inspection.contactEmail || "";
@@ -1227,7 +1230,6 @@ function InspectionReportModal({ data, inspection, onClose }) {
     const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${bodyText}`;
 
     const rows = (inspection.vehicles||[]).map((v, i) => {
-      const isChosen = chosen.some(c => c.id === v.id);
       const damage = (v.repairs||[]).map(describeRepair).filter(Boolean).join("; ") || "—";
       return `
       <tr>
@@ -1236,7 +1238,7 @@ function InspectionReportModal({ data, inspection, onClose }) {
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${v.colour || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${damage}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;text-align:center;">${isChosen ? "✅" : ""}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
       </tr>`;
     }).join("");
 
@@ -1271,11 +1273,28 @@ function InspectionReportModal({ data, inspection, onClose }) {
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Make &amp; Model</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Colour</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Damage</th>
-      <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;">To Repair</th>
+      <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;">Please Repair</th>
     </tr></thead>
     <tbody>${rows || '<tr><td colspan="6" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles</td></tr>'}</tbody>
   </table>
-  <div style="font-size:12px;color:#9CA3AF;margin-top:20px;">${(inspection.vehicles||[]).length} vehicle(s) inspected · ${chosen.length} selected for repair · Windscreen Repairs (Bristol)</div>
+  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${(inspection.vehicles||[]).length} vehicle(s) inspected · Windscreen Repairs (Bristol)</div>
+  <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
+    <div style="font-size:12px;color:#6B7280;margin-bottom:14px;">Please tick above the vehicles you'd like us to repair, then complete below to authorise the work.</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:4px;">
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Authorised by (name)</div>
+        <div style="border-bottom:1px solid #9CA3AF;height:6px;"></div>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Signature</div>
+        <div style="border-bottom:1px solid #9CA3AF;height:6px;"></div>
+      </div>
+      <div style="min-width:120px;">
+        <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Date</div>
+        <div style="border-bottom:1px solid #9CA3AF;height:6px;"></div>
+      </div>
+    </div>
+  </div>
 </div>
 </body></html>`;
     const blob = new Blob([html], { type: "text/html" });
@@ -1283,7 +1302,9 @@ function InspectionReportModal({ data, inspection, onClose }) {
     window.open(url, "_blank");
   }
 
-  async function generateAndBook() {
+  // Saves records only — deliberately never opens a popup, so it's never blocked
+  // and the page reload it triggers can't interfere with a report tab.
+  async function bookSelected() {
     const chosen = (inspection.vehicles||[]).filter(v => selected[v.id]);
     if (chosen.length === 0) return;
 
@@ -1306,7 +1327,6 @@ function InspectionReportModal({ data, inspection, onClose }) {
         contacts: [],
       });
     }
-    const cust = customers.find(c => c.id === custId);
 
     const updatedInspVehicles = (inspection.vehicles||[]).map(v => ({ ...v }));
 
@@ -1341,8 +1361,6 @@ function InspectionReportModal({ data, inspection, onClose }) {
 
     const inspections = data.inspections.map(i => i.id === inspection.id ? { ...i, customerId: custId, vehicles: updatedInspVehicles } : i);
 
-    openReportWindow(chosen, cust);
-
     try {
       await saveAndReload({ ...data, customers, vehicles, jobs, inspections });
     } catch (e) {
@@ -1356,7 +1374,7 @@ function InspectionReportModal({ data, inspection, onClose }) {
         <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
           style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
       </Field>
-      <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Select vehicles to book in for repair</div>
+      <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tick vehicles the customer wants repaired</div>
       {(inspection.vehicles||[]).map(v => (
         <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
           <input type="checkbox" checked={!!selected[v.id]} onChange={() => toggle(v.id)} style={{ width:18, height:18 }} />
@@ -1368,10 +1386,14 @@ function InspectionReportModal({ data, inspection, onClose }) {
           {v.bookedJobId && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>ALREADY BOOKED</span>}
         </label>
       ))}
-      <Btn onClick={generateAndBook} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
-        📄 Generate Report & Book {count} In
+      <Btn onClick={openReportWindow} variant="ghost" style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
+        📄 View / Email Report
       </Btn>
-      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Opens the report to email, and creates a job for each vehicle ticked above.</p>
+      <p style={{ fontSize:11, color:"#9CA3AF", margin:"6px 0 14px", textAlign:"center" }}>Opens in a new tab — tap "Save as PDF" then attach it to an email.</p>
+      <Btn onClick={bookSelected} disabled={count===0} style={{ width:"100%", justifyContent:"center" }}>
+        ✅ Book {count} Vehicle{count===1?"":"s"} In
+      </Btn>
+      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Creates a job for each ticked vehicle so you can schedule the repair.</p>
     </Modal>
   );
 }
