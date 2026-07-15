@@ -40,7 +40,7 @@ function loadData() {
       return data;
     }
   } catch {}
-  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], inspections: [], technicians: [] };
+  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], inspections: [], communications: [], technicians: [] };
 }
 
 // One-time cleanup: remove the old duplicate lastsync copy
@@ -75,6 +75,7 @@ function stampData(data) {
     jobs:      stamp(data.jobs,      prev.jobs),
     invoices:  stamp(data.invoices,  prev.invoices),
     inspections: stamp(data.inspections, prev.inspections),
+    communications: stamp(data.communications, prev.communications),
   };
 }
 
@@ -186,6 +187,7 @@ async function pushChangedOnly(data) {
     { name: "invoices",  key: "invoices"  },
     { name: "mileage",   key: "mileage"   },
     { name: "inspections", key: "inspections" },
+    { name: "communications", key: "communications" },
   ];
 
   let failed = 0;
@@ -798,6 +800,68 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
 }
 
 // ── Customer Detail ───────────────────────────────────────────────────────────
+// ── Communications Log ──────────────────────────────────────────────────────
+const COMM_ICONS = { Call: "📞", Text: "💬", WhatsApp: "💬", Email: "✉️", Note: "📝" };
+
+function CommLogModal({ customer, onSave, onClose, editEntry }) {
+  const [type, setType]           = useState(editEntry?.type || "Call");
+  const [direction, setDirection] = useState(editEntry?.direction || "out");
+  const [note, setNote]           = useState(editEntry?.note || "");
+
+  const waNumber = (customer.phone || "").replace(/[^0-9]/g, "").replace(/^0/, "44");
+  const telLink  = customer.phone ? `tel:${customer.phone}` : "";
+  const smsLink  = customer.phone ? `sms:${customer.phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(note)}` : "";
+  const waLink   = customer.phone ? `https://wa.me/${waNumber}?text=${encodeURIComponent(note)}` : "";
+  const mailLink = customer.email ? `mailto:${customer.email}${note ? `?body=${encodeURIComponent(note)}` : ""}` : "";
+
+  function save() {
+    onSave({
+      id: editEntry?.id || uid(),
+      customerId: customer.id,
+      type, direction, note,
+      timestamp: editEntry?.timestamp || Date.now(),
+      createdAt: editEntry?.createdAt || todayISO(),
+    });
+    onClose();
+  }
+
+  return (
+    <Modal title={editEntry ? "Edit Log Entry" : "Log Communication"} onClose={onClose}>
+      <Field label="Type"><Select value={type} onChange={setType} options={["Call","Text","WhatsApp","Email","Note"]} /></Field>
+      <Field label="Direction">
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setDirection("out")} style={{ flex:1, padding:"9px", borderRadius:8, border: direction==="out" ? "2px solid #1E3A5F" : "1.5px solid #E5E7EB", background: direction==="out" ? "#EFF6FF" : "#fff", fontWeight:700, fontSize:13, cursor:"pointer", color:"#1E3A5F" }}>Outgoing</button>
+          <button onClick={() => setDirection("in")} style={{ flex:1, padding:"9px", borderRadius:8, border: direction==="in" ? "2px solid #1E3A5F" : "1.5px solid #E5E7EB", background: direction==="in" ? "#EFF6FF" : "#fff", fontWeight:700, fontSize:13, cursor:"pointer", color:"#1E3A5F" }}>Incoming</button>
+        </div>
+      </Field>
+      <Field label={type === "Call" || type === "Note" ? "Note" : "Message"}>
+        <textarea value={note} onChange={e => setNote(e.target.value)} rows={4}
+          placeholder={type === "Call" ? "What was discussed…" : type === "Note" ? "Note…" : "Message content…"}
+          style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
+      </Field>
+
+      {type === "Call" && telLink && (
+        <a href={telLink} style={{ textDecoration:"none" }}><Btn variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:12 }}>📞 Call Now</Btn></a>
+      )}
+      {type === "Text" && customer.phone && (
+        <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+          <a href={waLink} target="_blank" rel="noreferrer" style={{ textDecoration:"none", flex:1 }}><Btn style={{ width:"100%", justifyContent:"center", background:"#25D366" }}>💬 WhatsApp</Btn></a>
+          <a href={smsLink} style={{ textDecoration:"none", flex:1 }}><Btn variant="ghost" style={{ width:"100%", justifyContent:"center" }}>Text (SMS)</Btn></a>
+        </div>
+      )}
+      {type === "WhatsApp" && waLink && (
+        <a href={waLink} target="_blank" rel="noreferrer" style={{ textDecoration:"none" }}><Btn style={{ width:"100%", justifyContent:"center", background:"#25D366", marginBottom:12 }}>💬 Open WhatsApp</Btn></a>
+      )}
+      {type === "Email" && mailLink && (
+        <a href={mailLink} style={{ textDecoration:"none" }}><Btn variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:12 }}>✉️ Open Email</Btn></a>
+      )}
+      <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 12px", textAlign:"center" }}>{(type==="Call"||type==="Note") ? "" : "Opens your messaging/mail app with this ready to send. "}Tap Save to add it to the log.</p>
+
+      <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>💾 Save to Log</Btn>
+    </Modal>
+  );
+}
+
 function CustomerDetail({ data, id, setView }) {
   const customer = data.customers.find(c => c.id === id);
   const vehicles = data.vehicles.filter(v => v.customerId === id);
@@ -806,6 +870,9 @@ function CustomerDetail({ data, id, setView }) {
   const [showVehicle, setShowVehicle] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
   const [showDamageReport, setShowDamageReport] = useState(false);
+  const [showCommLog, setShowCommLog] = useState(false);
+  const [editingComm, setEditingComm] = useState(null);
+  const comms = data.communications ? data.communications.filter(c => c.customerId === id).sort((a,b) => (b.timestamp||0)-(a.timestamp||0)) : [];
   if (!customer) return <p>Not found</p>;
 
   const addrParts = [customer.address1, customer.address2, customer.town, customer.county, customer.postcode].filter(Boolean);
@@ -823,6 +890,27 @@ function CustomerDetail({ data, id, setView }) {
     // Remove locally and save WITHOUT re-pushing everything
     const updated = { ...loadData(), customers: loadData().customers.filter(c => c.id !== id) };
     localStorage.setItem(DB_KEY, JSON.stringify(updated));
+    window.location.reload();
+  }
+
+  async function saveComm(entry) {
+    const existing = data.communications || [];
+    const communications = existing.some(c => c.id === entry.id)
+      ? existing.map(c => c.id === entry.id ? entry : c)
+      : [...existing, entry];
+    try {
+      await saveAndReload({ ...data, communications });
+    } catch (e) {
+      alert("Save failed: " + (e?.message || e));
+    }
+  }
+  async function deleteComm(commId) {
+    if (!window.confirm("Delete this log entry?")) return;
+    try { await deleteRecord("communications", commId); } catch (e) { alert("Delete failed: " + (e?.message||e)); return; }
+    addTombstone(commId);
+    removeSig(commId);
+    const d = loadData();
+    localStorage.setItem(DB_KEY, JSON.stringify({ ...d, communications: (d.communications||[]).filter(c => c.id !== commId) }));
     window.location.reload();
   }
 
@@ -873,12 +961,34 @@ function CustomerDetail({ data, id, setView }) {
           {customer.phone && customer.custType === "Private" && <Btn size="sm" variant="ghost" onClick={() => setShowTerms(true)}>💬 Send Terms</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
+          <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
       </Card>
       {showTerms && <RepairTermsModal customer={customer} onClose={() => setShowTerms(false)} />}
       {showDamageReport && <DamageReportModal customer={customer} vehicles={vehicles} data={data} onClose={() => setShowDamageReport(false)} />}
+      {showCommLog && <CommLogModal customer={customer} editEntry={editingComm} onSave={saveComm} onClose={() => setShowCommLog(false)} />}
+
+      {comms.length > 0 && (
+        <div style={{ marginTop:16 }}>
+          <h3 style={{ margin:"0 0 8px", fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Communications Log</h3>
+          {comms.map(c => (
+            <Card key={c.id}>
+              <div onClick={() => { setEditingComm(c); setShowCommLog(true); }} style={{ cursor:"pointer" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+                  <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{COMM_ICONS[c.type] || "📝"} {c.type} <span style={{ fontWeight:500, color:"#9CA3AF", fontSize:12 }}>· {c.direction === "in" ? "Incoming" : "Outgoing"}</span></div>
+                  <div style={{ fontSize:12, color:"#9CA3AF", whiteSpace:"nowrap" }}>{new Date(c.timestamp || Date.now()).toLocaleString("en-GB", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</div>
+                </div>
+                {c.note && <div style={{ fontSize:13, color:"#6B7280", marginTop:4, whiteSpace:"pre-wrap" }}>{c.note}</div>}
+              </div>
+              <div style={{ marginTop:8 }}>
+                <Btn size="sm" variant="danger" onClick={() => deleteComm(c.id)}><Icon name="trash" size={12} /> Delete</Btn>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {customer.contacts?.length > 0 && (
         <div style={{ marginTop:16 }}>
@@ -2939,6 +3049,7 @@ export default function App() {
           jobs:        merge(cloud.jobs,        local.jobs || []),
           invoices:    merge(cloud.invoices,    local.invoices || []),
           inspections: merge(cloud.inspections, local.inspections || []),
+          communications: merge(cloud.communications, local.communications || []),
           technicians: local.technicians || [],
         };
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
@@ -2976,6 +3087,7 @@ export default function App() {
             invoices:  merge(cloud.invoices,  local.invoices || []),
             mileage:   merge(cloud.mileage,   local.mileage || []),
             inspections: merge(cloud.inspections, local.inspections || []),
+            communications: merge(cloud.communications, local.communications || []),
             technicians: local.technicians || [],
           };
           localStorage.setItem(DB_KEY, JSON.stringify(merged));
@@ -3047,16 +3159,16 @@ export default function App() {
           invoices:  merge(cloud.invoices,  local.invoices || []),
           mileage:   merge(cloud.mileage,   local.mileage || []),
           inspections: merge(cloud.inspections, local.inspections || []),
+          communications: merge(cloud.communications, local.communications || []),
           technicians: local.technicians || [],
         };
-        const before = JSON.stringify(local.customers?.length) + local.jobs?.length + local.vehicles?.length + local.invoices?.length + (local.inspections?.length||0);
-        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length + merged.inspections.length;
+        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length + merged.inspections.length + merged.communications.length;
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
         // Push any local records that haven't been uploaded yet (e.g. created offline)
         pushChangedOnly(merged).catch(() => {});
         // Only re-render if something actually changed, to avoid disrupting typing
         setData(prev => {
-          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0)+(prev.inspections?.length||0);
+          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0)+(prev.inspections?.length||0)+(prev.communications?.length||0);
           if (prevCount !== after) return merged;
           return prev;
         });
