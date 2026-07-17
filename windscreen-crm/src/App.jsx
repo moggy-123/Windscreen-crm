@@ -10,7 +10,7 @@ const STATUS_META = {
   Paid:          { color: "#374151", bg: "#F9FAFB" },
 };
 
-const DAMAGE_TYPES    = ["Chip", "Crack", "Scratch"];
+const DAMAGE_TYPES    = ["Chip", "Crack", "Pit Fill"];
 const JOB_TYPES       = ["Repair", "Replace"];
 const PAYMENT_TYPES   = ["Private", "Insurance"];
 
@@ -24,17 +24,43 @@ function fmtDate(iso) {
   return `${d}/${m}/${y}`;
 }
 
-// The app-wide default repair price, used for Private/personal customers.
-// Stored as a single settings row (id "app") so it syncs across devices like everything else.
-function getDefaultPrice(data) {
-  return data.settings?.find(s => s.id === "app")?.defaultPrice || "40.00";
+// Pricing is tiered: for each repair type (Chip/Crack/Pit Fill), a price for the 1st,
+// 2nd, and 3rd-or-later repair of that type on the same vehicle/job. Trade customers can
+// override any of these; anything they haven't set falls back to the app-wide default.
+function getDefaultPricing(data) {
+  const table = data.settings?.find(s => s.id === "app")?.defaultPricing || {};
+  const out = {};
+  DAMAGE_TYPES.forEach(t => { out[t] = { 1: "", 2: "", 3: "", ...(table[t] || {}) }; });
+  return out;
 }
-// Resolves the price to use for a given customer: their own price if it's a Trade
-// customer with one set, otherwise the app-wide default (for Private customers, or
-// Trade customers who haven't had a custom price set).
-function getCustomerPrice(data, customer) {
-  if (customer?.custType === "Trade" && customer.price) return customer.price;
-  return getDefaultPrice(data);
+// The effective pricing table for a customer: their own Trade prices layered over the default.
+function getRepairPricing(data, customer) {
+  const def = getDefaultPricing(data);
+  const custom = (customer?.custType === "Trade" && customer.pricing) ? customer.pricing : {};
+  const out = {};
+  DAMAGE_TYPES.forEach(t => { out[t] = { ...def[t], ...(custom[t] || {}) }; });
+  return out;
+}
+// Price for the Nth repair of a given type (1-indexed within that type, for that job/vehicle).
+// 3rd-or-later repairs all use the "3" tier.
+function priceForRepair(pricingTable, type, countForType) {
+  const tiers = pricingTable[type] || {};
+  const key = countForType >= 3 ? "3" : String(countForType || 1);
+  const val = tiers[key] || tiers["3"] || tiers["2"] || tiers["1"];
+  return parseFloat(val) || 0;
+}
+// Given a job's repairs array, work out the price for each repair (in order, counting
+// per-type) and the total. Returns { lines: [{repair, count, price}], total }.
+function calcRepairPricing(data, customer, repairs) {
+  const table = getRepairPricing(data, customer);
+  const counts = {};
+  const lines = (repairs || []).map(r => {
+    const type = r.type || "Chip";
+    counts[type] = (counts[type] || 0) + 1;
+    return { repair: r, count: counts[type], price: priceForRepair(table, type, counts[type]) };
+  });
+  const total = lines.reduce((s, l) => s + l.price, 0);
+  return { lines, total };
 }
 
 function loadData() {
@@ -548,6 +574,35 @@ function CustomersList({ data, setView }) {
   );
 }
 
+// Editable grid: rows = repair types, columns = 1st/2nd/3rd-or-later repair on the same
+// vehicle. `value` is a partial override table; `placeholderTable` shows what would be
+// used if a cell is left blank (the default, or — inside Settings itself — a hardcoded hint).
+function PricingGrid({ value, onChange, placeholderTable }) {
+  const setCell = (type, tier, v) => onChange({ ...value, [type]: { ...(value[type]||{}), [tier]: v } });
+  return (
+    <div>
+      <div style={{ display:"flex", fontSize:11, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", padding:"0 0 6px" }}>
+        <div style={{ flex:1.3 }}></div>
+        <div style={{ flex:1, textAlign:"center" }}>1st</div>
+        <div style={{ flex:1, textAlign:"center" }}>2nd</div>
+        <div style={{ flex:1, textAlign:"center" }}>3rd+</div>
+      </div>
+      {DAMAGE_TYPES.map(type => (
+        <div key={type} style={{ display:"flex", alignItems:"center", gap:4, marginBottom:6 }}>
+          <div style={{ flex:1.3, fontSize:13, fontWeight:600, color:"#374151" }}>{type}</div>
+          {["1","2","3"].map(tier => (
+            <div key={tier} style={{ flex:1, padding:"0 2px" }}>
+              <input type="number" value={value[type]?.[tier] ?? ""} onChange={e => setCell(type, tier, e.target.value)}
+                placeholder={placeholderTable?.[type]?.[tier] || "—"}
+                style={{ width:"100%", padding:"7px 4px", borderRadius:6, border:"1.5px solid #E5E7EB", fontSize:13, textAlign:"center", boxSizing:"border-box", fontFamily:"inherit" }} />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Customer Form ─────────────────────────────────────────────────────────────
 function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [company,        setCompany]        = useState(editCustomer?.company        || "");
@@ -562,7 +617,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
   const [onStop,   setOnStop]   = useState(editCustomer?.onStop   || false);
   const [custType, setCustType] = useState(editCustomer?.custType || "Trade");
-  const [price,    setPrice]    = useState(editCustomer?.price    || "");
+  const [pricing,  setPricing]  = useState(editCustomer?.pricing  || {});
   const [followUpDate, setFollowUpDate] = useState(editCustomer?.followUpDate || "");
   const [followUpNote, setFollowUpNote] = useState(editCustomer?.followUpNote || "");
   // Unified contacts list. One contact is flagged main:true. For existing customers
@@ -593,7 +648,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     // Keep the legacy single fields in sync with whoever is the main contact,
     // so customer cards, dropdowns and call buttons keep working.
     const main = contacts.find(c => c.main) || contacts[0] || {};
-    const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, price, followUpDate, followUpNote, contacts };
+    const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, pricing, followUpDate, followUpNote, contacts };
     let newData = { ...data };
     let savedCustomerId;
     if (editCustomer) {
@@ -635,9 +690,11 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
         </>
       )}
       {custType === "Trade" && (
-        <Field label="Repair Price (£)">
-          <Input type="number" value={price} onChange={setPrice} placeholder={`Leave blank for default (£${getDefaultPrice(data)})`} />
-        </Field>
+        <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:10, padding:12, marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"#1E3A5F", marginBottom:2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Repair Prices (£)</div>
+          <div style={{ fontSize:12, color:"#9CA3AF", marginBottom:10 }}>Leave a cell blank to use the default price for that type/tier.</div>
+          <PricingGrid value={pricing} onChange={setPricing} placeholderTable={getDefaultPricing(data)} />
+        </div>
       )}
       {custType === "Trade" && (
         <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:10, padding:12, marginBottom:14 }}>
@@ -684,7 +741,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
 
 // ── Repair Terms message (Text / WhatsApp) ────────────────────────────────────
 function RepairTermsModal({ customer, data, onClose }) {
-  const [price, setPrice] = useState(getCustomerPrice(data, customer));
+  const [price, setPrice] = useState(String(priceForRepair(getRepairPricing(data, customer), "Chip", 1) || ""));
 
   const message =
 `The cost of the repair is £${price}. Please bear in mind it's not a cosmetic repair, the main purpose is to restore strength and integrity to the screen. There is also a slight chance during the repair that the screen can crack due to various conditions, we can NOT be held liable if a crack developed during or after the repair.
@@ -2439,13 +2496,12 @@ function JobDetail({ data, id, setView }) {
 function InvoiceForm({ data, jobId, editInvoice, onClose }) {
   const job = data.jobs.find(j => j.id === jobId);
   const customer = data.customers.find(c => c.id === job?.customerId);
+  const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
   // Auto-fill details from the job's repairs (for new invoices)
-  const autoDetails = (() => {
-    const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
-    return reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
-  })();
+  const autoDetails = reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
+  const pricing = calcRepairPricing(data, customer, reps);
   const [details, setDetails] = useState(editInvoice?.details ?? autoDetails);
-  const [labour, setLabour] = useState(editInvoice?.labour ?? (customer ? getCustomerPrice(data, customer) : ""));
+  const [labour, setLabour] = useState(editInvoice?.labour ?? (pricing.total ? pricing.total.toFixed(2) : ""));
   const [parts,  setParts]  = useState(editInvoice?.parts ?? "");
   const [vat,    setVat]    = useState(editInvoice?.vat ?? false);
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
@@ -2470,6 +2526,20 @@ function InvoiceForm({ data, jobId, editInvoice, onClose }) {
           style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }}
           placeholder="e.g. Chip repair – Driver Side Top" />
       </Field>
+      {pricing.lines.length > 0 && !editInvoice && (
+        <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:8, padding:"10px 12px", marginBottom:14 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", marginBottom:6 }}>Suggested Price (from {customer?.custType === "Trade" ? customer.company || "customer" : "default"} pricing)</div>
+          {pricing.lines.map((l, idx) => (
+            <div key={idx} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#374151", marginBottom:2 }}>
+              <span>{l.repair.type || "Repair"} ({l.count === 1 ? "1st" : l.count === 2 ? "2nd" : "3rd+"})</span>
+              <span>£{l.price.toFixed(2)}</span>
+            </div>
+          ))}
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, fontWeight:700, color:"#1E3A5F", borderTop:"1px solid #E5E7EB", marginTop:4, paddingTop:4 }}>
+            <span>Total</span><span>£{pricing.total.toFixed(2)}</span>
+          </div>
+        </div>
+      )}
       <Field label="Labour (£)"><Input type="number" value={labour} onChange={setLabour} placeholder="0.00" /></Field>
       <Field label="Parts (£)"><Input type="number" value={parts} onChange={setParts} placeholder="0.00" /></Field>
       <Field label="VAT">
@@ -2828,12 +2898,12 @@ function ResponsiveStyles({ device }) {
 // ── Reports ───────────────────────────────────────────────────────────────────
 // ── Settings ─────────────────────────────────────────────────────────────────
 function SettingsView({ data, setView }) {
-  const [price, setPrice] = useState(getDefaultPrice(data));
-  const tradeWithPrices = (data.customers || []).filter(c => c.custType === "Trade").sort((a,b) => (a.company||"").localeCompare(b.company||"", undefined, { sensitivity:"base" }));
+  const [pricing, setPricing] = useState(getDefaultPricing(data));
+  const tradeCustomers = (data.customers || []).filter(c => c.custType === "Trade").sort((a,b) => (a.company||"").localeCompare(b.company||"", undefined, { sensitivity:"base" }));
 
   async function save() {
     const existing = data.settings || [];
-    const rec = { id: "app", defaultPrice: price, updatedAt: Date.now() };
+    const rec = { id: "app", defaultPricing: pricing, updatedAt: Date.now() };
     const settings = existing.some(s => s.id === "app") ? existing.map(s => s.id === "app" ? rec : s) : [...existing, rec];
     try {
       await saveAndReload({ ...data, settings });
@@ -2850,23 +2920,26 @@ function SettingsView({ data, setView }) {
       <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:"0 0 12px" }}>Settings</h2>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
-        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Default Repair Price</h3>
-        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Used for Private customers, and any Trade customer without their own price set below.</p>
-        <Field label="Price (£)"><Input type="number" value={price} onChange={setPrice} placeholder="40.00" /></Field>
-        <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>💾 Save</Btn>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Default Repair Prices</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Used for Private customers, and any Trade customer without their own prices set. "3rd+" applies to every repair of that type from the 3rd one onwards on the same vehicle.</p>
+        <PricingGrid value={pricing} onChange={setPricing} />
+        <Btn onClick={save} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>💾 Save</Btn>
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16 }}>
         <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Trade Customer Prices</h3>
-        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Set a custom price per Trade customer from their customer page (Edit → Repair Price).</p>
-        {tradeWithPrices.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No Trade customers yet</p>}
-        {tradeWithPrices.map(c => (
-          <div key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}
-            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 4px", borderBottom:"1px solid #F9FAFB", cursor:"pointer" }}>
-            <span style={{ fontSize:14, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
-            <span style={{ fontSize:14, fontWeight:700, color: c.price ? "#1E3A5F" : "#9CA3AF" }}>{c.price ? `£${c.price}` : `Default (£${price})`}</span>
-          </div>
-        ))}
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Set custom prices per Trade customer from their customer page (Edit → Repair Prices). Anyone showing "Default" is using the prices above.</p>
+        {tradeCustomers.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No Trade customers yet</p>}
+        {tradeCustomers.map(c => {
+          const hasCustom = c.pricing && Object.values(c.pricing).some(t => t && Object.values(t).some(v => v));
+          return (
+            <div key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}
+              style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 4px", borderBottom:"1px solid #F9FAFB", cursor:"pointer" }}>
+              <span style={{ fontSize:14, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+              <span style={{ fontSize:13, fontWeight:700, color: hasCustom ? "#1E3A5F" : "#9CA3AF" }}>{hasCustom ? "Custom prices" : "Default"}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
