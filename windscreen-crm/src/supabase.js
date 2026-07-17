@@ -13,7 +13,7 @@ const customerToDb = c => ({
   town: c.town, county: c.county, postcode: c.postcode, notes: c.notes,
   on_stop: !!c.onStop,
   cust_type: c.custType || "Trade",
-  price: c.price || "",
+  pricing: c.pricing || {},
   follow_up_date: c.followUpDate || null,
   follow_up_note: c.followUpNote || "",
   contacts: c.contacts || [],
@@ -26,7 +26,7 @@ const customerFromDb = r => ({
   town: r.town, county: r.county, postcode: r.postcode, notes: r.notes,
   onStop: r.on_stop,
   custType: r.cust_type || "Trade",
-  price: r.price || "",
+  pricing: r.pricing || {},
   followUpDate: r.follow_up_date || "",
   followUpNote: r.follow_up_note || "",
   contacts: r.contacts || [],
@@ -120,9 +120,9 @@ const commFromDb = r => ({
 });
 
 const settingToDb = s => ({
-  id: s.id, default_price: s.defaultPrice || "", updated_at: s.updatedAt || Date.now(),
+  id: s.id, default_pricing: s.defaultPricing || {}, updated_at: s.updatedAt || Date.now(),
 });
-const settingFromDb = r => ({ id: r.id, defaultPrice: r.default_price, updatedAt: r.updated_at });
+const settingFromDb = r => ({ id: r.id, defaultPricing: r.default_pricing || {}, updatedAt: r.updated_at });
 
 // ── Pull all data from Supabase ─────────────────────────────────────────────
 export async function pullFromCloud() {
