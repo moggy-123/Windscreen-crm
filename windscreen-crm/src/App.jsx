@@ -491,6 +491,7 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
       </div>
       <div style={{ marginTop:10 }}>
         <Btn onClick={() => setView({ screen:"settings" })} variant="ghost" style={{ width:"100%", justifyContent:"center" }}>⚙️ Settings</Btn>
+      </div>
 
       <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
         <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tools</h3>
