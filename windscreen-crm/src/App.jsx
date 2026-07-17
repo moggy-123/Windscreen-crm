@@ -24,6 +24,19 @@ function fmtDate(iso) {
   return `${d}/${m}/${y}`;
 }
 
+// The app-wide default repair price, used for Private/personal customers.
+// Stored as a single settings row (id "app") so it syncs across devices like everything else.
+function getDefaultPrice(data) {
+  return data.settings?.find(s => s.id === "app")?.defaultPrice || "40.00";
+}
+// Resolves the price to use for a given customer: their own price if it's a Trade
+// customer with one set, otherwise the app-wide default (for Private customers, or
+// Trade customers who haven't had a custom price set).
+function getCustomerPrice(data, customer) {
+  if (customer?.custType === "Trade" && customer.price) return customer.price;
+  return getDefaultPrice(data);
+}
+
 function loadData() {
   try {
     const raw = localStorage.getItem(DB_KEY);
@@ -40,7 +53,7 @@ function loadData() {
       return data;
     }
   } catch {}
-  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], inspections: [], communications: [], technicians: [] };
+  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], inspections: [], communications: [], settings: [], technicians: [] };
 }
 
 // One-time cleanup: remove the old duplicate lastsync copy
@@ -76,6 +89,7 @@ function stampData(data) {
     invoices:  stamp(data.invoices,  prev.invoices),
     inspections: stamp(data.inspections, prev.inspections),
     communications: stamp(data.communications, prev.communications),
+    settings: stamp(data.settings, prev.settings),
   };
 }
 
@@ -188,6 +202,7 @@ async function pushChangedOnly(data) {
     { name: "mileage",   key: "mileage"   },
     { name: "inspections", key: "inspections" },
     { name: "communications", key: "communications" },
+    { name: "settings", key: "settings" },
   ];
 
   let failed = 0;
@@ -470,6 +485,8 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
       <div style={{ marginTop:10 }}>
         <Btn onClick={() => setView({ screen:"inspections" })} variant="ghost" style={{ width:"100%", justifyContent:"center" }}>🔍 Site Inspections</Btn>
       </div>
+      <div style={{ marginTop:10 }}>
+        <Btn onClick={() => setView({ screen:"settings" })} variant="ghost" style={{ width:"100%", justifyContent:"center" }}>⚙️ Settings</Btn>
 
       <div style={{ marginTop:24, paddingTop:16, borderTop:"1px solid #E5E7EB" }}>
         <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tools</h3>
@@ -540,6 +557,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [notes,    setNotes]    = useState(editCustomer?.notes    || "");
   const [onStop,   setOnStop]   = useState(editCustomer?.onStop   || false);
   const [custType, setCustType] = useState(editCustomer?.custType || "Trade");
+  const [price,    setPrice]    = useState(editCustomer?.price    || "");
   const [followUpDate, setFollowUpDate] = useState(editCustomer?.followUpDate || "");
   const [followUpNote, setFollowUpNote] = useState(editCustomer?.followUpNote || "");
   // Unified contacts list. One contact is flagged main:true. For existing customers
@@ -570,7 +588,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     // Keep the legacy single fields in sync with whoever is the main contact,
     // so customer cards, dropdowns and call buttons keep working.
     const main = contacts.find(c => c.main) || contacts[0] || {};
-    const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, followUpDate, followUpNote, contacts };
+    const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, price, followUpDate, followUpNote, contacts };
     let newData = { ...data };
     let savedCustomerId;
     if (editCustomer) {
@@ -610,6 +628,11 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
             </div>
           )}
         </>
+      )}
+      {custType === "Trade" && (
+        <Field label="Repair Price (£)">
+          <Input type="number" value={price} onChange={setPrice} placeholder={`Leave blank for default (£${getDefaultPrice(data)})`} />
+        </Field>
       )}
       {custType === "Trade" && (
         <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:10, padding:12, marginBottom:14 }}>
@@ -655,8 +678,8 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
 }
 
 // ── Repair Terms message (Text / WhatsApp) ────────────────────────────────────
-function RepairTermsModal({ customer, onClose }) {
-  const [price, setPrice] = useState("40.00");
+function RepairTermsModal({ customer, data, onClose }) {
+  const [price, setPrice] = useState(getCustomerPrice(data, customer));
 
   const message =
 `The cost of the repair is £${price}. Please bear in mind it's not a cosmetic repair, the main purpose is to restore strength and integrity to the screen. There is also a slight chance during the repair that the screen can crack due to various conditions, we can NOT be held liable if a crack developed during or after the repair.
@@ -972,7 +995,7 @@ function CustomerDetail({ data, id, setView }) {
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
       </Card>
-      {showTerms && <RepairTermsModal customer={customer} onClose={() => setShowTerms(false)} />}
+      {showTerms && <RepairTermsModal customer={customer} data={data} onClose={() => setShowTerms(false)} />}
       {showDamageReport && <DamageReportModal customer={customer} vehicles={vehicles} data={data} onClose={() => setShowDamageReport(false)} />}
       {showCommLog && <CommLogModal customer={customer} contact={logContact} editEntry={editingComm} onSave={saveComm} onClose={() => setShowCommLog(false)} />}
 
@@ -2410,13 +2433,14 @@ function JobDetail({ data, id, setView }) {
 // ── Invoice Form ──────────────────────────────────────────────────────────────
 function InvoiceForm({ data, jobId, editInvoice, onClose }) {
   const job = data.jobs.find(j => j.id === jobId);
+  const customer = data.customers.find(c => c.id === job?.customerId);
   // Auto-fill details from the job's repairs (for new invoices)
   const autoDetails = (() => {
     const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
     return reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
   })();
   const [details, setDetails] = useState(editInvoice?.details ?? autoDetails);
-  const [labour, setLabour] = useState(editInvoice?.labour ?? "");
+  const [labour, setLabour] = useState(editInvoice?.labour ?? (customer ? getCustomerPrice(data, customer) : ""));
   const [parts,  setParts]  = useState(editInvoice?.parts ?? "");
   const [vat,    setVat]    = useState(editInvoice?.vat ?? false);
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
@@ -2797,6 +2821,52 @@ function ResponsiveStyles({ device }) {
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────────
+// ── Settings ─────────────────────────────────────────────────────────────────
+function SettingsView({ data, setView }) {
+  const [price, setPrice] = useState(getDefaultPrice(data));
+  const tradeWithPrices = (data.customers || []).filter(c => c.custType === "Trade").sort((a,b) => (a.company||"").localeCompare(b.company||"", undefined, { sensitivity:"base" }));
+
+  async function save() {
+    const existing = data.settings || [];
+    const rec = { id: "app", defaultPrice: price, updatedAt: Date.now() };
+    const settings = existing.some(s => s.id === "app") ? existing.map(s => s.id === "app" ? rec : s) : [...existing, rec];
+    try {
+      await saveAndReload({ ...data, settings });
+    } catch (e) {
+      alert("Save failed: " + (e?.message || e));
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"dashboard" })}><Icon name="back" size={14} /> Back</Btn>
+      </div>
+      <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:"0 0 12px" }}>Settings</h2>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Default Repair Price</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Used for Private customers, and any Trade customer without their own price set below.</p>
+        <Field label="Price (£)"><Input type="number" value={price} onChange={setPrice} placeholder="40.00" /></Field>
+        <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>💾 Save</Btn>
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Trade Customer Prices</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Set a custom price per Trade customer from their customer page (Edit → Repair Price).</p>
+        {tradeWithPrices.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No Trade customers yet</p>}
+        {tradeWithPrices.map(c => (
+          <div key={c.id} onClick={() => setView({ screen:"customerDetail", id:c.id })}
+            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 4px", borderBottom:"1px solid #F9FAFB", cursor:"pointer" }}>
+            <span style={{ fontSize:14, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+            <span style={{ fontSize:14, fontWeight:700, color: c.price ? "#1E3A5F" : "#9CA3AF" }}>{c.price ? `£${c.price}` : `Default (£${price})`}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ReportsView({ data }) {
   const now = new Date();
   // Period mode: "rolling" (last 12 months), or a specific calendar/financial year
@@ -3086,6 +3156,7 @@ export default function App() {
           invoices:    merge(cloud.invoices,    local.invoices || []),
           inspections: merge(cloud.inspections, local.inspections || []),
           communications: merge(cloud.communications, local.communications || []),
+          settings: merge(cloud.settings, local.settings || []),
           technicians: local.technicians || [],
         };
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
@@ -3124,6 +3195,7 @@ export default function App() {
             mileage:   merge(cloud.mileage,   local.mileage || []),
             inspections: merge(cloud.inspections, local.inspections || []),
             communications: merge(cloud.communications, local.communications || []),
+          settings: merge(cloud.settings, local.settings || []),
             technicians: local.technicians || [],
           };
           localStorage.setItem(DB_KEY, JSON.stringify(merged));
@@ -3196,15 +3268,16 @@ export default function App() {
           mileage:   merge(cloud.mileage,   local.mileage || []),
           inspections: merge(cloud.inspections, local.inspections || []),
           communications: merge(cloud.communications, local.communications || []),
+          settings: merge(cloud.settings, local.settings || []),
           technicians: local.technicians || [],
         };
-        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length + merged.inspections.length + merged.communications.length;
+        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length + merged.inspections.length + merged.communications.length + merged.settings.length;
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
         // Push any local records that haven't been uploaded yet (e.g. created offline)
         pushChangedOnly(merged).catch(() => {});
         // Only re-render if something actually changed, to avoid disrupting typing
         setData(prev => {
-          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0)+(prev.inspections?.length||0)+(prev.communications?.length||0);
+          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0)+(prev.inspections?.length||0)+(prev.communications?.length||0)+(prev.settings?.length||0);
           if (prevCount !== after) return merged;
           return prev;
         });
@@ -3296,6 +3369,7 @@ export default function App() {
         {view.screen==="jobs"           && <JobsList       data={data} setView={setView} initialFilter={view.filter} />}
         {view.screen==="calendar"       && <CalendarView   data={data} setView={setView} device={device} />}
         {view.screen==="reports"        && <ReportsView    data={data} />}
+        {view.screen==="settings"       && <SettingsView   data={data} setView={setView} />}
         {view.screen==="mileage"        && <MileageView    data={data} setView={setView} />}
         {view.screen==="jobDetail"      && <JobDetail      data={data} id={view.id} setView={setView} />}
         {view.screen==="newJob"         && <JobsList       data={data} setView={setView} />}
