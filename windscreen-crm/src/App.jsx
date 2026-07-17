@@ -173,13 +173,17 @@ function mergeRecords(cloudArr, localArr) {
   const deleted = getTombstones();
   const byId = {};
   (cloudArr || []).forEach(x => { if (!deleted.includes(x.id)) byId[x.id] = x; });
+  // Safety guard: if the cloud came back empty (or near-empty) while we have a real
+  // amount of local data, that's almost certainly a fetch glitch, not a genuine mass
+  // deletion — never let that wipe local records. Just keep everything local as-is.
+  const suspiciousEmpty = (cloudArr || []).length === 0 && (localArr || []).length >= 3;
   (localArr || []).forEach(x => {
     if (deleted.includes(x.id)) return;
     if (byId[x.id]) {
       const localTime = x.updatedAt || 0;
       const cloudTime = byId[x.id].updatedAt || 0;
       byId[x.id] = localTime >= cloudTime ? x : byId[x.id];
-    } else if (wasUploaded(x.id)) {
+    } else if (wasUploaded(x.id) && !suspiciousEmpty) {
       addTombstone(x.id);
       removeSig(x.id);
     } else {
