@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B9 · 18 Jul 2026";
+const BUILD_NUMBER = "B10 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -904,13 +904,19 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
     const vehicleCount = new Set(chosen.map(d => d.vehicle.id)).size;
     const logoUrl = window.location.origin + "/logo.png";
     const fmtD = new Date().toLocaleDateString("en-GB");
-    const rows = chosen.map((d, i) => `
+    let lastVehId = null;
+    const rows = chosen.map((d, i) => {
+      const isNewVehicle = d.vehicle.id !== lastVehId;
+      lastVehId = d.vehicle.id;
+      const carCell = isNewVehicle ? `<b>${d.vehicle.reg || "—"}</b> · ${[d.vehicle.make, d.vehicle.model].filter(Boolean).join(" ") || "—"}` : "";
+      return `
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;"><b>${d.vehicle.reg || "—"}</b> · ${[d.vehicle.make, d.vehicle.model].filter(Boolean).join(" ") || "—"}</td>
+        <td style="padding:10px 12px;${isNewVehicle ? "border-top:2px solid #E5E7EB;" : ""}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${describeRepair(d.repair) || d.repair.type || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Windscreen Damage Report</title>
@@ -1637,11 +1643,13 @@ function SendReportModal({ data, inspection, onClose }) {
     const rows = [];
     (inspection.vehicles||[]).forEach(v => {
       const reps = v.repairs?.length ? v.repairs : [{ type: "—" }];
-      reps.forEach(r => {
+      reps.forEach((r, idx) => {
+        const isNewVehicle = idx === 0;
+        const carCell = isNewVehicle ? `<b>${v.reg || "—"}</b> · ${[v.make, v.model].filter(Boolean).join(" ") || "—"}${v.colour ? " · " + v.colour : ""}` : "";
         rows.push(`
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${rows.length+1}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;"><b>${v.reg || "—"}</b> · ${[v.make, v.model].filter(Boolean).join(" ") || "—"}${v.colour ? " · " + v.colour : ""}</td>
+        <td style="padding:10px 12px;${isNewVehicle ? "border-top:2px solid #E5E7EB;" : ""}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
       </tr>`);
