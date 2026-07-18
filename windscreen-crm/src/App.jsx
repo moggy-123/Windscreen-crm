@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B10 · 18 Jul 2026";
+const BUILD_NUMBER = "B11 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -909,12 +909,13 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
       const isNewVehicle = d.vehicle.id !== lastVehId;
       lastVehId = d.vehicle.id;
       const carCell = isNewVehicle ? `<b>${d.vehicle.reg || "—"}</b> · ${[d.vehicle.make, d.vehicle.model].filter(Boolean).join(" ") || "—"}` : "";
+      const sep = isNewVehicle && i > 0 ? "border-top:2px solid #9CA3AF;" : "";
       return `
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
-        <td style="padding:10px 12px;${isNewVehicle ? "border-top:2px solid #E5E7EB;" : ""}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${describeRepair(d.repair) || d.repair.type || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${describeRepair(d.repair) || d.repair.type || "—"}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
       </tr>`;
     }).join("");
 
@@ -1646,12 +1647,13 @@ function SendReportModal({ data, inspection, onClose }) {
       reps.forEach((r, idx) => {
         const isNewVehicle = idx === 0;
         const carCell = isNewVehicle ? `<b>${v.reg || "—"}</b> · ${[v.make, v.model].filter(Boolean).join(" ") || "—"}${v.colour ? " · " + v.colour : ""}` : "";
+        const sep = isNewVehicle && rows.length > 0 ? "border-top:2px solid #9CA3AF;" : "";
         rows.push(`
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${rows.length+1}</td>
-        <td style="padding:10px 12px;${isNewVehicle ? "border-top:2px solid #E5E7EB;" : ""}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${rows.length+1}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
       </tr>`);
       });
     });
