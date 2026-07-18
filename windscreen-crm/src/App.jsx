@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B1 · 18 Jul 2026";
+const BUILD_NUMBER = "B2 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -850,6 +850,11 @@ Please reply if you are happy for me to carry out the repair knowing the points 
   const smsLink = `sms:${customer.phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(message)}`;
   const waLink  = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
 
+  function logSend(type) {
+    const entry = { id: uid(), customerId: customer.id, contactId: "", contactName: "", type, direction: "out", note: message, timestamp: Date.now(), createdAt: todayISO() };
+    saveAndReload({ ...data, communications: [...(data.communications || []), entry] }).catch(() => {});
+  }
+
   return (
     <Modal title="Send Repair Terms" onClose={onClose}>
       <Field label="Repair Price (£)"><Input type="number" value={price} onChange={setPrice} placeholder="40.00" /></Field>
@@ -857,10 +862,10 @@ Please reply if you are happy for me to carry out the repair knowing the points 
         {message}
       </div>
       <div style={{ display:"flex", gap:8 }}>
-        <a href={waLink} target="_blank" rel="noreferrer" style={{ textDecoration:"none", flex:1 }}>
+        <a href={waLink} target="_blank" rel="noreferrer" style={{ textDecoration:"none", flex:1 }} onClick={() => logSend("WhatsApp")}>
           <Btn style={{ width:"100%", justifyContent:"center", background:"#25D366" }}>💬 WhatsApp</Btn>
         </a>
-        <a href={smsLink} style={{ textDecoration:"none", flex:1 }}>
+        <a href={smsLink} style={{ textDecoration:"none", flex:1 }} onClick={() => logSend("Text")}>
           <Btn variant="primary" style={{ width:"100%", justifyContent:"center" }}>✉️ Text</Btn>
         </a>
       </div>
@@ -1095,6 +1100,15 @@ function CustomerDetail({ data, id, setView }) {
       alert("Save failed: " + (e?.message || e));
     }
   }
+  // Fire-and-forget logging for quick send buttons (Call/Email/Terms) — doesn't block
+  // or delay the tel:/mailto:/sms: hand-off, which has already happened by the time
+  // saveAndReload's network push and eventual reload occur.
+  function quickLog(type, note, extra = {}, markTermsSent = false) {
+    const entry = { id: uid(), customerId: customer.id, contactId: "", contactName: "", type, direction: "out", note, timestamp: Date.now(), createdAt: todayISO(), ...extra };
+    const communications = [...(data.communications || []), entry];
+    const customers = markTermsSent ? data.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c) : data.customers;
+    saveAndReload({ ...data, communications, customers }).catch(() => {});
+  }
   async function deleteComm(commId) {
     if (!window.confirm("Delete this log entry?")) return;
     try { await deleteRecord("communications", commId); } catch (e) { alert("Delete failed: " + (e?.message||e)); return; }
@@ -1149,12 +1163,12 @@ function CustomerDetail({ data, id, setView }) {
         </button>
         <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
           {customer.phone && (
-            <a href={`tel:${customer.phone}`} style={{ textDecoration:"none" }}>
+            <a href={`tel:${customer.phone}`} style={{ textDecoration:"none" }} onClick={() => quickLog("Call", "")}>
               <Btn size="sm" variant="primary">📞 Call</Btn>
             </a>
           )}
           {customer.email && (
-            <a href={`mailto:${customer.email}`} style={{ textDecoration:"none" }}>
+            <a href={`mailto:${customer.email}`} style={{ textDecoration:"none" }} onClick={() => quickLog("Email", "")}>
               <Btn size="sm" variant="ghost">✉️ Email</Btn>
             </a>
           )}
@@ -1163,13 +1177,17 @@ function CustomerDetail({ data, id, setView }) {
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
           {customer.email && customer.custType === "Trade" && (
-            <Btn size="sm" variant="ghost" onClick={() => openTermsWindow(`mailto:${customer.email}?subject=${encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol")}`)}>📜 Download & Send T&Cs</Btn>
+            <Btn size="sm" variant="ghost" onClick={() => {
+              openTermsWindow(`mailto:${customer.email}?subject=${encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol")}`);
+              quickLog("Email", "Terms & Conditions sent (PDF)", {}, true);
+            }}>📜 Download & Send T&Cs</Btn>
           )}
           {customer.email && customer.custType === "Private" && (
             <Btn size="sm" variant="ghost" onClick={() => {
               const subject = encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol");
               const body = encodeURIComponent("Hi,\n\nPlease see our current Terms and Conditions for windscreen repair services here:\nhttps://www.windscreenrepairsbristol.co.uk/terms\n\nWindscreen Repairs (Bristol)\n07946 222246");
               window.location.href = `mailto:${customer.email}?subject=${subject}&body=${body}`;
+              quickLog("Email", "Terms & Conditions link sent", {}, true);
             }}>🔗 Send Terms Link</Btn>
           )}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
@@ -1195,8 +1213,8 @@ function CustomerDetail({ data, id, setView }) {
                 </div>
               </div>
               <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
-                {ct.phone && <a href={`tel:${ct.phone}`} style={{ textDecoration:"none" }}><Btn size="sm" variant="primary">📞 Call</Btn></a>}
-                {ct.email && <a href={`mailto:${ct.email}`} style={{ textDecoration:"none" }}><Btn size="sm" variant="ghost">✉️ Email</Btn></a>}
+                {ct.phone && <a href={`tel:${ct.phone}`} style={{ textDecoration:"none" }} onClick={() => quickLog("Call", "", { contactId: ct.id, contactName: ct.name })}><Btn size="sm" variant="primary">📞 Call</Btn></a>}
+                {ct.email && <a href={`mailto:${ct.email}`} style={{ textDecoration:"none" }} onClick={() => quickLog("Email", "", { contactId: ct.id, contactName: ct.name })}><Btn size="sm" variant="ghost">✉️ Email</Btn></a>}
                 <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(ct); setShowCommLog(true); }}>💬 Log / Message</Btn>
               </div>
             </Card>
@@ -3044,6 +3062,11 @@ function SettingsView({ data, setView }) {
     const subject = encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol");
     const body = encodeURIComponent("Hi,\n\nPlease find attached our current Terms and Conditions for windscreen repair services.\n\nWindscreen Repairs (Bristol)\n07946 222246");
     window.location.href = `mailto:?bcc=${tradeEmails.join(",")}&subject=${subject}&body=${body}`;
+
+    const emailedIds = tradeCustomers.filter(c => c.email).map(c => c.id);
+    const customers = data.customers.map(c => emailedIds.includes(c.id) ? { ...c, termsSentAt: Date.now() } : c);
+    const newEntries = emailedIds.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: "Terms & Conditions sent (PDF, bulk)", timestamp: Date.now(), createdAt: todayISO() }));
+    saveAndReload({ ...data, customers, communications: [...(data.communications || []), ...newEntries] }).catch(() => {});
   }
 
   return (
