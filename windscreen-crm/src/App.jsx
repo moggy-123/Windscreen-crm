@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B7 · 18 Jul 2026";
+const BUILD_NUMBER = "B8 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1636,18 +1636,22 @@ function SendReportModal({ data, inspection, onClose }) {
     const bodyText = encodeURIComponent(`Please find our site inspection report attached.\n\nWindscreen Repairs (Bristol)\n07946 222246\nwww.windscreenrepairsbristol.co.uk`);
     const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${bodyText}`;
 
-    const rows = (inspection.vehicles||[]).map((v, i) => {
-      const damage = (v.repairs||[]).map(describeRepair).filter(Boolean).join("; ") || "—";
-      return `
+    const rows = [];
+    (inspection.vehicles||[]).forEach(v => {
+      const reps = v.repairs?.length ? v.repairs : [{ type: "—" }];
+      reps.forEach(r => {
+        rows.push(`
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${rows.length+1}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${v.reg || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${v.colour || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${damage}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
-      </tr>`;
-    }).join("");
+      </tr>`);
+      });
+    });
+    const rowsHtml = rows.join("");
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Site Inspection Report</title>
@@ -1682,11 +1686,11 @@ function SendReportModal({ data, inspection, onClose }) {
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Damage</th>
       <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;">Please Repair</th>
     </tr></thead>
-    <tbody>${rows || '<tr><td colspan="6" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles</td></tr>'}</tbody>
+    <tbody>${rowsHtml || '<tr><td colspan="6" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles</td></tr>'}</tbody>
   </table>
-  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${(inspection.vehicles||[]).length} vehicle(s) inspected · Windscreen Repairs (Bristol)</div>
+  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${(inspection.vehicles||[]).length} vehicle(s), ${rows.length} damage item(s) inspected · Windscreen Repairs (Bristol)</div>
   <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
-    <div style="font-size:12px;color:#6B7280;margin-bottom:14px;">Please tick above the vehicles you'd like us to repair, then complete below to authorise the work.</div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:14px;">Please tick above the damage you'd like us to repair, then complete below to authorise the work.</div>
     <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:4px;">
       <div style="flex:1;min-width:180px;">
         <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Authorised by (name)</div>
@@ -1715,7 +1719,7 @@ function SendReportModal({ data, inspection, onClose }) {
         <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
           style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
       </Field>
-      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Every vehicle in this inspection is listed with a blank tick box for the customer to mark up and sign — nothing gets booked in yet.</p>
+      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Every piece of damage found in this inspection is listed on its own line with a blank tick box for the customer to mark up and sign — nothing gets booked in yet.</p>
       <Btn onClick={openReportWindow} style={{ width:"100%", justifyContent:"center" }}>
         📄 View / Email Report
       </Btn>
