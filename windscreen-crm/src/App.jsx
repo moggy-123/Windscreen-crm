@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B6 · 18 Jul 2026";
+const BUILD_NUMBER = "B7 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -882,37 +882,36 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
   // A vehicle counts as "repaired" if it has any job that's Complete, Invoiced or Paid
   const isRepaired = (vehId) => (data?.jobs || []).some(j => j.vehicleId === vehId && ["Complete","Invoiced","Paid"].includes(j.status));
   const unrepairedVehicles = (vehicles || []).filter(v => !isRepaired(v.id));
-  // Pull damage/repair details from that vehicle's outstanding (not yet repaired) job(s)
-  const damageForVehicle = (vehId) => {
-    const jobs = (data?.jobs || []).filter(j => j.vehicleId === vehId && !["Complete","Invoiced","Paid"].includes(j.status));
-    const repairs = [];
+
+  // Flatten into one item per individual damage (chip/crack/etc), grouped by vehicle
+  const damageItems = [];
+  unrepairedVehicles.forEach(v => {
+    const jobs = (data?.jobs || []).filter(j => j.vehicleId === v.id && !["Complete","Invoiced","Paid"].includes(j.status));
     jobs.forEach(j => {
-      const reps = j.repairs?.length ? j.repairs : (j.damageType ? [{ type: j.damageType, side: j.damageSide, position: j.damagePosition }] : []);
-      repairs.push(...reps);
+      const reps = j.repairs?.length ? j.repairs : (j.damageType ? [{ id: j.id, type: j.damageType, side: j.damageSide, position: j.damagePosition }] : []);
+      reps.forEach((r, idx) => damageItems.push({ id: `${v.id}-${r.id || j.id + "-" + idx}`, vehicle: v, repair: r }));
     });
-    return repairs;
-  };
-  const [selected, setSelected] = useState(() => {
-    const s = {}; unrepairedVehicles.forEach(v => { s[v.id] = true; }); return s;
   });
-  const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our recent inspection. Please let us know which you would like us to repair.");
+
+  const [selected, setSelected] = useState(() => {
+    const s = {}; damageItems.forEach(d => { s[d.id] = true; }); return s;
+  });
+  const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our recent inspection. Please let us know which of the damage below you would like us to repair.");
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
 
   function generate() {
-    const chosen = unrepairedVehicles.filter(v => selected[v.id]);
+    const chosen = damageItems.filter(d => selected[d.id]);
+    const vehicleCount = new Set(chosen.map(d => d.vehicle.id)).size;
     const logoUrl = window.location.origin + "/logo.png";
     const fmtD = new Date().toLocaleDateString("en-GB");
-    const rows = chosen.map((v, i) => {
-      const damage = damageForVehicle(v.id).map(describeRepair).filter(Boolean).join("; ") || "—";
-      return `
+    const rows = chosen.map((d, i) => `
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${v.reg || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${damage}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${d.vehicle.reg || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#111827;">${[d.vehicle.make, d.vehicle.model].filter(Boolean).join(" ") || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${describeRepair(d.repair) || d.repair.type || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
-      </tr>`;
-    }).join("");
+      </tr>`).join("");
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Windscreen Damage Report</title>
@@ -945,11 +944,11 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Damage</th>
       <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Please Repair</th>
     </tr></thead>
-    <tbody>${rows || '<tr><td colspan="5" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles selected</td></tr>'}</tbody>
+    <tbody>${rows || '<tr><td colspan="5" style="padding:14px;color:#9CA3AF;font-size:13px;">No damage selected</td></tr>'}</tbody>
   </table>
-  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${chosen.length} vehicle(s) listed · Windscreen Repairs (Bristol)</div>
+  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${vehicleCount} vehicle(s), ${chosen.length} damage item(s) listed · Windscreen Repairs (Bristol)</div>
   <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
-    <div style="font-size:12px;color:#6B7280;margin-bottom:14px;">Please tick above the vehicles you'd like us to repair, then complete below to authorise the work.</div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:14px;">Please tick above the damage you'd like us to repair, then complete below to authorise the work.</div>
     <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:4px;">
       <div style="flex:1;min-width:180px;">
         <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;">Authorised by (name)</div>
@@ -976,7 +975,7 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
 
   return (
     <Modal title="Damage Report" onClose={onClose}>
-      {unrepairedVehicles.length === 0 ? (
+      {damageItems.length === 0 ? (
         <p style={{ fontSize:14, color:"#9CA3AF" }}>{(vehicles||[]).length === 0 ? "This customer has no vehicles added." : "All of this customer's vehicles have already been repaired."}</p>
       ) : (
         <>
@@ -984,17 +983,22 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
               style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
           </Field>
-          <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Select vehicles to include</div>
-          {unrepairedVehicles.map(v => (
-            <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
-              <input type="checkbox" checked={!!selected[v.id]} onChange={() => toggle(v.id)} style={{ width:18, height:18 }} />
-              <div style={{ flex:1 }}>
-                <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg || "No reg"}</div>
-                <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model].filter(Boolean).join(" ") || "—"}</div>
-                <div style={{ fontSize:12, color:"#9CA3AF" }}>{damageForVehicle(v.id).map(describeRepair).filter(Boolean).join("; ")}</div>
+          <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Select damage to include — each repair is listed separately</div>
+          {unrepairedVehicles.map(v => {
+            const items = damageItems.filter(d => d.vehicle.id === v.id);
+            if (items.length === 0) return null;
+            return (
+              <div key={v.id} style={{ marginBottom:10 }}>
+                <div style={{ fontWeight:700, fontSize:14, color:"#111827", marginBottom:4 }}>{v.reg || "No reg"} <span style={{ fontWeight:500, color:"#6B7280" }}>· {[v.make, v.model].filter(Boolean).join(" ") || "—"}</span></div>
+                {items.map(d => (
+                  <label key={d.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[d.id] ? "#EFF6FF" : "#fff" }}>
+                    <input type="checkbox" checked={!!selected[d.id]} onChange={() => toggle(d.id)} style={{ width:18, height:18 }} />
+                    <div style={{ fontSize:13, color:"#374151" }}>{describeRepair(d.repair) || d.repair.type || "Repair"}</div>
+                  </label>
+                ))}
               </div>
-            </label>
-          ))}
+            );
+          })}
           <Btn onClick={generate} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
             📄 Generate PDF ({count})
           </Btn>
