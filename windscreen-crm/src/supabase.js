@@ -120,9 +120,9 @@ const commFromDb = r => ({
 });
 
 const settingToDb = s => ({
-  id: s.id, default_pricing: s.defaultPricing || {}, updated_at: s.updatedAt || Date.now(),
+  id: s.id, default_pricing: s.defaultPricing || {}, private_pricing: s.privatePricing || {}, updated_at: s.updatedAt || Date.now(),
 });
-const settingFromDb = r => ({ id: r.id, defaultPricing: r.default_pricing || {}, updatedAt: r.updated_at });
+const settingFromDb = r => ({ id: r.id, defaultPricing: r.default_pricing || {}, privatePricing: r.private_pricing || {}, updatedAt: r.updated_at });
 
 // ── Pull all data from Supabase ─────────────────────────────────────────────
 export async function pullFromCloud() {
