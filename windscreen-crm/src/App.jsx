@@ -1135,7 +1135,16 @@ function CustomerDetail({ data, id, setView }) {
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
-          {customer.email && <Btn size="sm" variant="ghost" onClick={() => openTermsWindow(`mailto:${customer.email}?subject=${encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol")}`)}>📜 Email T&Cs</Btn>}
+          {customer.email && customer.custType === "Trade" && (
+            <Btn size="sm" variant="ghost" onClick={() => openTermsWindow(`mailto:${customer.email}?subject=${encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol")}`)}>📜 Download & Send T&Cs</Btn>
+          )}
+          {customer.email && customer.custType === "Private" && (
+            <Btn size="sm" variant="ghost" onClick={() => {
+              const subject = encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol");
+              const body = encodeURIComponent("Hi,\n\nPlease see our current Terms and Conditions for windscreen repair services here:\nhttps://www.windscreenrepairsbristol.co.uk/terms\n\nWindscreen Repairs (Bristol)\n07946 222246");
+              window.location.href = `mailto:${customer.email}?subject=${subject}&body=${body}`;
+            }}>🔗 Send Terms Link</Btn>
+          )}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
