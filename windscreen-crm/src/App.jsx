@@ -26,15 +26,24 @@ function fmtDate(iso) {
 
 // Pricing is tiered: for each repair type (Chip/Crack/Pit Fill), a price for the 1st,
 // 2nd, and 3rd-or-later repair of that type on the same vehicle/job. Trade customers can
-// override any of these; anything they haven't set falls back to the app-wide default.
+// override any of these; anything they haven't set falls back to the Trade default.
+// Private customers always use the separate Private default (no per-customer override).
 function getDefaultPricing(data) {
   const table = data.settings?.find(s => s.id === "app")?.defaultPricing || {};
   const out = {};
   DAMAGE_TYPES.forEach(t => { out[t] = { 1: "", 2: "", 3: "", ...(table[t] || {}) }; });
   return out;
 }
-// The effective pricing table for a customer: their own Trade prices layered over the default.
+function getPrivatePricing(data) {
+  const table = data.settings?.find(s => s.id === "app")?.privatePricing || {};
+  const out = {};
+  DAMAGE_TYPES.forEach(t => { out[t] = { 1: "", 2: "", 3: "", ...(table[t] || {}) }; });
+  return out;
+}
+// The effective pricing table for a customer: Private customers use the Private default;
+// Trade customers get their own prices layered over the Trade default.
 function getRepairPricing(data, customer) {
+  if (customer?.custType === "Private") return getPrivatePricing(data);
   const def = getDefaultPricing(data);
   const custom = (customer?.custType === "Trade" && customer.pricing) ? customer.pricing : {};
   const out = {};
@@ -2991,12 +3000,13 @@ function ResponsiveStyles({ device }) {
 // ── Settings ─────────────────────────────────────────────────────────────────
 function SettingsView({ data, setView }) {
   const [pricing, setPricing] = useState(getDefaultPricing(data));
+  const [privatePricing, setPrivatePricing] = useState(getPrivatePricing(data));
   const tradeCustomers = (data.customers || []).filter(c => c.custType === "Trade").sort((a,b) => (a.company||"").localeCompare(b.company||"", undefined, { sensitivity:"base" }));
   const tradeEmails = tradeCustomers.map(c => c.email).filter(Boolean);
 
   async function save() {
     const existing = data.settings || [];
-    const rec = { id: "app", defaultPricing: pricing, updatedAt: Date.now() };
+    const rec = { id: "app", defaultPricing: pricing, privatePricing, updatedAt: Date.now() };
     const settings = existing.some(s => s.id === "app") ? existing.map(s => s.id === "app" ? rec : s) : [...existing, rec];
     try {
       await saveAndReload({ ...data, settings });
@@ -3027,15 +3037,22 @@ function SettingsView({ data, setView }) {
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
-        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Default Repair Prices</h3>
-        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Used for Private customers, and any Trade customer without their own prices set. "3rd+" applies to every repair of that type from the 3rd one onwards on the same vehicle.</p>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Private Customer Prices</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Used for every Private customer — picked up automatically when creating an invoice or sending repair terms. "3rd+" applies to every repair of that type from the 3rd one onwards on the same vehicle.</p>
+        <PricingGrid value={privatePricing} onChange={setPrivatePricing} />
+        <Btn onClick={save} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>💾 Save</Btn>
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Trade Default Prices</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Used for any Trade customer without their own prices set below.</p>
         <PricingGrid value={pricing} onChange={setPricing} />
         <Btn onClick={save} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>💾 Save</Btn>
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16 }}>
         <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Trade Customer Prices</h3>
-        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Set custom prices per Trade customer from their customer page (Edit → Repair Prices). Anyone showing "Default" is using the prices above.</p>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Set custom prices per Trade customer from their customer page (Edit → Repair Prices). Anyone showing "Default" is using the Trade Default prices above.</p>
         {tradeCustomers.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No Trade customers yet</p>}
         {tradeCustomers.map(c => {
           const hasCustom = c.pricing && Object.values(c.pricing).some(t => t && Object.values(t).some(v => v));
