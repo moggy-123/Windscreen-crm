@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B3 · 18 Jul 2026";
+const BUILD_NUMBER = "B4 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2597,6 +2597,14 @@ function JobDetail({ data, id, setView }) {
                   const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
                   await saveAndReload({ ...data, invoices, jobs });
                 }}>Mark Paid</Btn>
+              )}
+              {invoice.paid && (
+                <Btn size="sm" variant="ghost" onClick={async () => {
+                  if (!window.confirm("Unmark this invoice as paid?")) return;
+                  const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:false,paidDate:""} : i);
+                  const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Invoiced"} : j);
+                  await saveAndReload({ ...data, invoices, jobs });
+                }}>Unmark Paid</Btn>
               )}
             </div>
           </div>
