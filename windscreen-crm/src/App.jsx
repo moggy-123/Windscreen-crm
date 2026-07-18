@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B4 · 18 Jul 2026";
+const BUILD_NUMBER = "B5 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -881,14 +881,15 @@ Full Terms and Conditions: https://www.windscreenrepairsbristol.co.uk/terms`;
 function DamageReportModal({ customer, vehicles, data, onClose }) {
   // A vehicle counts as "repaired" if it has any job that's Complete, Invoiced or Paid
   const isRepaired = (vehId) => (data?.jobs || []).some(j => j.vehicleId === vehId && ["Complete","Invoiced","Paid"].includes(j.status));
+  const unrepairedVehicles = (vehicles || []).filter(v => !isRepaired(v.id));
   const [selected, setSelected] = useState(() => {
-    const s = {}; (vehicles || []).forEach(v => { s[v.id] = !isRepaired(v.id); }); return s;
+    const s = {}; unrepairedVehicles.forEach(v => { s[v.id] = true; }); return s;
   });
   const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our recent inspection. Please let us know which you would like us to repair.");
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
 
   function generate() {
-    const chosen = (vehicles || []).filter(v => selected[v.id]);
+    const chosen = unrepairedVehicles.filter(v => selected[v.id]);
     const logoUrl = window.location.origin + "/logo.png";
     const fmtD = new Date().toLocaleDateString("en-GB");
     const rows = chosen.map((v, i) => `
@@ -960,8 +961,8 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
 
   return (
     <Modal title="Damage Report" onClose={onClose}>
-      {(vehicles || []).length === 0 ? (
-        <p style={{ fontSize:14, color:"#9CA3AF" }}>This customer has no vehicles added.</p>
+      {unrepairedVehicles.length === 0 ? (
+        <p style={{ fontSize:14, color:"#9CA3AF" }}>{(vehicles||[]).length === 0 ? "This customer has no vehicles added." : "All of this customer's vehicles have already been repaired."}</p>
       ) : (
         <>
           <Field label="Covering note">
@@ -969,14 +970,13 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
               style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
           </Field>
           <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"6px 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Select vehicles to include</div>
-          {vehicles.map(v => (
+          {unrepairedVehicles.map(v => (
             <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
               <input type="checkbox" checked={!!selected[v.id]} onChange={() => toggle(v.id)} style={{ width:18, height:18 }} />
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg || "No reg"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model].filter(Boolean).join(" ") || "—"}</div>
               </div>
-              {isRepaired(v.id) && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>REPAIRED</span>}
             </label>
           ))}
           <Btn onClick={generate} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
@@ -1457,7 +1457,7 @@ function InspectionForm({ data, setView, prefillCustomerId }) {
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [editingVehicle, setEditingVehicle]   = useState(null);
 
-  const sortedCusts = [...data.customers].sort((a,b) => (a.company || a.companyContact || "").localeCompare(b.company || b.companyContact || "", undefined, { sensitivity:"base" }));
+  const sortedCusts = data.customers.filter(c => c.custType === "Trade").sort((a,b) => (a.company || a.companyContact || "").localeCompare(b.company || b.companyContact || "", undefined, { sensitivity:"base" }));
   const matches = custSearch.trim()
     ? sortedCusts.filter(c => (c.company||"").toLowerCase().includes(custSearch.toLowerCase()) || (c.companyContact||"").toLowerCase().includes(custSearch.toLowerCase()) || (c.town||"").toLowerCase().includes(custSearch.toLowerCase()))
     : sortedCusts;
