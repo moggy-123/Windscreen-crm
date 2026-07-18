@@ -740,6 +740,88 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
 }
 
 // ── Repair Terms message (Text / WhatsApp) ────────────────────────────────────
+// ── Terms & Conditions ──────────────────────────────────────────────────────
+const TERMS_SECTIONS = [
+  { title: "1. General & Bookings", items: [
+    { h: "Contract Formation", t: "A binding contract is formed when a booking is confirmed either verbally (during a phone call or in person) or in writing (via text message, email, or website booking)." },
+    { h: "Mobile Service Area", t: "We reserve the right to cancel or reschedule bookings if your vehicle is located outside our designated operating radius." },
+    { h: "Safe Working Environment", t: "You must provide a safe, off-road working space (such as a private driveway, workshop, or secure commercial yard) with adequate clearance around the vehicle. We reserve the right to cancel the appointment if heavy rain, extreme temperatures, or unsafe location conditions make a quality repair impossible." },
+  ]},
+  { title: "2. Windscreen Repair & The \"Spreading Crack\" Disclaimer", items: [
+    { h: "Inherent Repair Risks", t: "You acknowledge that a stone chip repair involves applying localized mechanical pressure and heat to damaged, weakened glass. There is an inherent, unavoidable risk that the chip may spread into a larger, unrepairable crack during the standard repair process." },
+    { h: "Limitation of Liability", t: "If the glass cracks or worsens during a professional repair attempt, the Company is not liable for the cost of a replacement windscreen, fleet downtime, or any alternative transport." },
+    { h: "Failed Repair Fee Policy", t: "If a chip cracks further or fails during our technician's repair attempt, we will abort the process immediately and waive our repair fee for that specific glass unit." },
+  ]},
+  { title: "3. Visual and Aesthetic Outcomes", items: [
+    { h: "Structural Integrity Only", t: "The primary, legal purpose of a resin repair is to restore the structural strength of the windscreen and prevent further cracking." },
+    { h: "Aesthetic Appearance", t: "A repair will significantly improve the clarity of the glass, but it will not make the original chip invisible. A minor blemish, scar, or refraction spot will usually remain visible within the glass structure." },
+    { h: "Repair Failure After Completion", t: "If a completed repair breaks down or begins to spread within 12 months of the repair date, our liability is strictly limited to a refund or credit of the original repair fee paid to us. This does not apply to damage caused by a new impact, or to further deterioration reported after the 12-month period." },
+  ]},
+  { title: "4. MOT Compliance, ADAS & Vision Zones", items: [
+    { h: "The 10mm MOT Rule vs. 20mm Repair Standard", t: "Under UK British Standards (BS AU 242b), technicians are permitted to structurally repair chips up to 20mm in diameter within the driver's line of vision (Zone A). However, the DVSA MOT inspection rules state that any visible damage over 10mm in Zone A constitutes an MOT failure." },
+    { h: "Customer Risk Acceptance", t: "If you request that we repair a chip in Zone A that measures between 11mm and 20mm, you accept that while the repair will restore structural integrity, the vehicle may still fail its MOT due to the size and location of the blemish. The Company accepts zero liability for MOT failures, re-test fees, or subsequent replacement costs under these circumstances." },
+    { h: "Absolute Refusals", t: "If a chip in Zone A exceeds 20mm, or if it is located directly in front of a vital Advanced Driver Assistance Systems (ADAS) camera lens, we will refuse the repair entirely for safety and road-legality reasons." },
+  ]},
+  { title: "5. Payment Terms (Retail vs. Trade)", items: [
+    { h: "No Insurance Billing", t: "The Company operates on a direct billing basis only. We do not deal directly with motor insurance providers, nor do we process third-party insurance claims on your behalf." },
+    { h: "Retail Customers (Private Individuals)", t: "Payment is due in full immediately upon completion of the repair work. We accept payment via cash, debit/credit card, or instant bank transfer. The vehicle will not be handed back until valid payment has been confirmed." },
+    { h: "Trade Customers (Commercial Accounts/Fleets)", t: "Payment is strictly due within 30 days from the date of the invoice. Invoices will be issued upon completion of the booked work or on an agreed monthly schedule. We reserve the right to charge interest and statutory compensation on late payments in accordance with the Late Payment of Commercial Debts (Interest) Act 1998 if invoices are not cleared within the 30-day term." },
+  ]},
+  { title: "6. Data Protection", items: [
+    { h: "What We Collect", t: "To provide our repair service we collect and hold your name, address, phone number, email address, and vehicle details (registration, make, model), along with photos of the damage and a record of the work carried out." },
+    { h: "Why We Hold It", t: "This information is used to carry out the booked repair, keep accurate job and payment records, and to contact you about bookings, follow-ups, or outstanding invoices. We do not use your details for marketing without your consent." },
+    { h: "How It's Stored", t: "Your details are stored securely and are not sold or shared with third parties, except where required by law (for example, HMRC for tax purposes)." },
+    { h: "Your Rights", t: "You can ask us at any time what information we hold about you, ask us to correct it, or ask us to delete it, subject to our own legal obligation to retain certain records (such as invoices) for tax purposes. To do so, contact us using the details above." },
+  ]},
+  { title: "7. Governing Law", items: [
+    { h: "", t: "These Terms and Conditions are governed by and construed in accordance with the laws of England & Wales, and any disputes will be subject to the exclusive jurisdiction of these courts." },
+  ]},
+];
+
+// Pure, synchronous — opens the formatted Terms & Conditions document. `mailtoLink` (if
+// given) drives the "Open Mail App" button; leave it out for a plain view/print-only open.
+function openTermsWindow(mailtoLink) {
+  const logoUrl = window.location.origin + "/logo.png";
+  const sections = TERMS_SECTIONS.map(sec => `
+    <div style="margin-bottom:18px;">
+      <div style="font-size:14px;font-weight:800;color:#1E3A5F;margin-bottom:8px;">${sec.title}</div>
+      ${sec.items.map(it => `
+        <div style="margin-bottom:8px;">
+          ${it.h ? `<span style="font-weight:700;color:#111827;font-size:13px;">${it.h}: </span>` : ""}
+          <span style="font-size:13px;color:#374151;line-height:1.5;">${it.t}</span>
+        </div>`).join("")}
+    </div>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terms and Conditions</title>
+<style>
+  body { margin:0; padding:0; background:#F8FAFC; font-family:Arial,sans-serif; }
+  @media print { .no-print { display:none !important; } body { background:#fff; } }
+</style></head><body>
+<div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+  <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
+  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${mailtoLink ? `<a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>` : ""}
+</div>
+<div style="max-width:760px;margin:0 auto;padding:24px;background:#fff;">
+  <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:14px;margin-bottom:18px;">
+    <img src="${logoUrl}" style="width:56px;height:56px;object-fit:contain;" />
+    <div>
+      <div style="font-size:20px;font-weight:800;color:#1E3A5F;">Windscreen Repairs (Bristol)</div>
+      <div style="font-size:12px;color:#6B7280;">3 Goosander Grove, Cheddar, BS27 3FY · 07946 222246</div>
+      <div style="font-size:12px;color:#6B7280;">info@windscreenrepairsbristol.co.uk</div>
+    </div>
+  </div>
+  <div style="font-size:17px;font-weight:800;color:#1E3A5F;margin-bottom:4px;">Terms and Conditions for Windscreen Repair Services</div>
+  <div style="font-size:12px;color:#9CA3AF;margin-bottom:18px;">Please read these Terms and Conditions carefully. By booking a repair service with Windscreen Repairs Bristol ("the Company", "we", "us") verbally, over the phone, via text, or in writing, you ("the Customer", "you") agree to be bound by these terms.</div>
+  ${sections}
+</div>
+</body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
 function RepairTermsModal({ customer, data, onClose }) {
   const [price, setPrice] = useState(String(priceForRepair(getRepairPricing(data, customer), "Chip", 1) || ""));
 
@@ -1053,6 +1135,7 @@ function CustomerDetail({ data, id, setView }) {
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
+          {customer.email && <Btn size="sm" variant="ghost" onClick={() => openTermsWindow(`mailto:${customer.email}?subject=${encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol")}`)}>📜 Email T&Cs</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
         </div>
@@ -2900,6 +2983,7 @@ function ResponsiveStyles({ device }) {
 function SettingsView({ data, setView }) {
   const [pricing, setPricing] = useState(getDefaultPricing(data));
   const tradeCustomers = (data.customers || []).filter(c => c.custType === "Trade").sort((a,b) => (a.company||"").localeCompare(b.company||"", undefined, { sensitivity:"base" }));
+  const tradeEmails = tradeCustomers.map(c => c.email).filter(Boolean);
 
   async function save() {
     const existing = data.settings || [];
@@ -2912,12 +2996,26 @@ function SettingsView({ data, setView }) {
     }
   }
 
+  function emailAllTrade() {
+    const subject = encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol");
+    const body = encodeURIComponent("Hi,\n\nPlease find attached our current Terms and Conditions for windscreen repair services.\n\nWindscreen Repairs (Bristol)\n07946 222246");
+    window.location.href = `mailto:?bcc=${tradeEmails.join(",")}&subject=${subject}&body=${body}`;
+  }
+
   return (
     <div>
       <div style={{ marginBottom:16 }}>
         <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"dashboard" })}><Icon name="back" size={14} /> Back</Btn>
       </div>
       <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:"0 0 12px" }}>Settings</h2>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Terms & Conditions</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>View or print your current Terms and Conditions, or email them to every Trade customer with an email address on file ({tradeEmails.length} of {tradeCustomers.length}).</p>
+        <Btn variant="ghost" onClick={() => openTermsWindow()} style={{ width:"100%", justifyContent:"center", marginBottom:8 }}>📜 View / Print Terms</Btn>
+        <Btn onClick={emailAllTrade} disabled={tradeEmails.length===0} style={{ width:"100%", justifyContent:"center" }}>✉️ Email to All Trade Customers</Btn>
+        <p style={{ fontSize:11, color:"#9CA3AF", margin:"8px 0 0", textAlign:"center" }}>Opens Mail with everyone BCC'd — save the PDF from "View / Print Terms" first and attach it before sending.</p>
+      </div>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
         <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Default Repair Prices</h3>
