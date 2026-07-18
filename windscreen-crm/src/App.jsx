@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B5 · 18 Jul 2026";
+const BUILD_NUMBER = "B6 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -882,6 +882,16 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
   // A vehicle counts as "repaired" if it has any job that's Complete, Invoiced or Paid
   const isRepaired = (vehId) => (data?.jobs || []).some(j => j.vehicleId === vehId && ["Complete","Invoiced","Paid"].includes(j.status));
   const unrepairedVehicles = (vehicles || []).filter(v => !isRepaired(v.id));
+  // Pull damage/repair details from that vehicle's outstanding (not yet repaired) job(s)
+  const damageForVehicle = (vehId) => {
+    const jobs = (data?.jobs || []).filter(j => j.vehicleId === vehId && !["Complete","Invoiced","Paid"].includes(j.status));
+    const repairs = [];
+    jobs.forEach(j => {
+      const reps = j.repairs?.length ? j.repairs : (j.damageType ? [{ type: j.damageType, side: j.damageSide, position: j.damagePosition }] : []);
+      repairs.push(...reps);
+    });
+    return repairs;
+  };
   const [selected, setSelected] = useState(() => {
     const s = {}; unrepairedVehicles.forEach(v => { s[v.id] = true; }); return s;
   });
@@ -892,13 +902,17 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
     const chosen = unrepairedVehicles.filter(v => selected[v.id]);
     const logoUrl = window.location.origin + "/logo.png";
     const fmtD = new Date().toLocaleDateString("en-GB");
-    const rows = chosen.map((v, i) => `
+    const rows = chosen.map((v, i) => {
+      const damage = damageForVehicle(v.id).map(describeRepair).filter(Boolean).join("; ") || "—";
+      return `
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${v.reg || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${damage}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Windscreen Damage Report</title>
@@ -928,9 +942,10 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">#</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Reg</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Make &amp; Model</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Damage</th>
       <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Please Repair</th>
     </tr></thead>
-    <tbody>${rows || '<tr><td colspan="4" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles selected</td></tr>'}</tbody>
+    <tbody>${rows || '<tr><td colspan="5" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles selected</td></tr>'}</tbody>
   </table>
   <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${chosen.length} vehicle(s) listed · Windscreen Repairs (Bristol)</div>
   <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
@@ -976,6 +991,7 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{v.reg || "No reg"}</div>
                 <div style={{ fontSize:13, color:"#6B7280" }}>{[v.make, v.model].filter(Boolean).join(" ") || "—"}</div>
+                <div style={{ fontSize:12, color:"#9CA3AF" }}>{damageForVehicle(v.id).map(describeRepair).filter(Boolean).join("; ")}</div>
               </div>
             </label>
           ))}
