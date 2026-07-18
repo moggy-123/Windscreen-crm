@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B2 · 18 Jul 2026";
+const BUILD_NUMBER = "B3 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -843,7 +843,9 @@ function RepairTermsModal({ customer, data, onClose }) {
   const message =
 `The cost of the repair is £${price}. Please bear in mind it's not a cosmetic repair, the main purpose is to restore strength and integrity to the screen. There is also a slight chance during the repair that the screen can crack due to various conditions, we can NOT be held liable if a crack developed during or after the repair.
 
-Please reply if you are happy for me to carry out the repair knowing the points above.`;
+Please reply if you are happy for me to carry out the repair knowing the points above.
+
+Full Terms and Conditions: https://www.windscreenrepairsbristol.co.uk/terms`;
 
   // Normalise UK number for WhatsApp (needs international format, no leading 0)
   const waNumber = (customer.phone || "").replace(/[^0-9]/g, "").replace(/^0/, "44");
@@ -852,7 +854,8 @@ Please reply if you are happy for me to carry out the repair knowing the points 
 
   function logSend(type) {
     const entry = { id: uid(), customerId: customer.id, contactId: "", contactName: "", type, direction: "out", note: message, timestamp: Date.now(), createdAt: todayISO() };
-    saveAndReload({ ...data, communications: [...(data.communications || []), entry] }).catch(() => {});
+    const customers = data.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c);
+    saveAndReload({ ...data, customers, communications: [...(data.communications || []), entry] }).catch(() => {});
   }
 
   return (
@@ -1181,14 +1184,6 @@ function CustomerDetail({ data, id, setView }) {
               openTermsWindow(`mailto:${customer.email}?subject=${encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol")}`);
               quickLog("Email", "Terms & Conditions sent (PDF)", {}, true);
             }}>📜 Download & Send T&Cs</Btn>
-          )}
-          {customer.email && customer.custType === "Private" && (
-            <Btn size="sm" variant="ghost" onClick={() => {
-              const subject = encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol");
-              const body = encodeURIComponent("Hi,\n\nPlease see our current Terms and Conditions for windscreen repair services here:\nhttps://www.windscreenrepairsbristol.co.uk/terms\n\nWindscreen Repairs (Bristol)\n07946 222246");
-              window.location.href = `mailto:${customer.email}?subject=${subject}&body=${body}`;
-              quickLog("Email", "Terms & Conditions link sent", {}, true);
-            }}>🔗 Send Terms Link</Btn>
           )}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
