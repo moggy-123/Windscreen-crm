@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B8 · 18 Jul 2026";
+const BUILD_NUMBER = "B9 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -907,8 +907,7 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
     const rows = chosen.map((d, i) => `
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${i+1}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${d.vehicle.reg || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#111827;">${[d.vehicle.make, d.vehicle.model].filter(Boolean).join(" ") || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;"><b>${d.vehicle.reg || "—"}</b> · ${[d.vehicle.make, d.vehicle.model].filter(Boolean).join(" ") || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${describeRepair(d.repair) || d.repair.type || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
       </tr>`).join("");
@@ -939,12 +938,11 @@ function DamageReportModal({ customer, vehicles, data, onClose }) {
   <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;">
     <thead><tr style="background:#F9FAFB;">
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">#</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Reg</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Make &amp; Model</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Car</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Damage</th>
       <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Please Repair</th>
     </tr></thead>
-    <tbody>${rows || '<tr><td colspan="5" style="padding:14px;color:#9CA3AF;font-size:13px;">No damage selected</td></tr>'}</tbody>
+    <tbody>${rows || '<tr><td colspan="4" style="padding:14px;color:#9CA3AF;font-size:13px;">No damage selected</td></tr>'}</tbody>
   </table>
   <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${vehicleCount} vehicle(s), ${chosen.length} damage item(s) listed · Windscreen Repairs (Bristol)</div>
   <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
@@ -1643,9 +1641,7 @@ function SendReportModal({ data, inspection, onClose }) {
         rows.push(`
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${rows.length+1}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:700;color:#111827;">${v.reg || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${[v.make, v.model].filter(Boolean).join(" ") || "—"}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${v.colour || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;"><b>${v.reg || "—"}</b> · ${[v.make, v.model].filter(Boolean).join(" ") || "—"}${v.colour ? " · " + v.colour : ""}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
       </tr>`);
@@ -1680,13 +1676,11 @@ function SendReportModal({ data, inspection, onClose }) {
   <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;">
     <thead><tr style="background:#F9FAFB;">
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">#</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Reg</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Make &amp; Model</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Colour</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Car</th>
       <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Damage</th>
       <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;">Please Repair</th>
     </tr></thead>
-    <tbody>${rowsHtml || '<tr><td colspan="6" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles</td></tr>'}</tbody>
+    <tbody>${rowsHtml || '<tr><td colspan="4" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles</td></tr>'}</tbody>
   </table>
   <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${(inspection.vehicles||[]).length} vehicle(s), ${rows.length} damage item(s) inspected · Windscreen Repairs (Bristol)</div>
   <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
