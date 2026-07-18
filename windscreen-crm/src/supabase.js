@@ -14,6 +14,7 @@ const customerToDb = c => ({
   on_stop: !!c.onStop,
   cust_type: c.custType || "Trade",
   pricing: c.pricing || {},
+  terms_sent_at: c.termsSentAt || null,
   follow_up_date: c.followUpDate || null,
   follow_up_note: c.followUpNote || "",
   contacts: c.contacts || [],
@@ -27,6 +28,7 @@ const customerFromDb = r => ({
   onStop: r.on_stop,
   custType: r.cust_type || "Trade",
   pricing: r.pricing || {},
+  termsSentAt: r.terms_sent_at || null,
   followUpDate: r.follow_up_date || "",
   followUpNote: r.follow_up_note || "",
   contacts: r.contacts || [],
@@ -110,13 +112,14 @@ const commToDb = c => ({
   id: c.id, customer_id: c.customerId || null,
   contact_id: c.contactId || null, contact_name: c.contactName || "",
   type: c.type || "Note", direction: c.direction || "out", note: c.note || "",
+  photos: c.photos || [],
   timestamp: c.timestamp || Date.now(), created_at: c.createdAt || new Date().toISOString(),
   updated_at: c.updatedAt || Date.now(),
 });
 const commFromDb = r => ({
   id: r.id, customerId: r.customer_id, contactId: r.contact_id, contactName: r.contact_name,
   type: r.type, direction: r.direction,
-  note: r.note, timestamp: r.timestamp, createdAt: r.created_at, updatedAt: r.updated_at,
+  note: r.note, photos: r.photos || [], timestamp: r.timestamp, createdAt: r.created_at, updatedAt: r.updated_at,
 });
 
 const settingToDb = s => ({
