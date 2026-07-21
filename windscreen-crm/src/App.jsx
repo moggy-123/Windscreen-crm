@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B11 · 18 Jul 2026";
+const BUILD_NUMBER = "B12 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -480,7 +480,11 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
                     {c.followUpDate < todayStr ? "⚠️ Overdue · " : "Due today · "}{fmtDate(c.followUpDate)}
                   </div>
                 </div>
-                {c.phone && <a href={`tel:${c.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#1E3A5F", color:"#fff", borderRadius:8, padding:"10px 14px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>📞 Call</a>}
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {c.phone && <a href={`tel:${c.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#1E3A5F", color:"#fff", borderRadius:8, padding:"10px 14px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>📞 Call</a>}
+                  {c.phone && <a href={`sms:${c.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#F3F4F6", color:"#374151", borderRadius:8, padding:"10px 12px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>💬</a>}
+                  {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ background:"#F3F4F6", color:"#374151", borderRadius:8, padding:"10px 12px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>✉️</a>}
+                </div>
               </div>
               <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
                 <button onClick={() => clearFollowUp(c.id)} style={{ background:"#DCFCE7", color:"#15803D", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Done</button>
