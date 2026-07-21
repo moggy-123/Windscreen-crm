@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B12 · 18 Jul 2026";
+const BUILD_NUMBER = "B13 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -136,7 +136,27 @@ function stampData(data) {
 let SAVING_IN_PROGRESS = false;
 
 // Save then reload, but wait for cloud push first (important on mobile)
+// Defensive cleanup: drop any record that references a customer (or job) which no
+// longer exists. This can happen if a customer was ever deleted without its related
+// records being cleaned up too — those orphans would otherwise fail to sync forever
+// (the database correctly refuses them) and block every future save with an error.
+function cleanupOrphans(data) {
+  const custIds = new Set((data.customers||[]).map(c => c.id));
+  const vehicles = (data.vehicles||[]).filter(v => !v.customerId || custIds.has(v.customerId));
+  const jobs = (data.jobs||[]).filter(j => !j.customerId || custIds.has(j.customerId));
+  const jobIds = new Set(jobs.map(j => j.id));
+  const invoices = (data.invoices||[]).filter(inv => !inv.jobId || jobIds.has(inv.jobId));
+  const communications = (data.communications||[]).filter(c => !c.customerId || custIds.has(c.customerId));
+  const inspections = (data.inspections||[]).filter(i => !i.customerId || custIds.has(i.customerId));
+  // Tombstone anything dropped so it can't resurrect from another device's stale cache
+  [...data.vehicles].filter(v => !vehicles.includes(v)).forEach(v => { addTombstone(v.id); removeSig(v.id); });
+  [...data.jobs].filter(j => !jobs.includes(j)).forEach(j => { addTombstone(j.id); removeSig(j.id); });
+  [...data.invoices].filter(inv => !invoices.includes(inv)).forEach(inv => { addTombstone(inv.id); removeSig(inv.id); });
+  return { ...data, vehicles, jobs, invoices, communications, inspections };
+}
+
 async function saveAndReload(data) {
+  data = cleanupOrphans(data);
   showSavingOverlay();
   SAVING_IN_PROGRESS = true;
   const stamped = stampData(data);
@@ -1106,17 +1126,29 @@ function CustomerDetail({ data, id, setView }) {
   const addrParts = [customer.address1, customer.address2, customer.town, customer.county, customer.postcode].filter(Boolean);
 
   async function deleteCustomer() {
-    if (!window.confirm("Delete this customer?")) return;
-    try {
-      await deleteRecord("customers", id);
-    } catch (e) {
-      alert("Delete failed: " + (e?.message || JSON.stringify(e)));
-      return;
+    if (!window.confirm("Delete this customer? This will also delete their vehicles, jobs and invoices.")) return;
+    const theirVehicles = data.vehicles.filter(v => v.customerId === id).map(v => v.id);
+    const theirJobs = data.jobs.filter(j => j.customerId === id).map(j => j.id);
+    const theirInvoices = data.invoices.filter(inv => theirJobs.includes(inv.jobId)).map(inv => inv.id);
+    const theirComms = (data.communications||[]).filter(c => c.customerId === id).map(c => c.id);
+    const theirInspections = (data.inspections||[]).filter(i => i.customerId === id).map(i => i.id);
+    const allIds = [{ table:"customers", id }, ...theirVehicles.map(vid => ({table:"vehicles",id:vid})), ...theirJobs.map(jid => ({table:"jobs",id:jid})), ...theirInvoices.map(iid => ({table:"invoices",id:iid})), ...theirComms.map(cid => ({table:"communications",id:cid})), ...theirInspections.map(iid => ({table:"inspections",id:iid}))];
+    for (const { table, id: recId } of allIds) {
+      try { await deleteRecord(table, recId); } catch (e) { /* keep going — cleaned up locally + tombstoned regardless */ }
+      addTombstone(recId);
+      removeSig(recId);
     }
-    addTombstone(id);
-    removeSig(id);
     // Remove locally and save WITHOUT re-pushing everything
-    const updated = { ...loadData(), customers: loadData().customers.filter(c => c.id !== id) };
+    const d = loadData();
+    const updated = {
+      ...d,
+      customers: d.customers.filter(c => c.id !== id),
+      vehicles: d.vehicles.filter(v => v.customerId !== id),
+      jobs: d.jobs.filter(j => j.customerId !== id),
+      invoices: d.invoices.filter(inv => !theirJobs.includes(inv.jobId)),
+      communications: (d.communications||[]).filter(c => c.customerId !== id),
+      inspections: (d.inspections||[]).filter(i => i.customerId !== id),
+    };
     localStorage.setItem(DB_KEY, JSON.stringify(updated));
     window.location.reload();
   }
