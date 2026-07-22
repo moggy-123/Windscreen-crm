@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B16 · 18 Jul 2026";
+const BUILD_NUMBER = "B17 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1130,7 +1130,7 @@ function CommLogModal({ customer, contact, onSave, onClose, editEntry }) {
 
 function CustomerDetail({ data, id, setView }) {
   const customer = data.customers.find(c => c.id === id);
-  const vehicles = data.vehicles.filter(v => v.customerId === id);
+  const vehicles = data.vehicles.filter(v => v.customerId === id).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.id > a.id ? 1 : -1));
   const jobs     = data.jobs.filter(j => j.customerId === id).sort((a,b) => b.date.localeCompare(a.date));
   const [showEdit, setShowEdit]       = useState(false);
   const [showVehicle, setShowVehicle] = useState(false);
@@ -1382,7 +1382,7 @@ function VehicleForm({ data, customerId, onClose, editVehicle }) {
       const idx = vehicles.findIndex(v => v.id === editVehicle.id);
       vehicles[idx] = { ...editVehicle, make, model, reg: reg.toUpperCase() };
     } else {
-      vehicles.push({ id:uid(), customerId, make, model, reg:reg.toUpperCase() });
+      vehicles.push({ id:uid(), customerId, make, model, reg:reg.toUpperCase(), createdAt: Date.now() });
     }
     await saveAndReload({ ...data, vehicles });
   }
@@ -2239,7 +2239,8 @@ function JobForm({ data, onClose, editJob, prefill }) {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [photosAfter,   setPhotosAfter]   = useState(editJob?.photosAfter   || []);
 
-  const custVehicles = [...data.vehicles.filter(v => v.customerId === customerId), ...newVehicles.filter(v => v.customerId === customerId)];
+  const custVehicles = [...data.vehicles.filter(v => v.customerId === customerId), ...newVehicles.filter(v => v.customerId === customerId)]
+    .sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.id > a.id ? 1 : -1));
   const locSummary = [locAddress1, locTown, locPostcode].filter(Boolean).join(", ");
 
   async function save() {
@@ -2412,7 +2413,7 @@ function JobForm({ data, onClose, editJob, prefill }) {
     )}
     {showAddVehicle && (
       <InlineNewVehicleModal
-        onSave={(v) => { setNewVehicles(nv => [...nv, v]); setVehicleId(v.id); setShowAddVehicle(false); }}
+        onSave={(v) => { setNewVehicles(nv => [...nv, { ...v, customerId }]); setVehicleId(v.id); setShowAddVehicle(false); }}
         onClose={() => setShowAddVehicle(false)}
       />
     )}
@@ -2429,7 +2430,7 @@ function InlineNewVehicleModal({ onSave, onClose }) {
 
   function save() {
     if (!reg) return;
-    onSave({ id: uid(), make, model, reg: reg.toUpperCase() });
+    onSave({ id: uid(), make, model, reg: reg.toUpperCase(), createdAt: Date.now() });
   }
 
   return (
