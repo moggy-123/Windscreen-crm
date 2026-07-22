@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B15 · 18 Jul 2026";
+const BUILD_NUMBER = "B16 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2328,14 +2328,13 @@ function JobForm({ data, onClose, editJob, prefill }) {
       })()}
       {customerId && (
         <Field label="Vehicle">
-          <select style={{ ...inputStyle, appearance:"none" }} value={vehicleId} onChange={e => {
-            if (e.target.value === "__add__") { setShowAddVehicle(true); return; }
-            setVehicleId(e.target.value);
-          }}>
-            <option value="">No vehicle / select…</option>
-            {custVehicles.map(v => <option key={v.id} value={v.id}>{v.make} {v.model} · {v.reg}</option>)}
-            <option value="__add__">+ Add New Vehicle…</option>
-          </select>
+          <div style={{ display:"flex", gap:8 }}>
+            <select style={{ ...inputStyle, appearance:"none", flex:1 }} value={vehicleId} onChange={e => setVehicleId(e.target.value)}>
+              <option value="">No vehicle / select…</option>
+              {custVehicles.map(v => <option key={v.id} value={v.id}>{v.make} {v.model} · {v.reg}</option>)}
+            </select>
+            <button type="button" onClick={() => setShowAddVehicle(true)} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:8, padding:"0 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>+ Add</button>
+          </div>
         </Field>
       )}
       <div style={{ display:"flex", gap:10 }}>
