@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B14 · 18 Jul 2026";
+const BUILD_NUMBER = "B15 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2235,14 +2235,17 @@ function JobForm({ data, onClose, editJob, prefill }) {
   const [insuranceCo,   setInsuranceCo]   = useState(editJob?.insuranceCo   || "");
   const [claimNo,       setClaimNo]       = useState(editJob?.claimNo       || "");
   const [photosBefore,  setPhotosBefore]  = useState(editJob?.photosBefore  || []);
+  const [newVehicles,   setNewVehicles]   = useState([]); // added inline, saved together with the job
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [photosAfter,   setPhotosAfter]   = useState(editJob?.photosAfter   || []);
 
-  const custVehicles = data.vehicles.filter(v => v.customerId === customerId);
+  const custVehicles = [...data.vehicles.filter(v => v.customerId === customerId), ...newVehicles.filter(v => v.customerId === customerId)];
   const locSummary = [locAddress1, locTown, locPostcode].filter(Boolean).join(", ");
 
   async function save() {
     if (!customerId) return;
     const jobs = [...data.jobs];
+    const vehicles = [...data.vehicles, ...newVehicles];
     const first = repairs[0] || {};
     const rec = { customerId, driverName, contactName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, repairs, damageType: first.type || "", damageSide: first.side || "", damagePosition: first.position || "", adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
     if (editJob) {
@@ -2252,7 +2255,7 @@ function JobForm({ data, onClose, editJob, prefill }) {
       jobs.push({ id:uid(), ...rec, createdAt:todayISO() });
     }
     try {
-      await saveAndReload({ ...data, jobs });
+      await saveAndReload({ ...data, jobs, vehicles });
     } catch(e) {
       alert("Storage full — try using fewer or smaller photos.");
       return;
@@ -2325,9 +2328,13 @@ function JobForm({ data, onClose, editJob, prefill }) {
       })()}
       {customerId && (
         <Field label="Vehicle">
-          <select style={{ ...inputStyle, appearance:"none" }} value={vehicleId} onChange={e => setVehicleId(e.target.value)}>
+          <select style={{ ...inputStyle, appearance:"none" }} value={vehicleId} onChange={e => {
+            if (e.target.value === "__add__") { setShowAddVehicle(true); return; }
+            setVehicleId(e.target.value);
+          }}>
             <option value="">No vehicle / select…</option>
             {custVehicles.map(v => <option key={v.id} value={v.id}>{v.make} {v.model} · {v.reg}</option>)}
+            <option value="__add__">+ Add New Vehicle…</option>
           </select>
         </Field>
       )}
@@ -2404,7 +2411,36 @@ function JobForm({ data, onClose, editJob, prefill }) {
         onClose={() => setShowLocPopup(false)}
       />
     )}
+    {showAddVehicle && (
+      <InlineNewVehicleModal
+        onSave={(v) => { setNewVehicles(nv => [...nv, v]); setVehicleId(v.id); setShowAddVehicle(false); }}
+        onClose={() => setShowAddVehicle(false)}
+      />
+    )}
     </>
+  );
+}
+
+// Adds a vehicle without saving immediately — kept in the parent form's state and
+// saved together with the job in one go, so nothing typed elsewhere gets lost.
+function InlineNewVehicleModal({ onSave, onClose }) {
+  const [make,  setMake]  = useState("");
+  const [model, setModel] = useState("");
+  const [reg,   setReg]   = useState("");
+
+  function save() {
+    if (!reg) return;
+    onSave({ id: uid(), make, model, reg: reg.toUpperCase() });
+  }
+
+  return (
+    <Modal title="Add Vehicle" onClose={onClose}>
+      <Field label="Registration" required><Input value={reg} onChange={setReg} placeholder="AB12 CDE" /></Field>
+      <Field label="Make"><Input value={make} onChange={setMake} placeholder="Ford" /></Field>
+      <Field label="Model"><Input value={model} onChange={setModel} placeholder="Focus" /></Field>
+      <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!reg}>Add Vehicle</Btn>
+      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Saved together with the job when you tap Save below — nothing else on this form will be lost.</p>
+    </Modal>
   );
 }
 
