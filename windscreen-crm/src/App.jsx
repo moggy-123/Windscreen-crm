@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B13 · 18 Jul 2026";
+const BUILD_NUMBER = "B14 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -153,6 +153,23 @@ function cleanupOrphans(data) {
   [...data.jobs].filter(j => !jobs.includes(j)).forEach(j => { addTombstone(j.id); removeSig(j.id); });
   [...data.invoices].filter(inv => !invoices.includes(inv)).forEach(inv => { addTombstone(inv.id); removeSig(inv.id); });
   return { ...data, vehicles, jobs, invoices, communications, inspections };
+}
+
+// Quietly persists a small patch to Supabase in the background — no "Saving…" overlay,
+// no forced reload. Safe to fire alongside opening a new tab or native app (mailto/tel/
+// window.open), unlike saveAndReload, which can appear to hang if the tab gets
+// backgrounded/throttled right after. The change is saved locally immediately either
+// way, and will show on screen next time the app naturally reloads.
+async function silentSave(patchFn) {
+  try {
+    const current = loadData();
+    const patch = typeof patchFn === "function" ? patchFn(current) : patchFn;
+    const merged = stampData({ ...current, ...patch });
+    localStorage.setItem(DB_KEY, JSON.stringify(merged));
+    await pushChangedOnly(merged);
+  } catch (e) {
+    console.warn("Background save will retry next time:", e?.message);
+  }
 }
 
 async function saveAndReload(data) {
@@ -878,8 +895,10 @@ Full Terms and Conditions: https://www.windscreenrepairsbristol.co.uk/terms`;
 
   function logSend(type) {
     const entry = { id: uid(), customerId: customer.id, contactId: "", contactName: "", type, direction: "out", note: message, timestamp: Date.now(), createdAt: todayISO() };
-    const customers = data.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c);
-    saveAndReload({ ...data, customers, communications: [...(data.communications || []), entry] }).catch(() => {});
+    silentSave(current => ({
+      customers: current.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c),
+      communications: [...(current.communications || []), entry],
+    }));
   }
 
   return (
@@ -1164,14 +1183,15 @@ function CustomerDetail({ data, id, setView }) {
       alert("Save failed: " + (e?.message || e));
     }
   }
-  // Fire-and-forget logging for quick send buttons (Call/Email/Terms) — doesn't block
-  // or delay the tel:/mailto:/sms: hand-off, which has already happened by the time
-  // saveAndReload's network push and eventual reload occur.
+  // Silent background logging for quick send buttons (Call/Email/Terms) — never shows
+  // the "Saving…" overlay or reloads the page, so it can't appear stuck if the tab gets
+  // backgrounded (e.g. after opening a report in a new tab, or switching to Mail/Phone).
   function quickLog(type, note, extra = {}, markTermsSent = false) {
     const entry = { id: uid(), customerId: customer.id, contactId: "", contactName: "", type, direction: "out", note, timestamp: Date.now(), createdAt: todayISO(), ...extra };
-    const communications = [...(data.communications || []), entry];
-    const customers = markTermsSent ? data.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c) : data.customers;
-    saveAndReload({ ...data, communications, customers }).catch(() => {});
+    silentSave(current => ({
+      communications: [...(current.communications || []), entry],
+      customers: markTermsSent ? current.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c) : current.customers,
+    }));
   }
   async function deleteComm(commId) {
     if (!window.confirm("Delete this log entry?")) return;
@@ -3131,9 +3151,11 @@ function SettingsView({ data, setView }) {
     window.location.href = `mailto:?bcc=${tradeEmails.join(",")}&subject=${subject}&body=${body}`;
 
     const emailedIds = tradeCustomers.filter(c => c.email).map(c => c.id);
-    const customers = data.customers.map(c => emailedIds.includes(c.id) ? { ...c, termsSentAt: Date.now() } : c);
     const newEntries = emailedIds.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: "Terms & Conditions sent (PDF, bulk)", timestamp: Date.now(), createdAt: todayISO() }));
-    saveAndReload({ ...data, customers, communications: [...(data.communications || []), ...newEntries] }).catch(() => {});
+    silentSave(current => ({
+      customers: current.customers.map(c => emailedIds.includes(c.id) ? { ...c, termsSentAt: Date.now() } : c),
+      communications: [...(current.communications || []), ...newEntries],
+    }));
   }
 
   return (
