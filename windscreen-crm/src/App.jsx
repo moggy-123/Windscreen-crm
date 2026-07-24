@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B18 · 18 Jul 2026";
+const BUILD_NUMBER = "B19 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -622,7 +622,8 @@ function CustomersList({ data, setView }) {
           {c.companyContact && <div style={{ fontSize:13, color:"#1E3A5F", fontWeight:600 }}>{c.companyContact}</div>}
           <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.phone}{c.town ? ` · ${c.town}` : ""}{c.postcode ? ` · ${c.postcode}` : ""}</div>
           {c.email && <div style={{ fontSize:12, color:"#9CA3AF" }}>{c.email}</div>}
-          {c.termsSentAt && <div style={{ fontSize:11, color:"#059669", fontWeight:600, marginTop:3 }}>✅ Terms sent</div>}
+          {c.termsSentAt && c.termsSentVersion === TERMS_VERSION && <div style={{ fontSize:11, color:"#059669", fontWeight:600, marginTop:3 }}>✅ Terms sent</div>}
+          {c.termsSentAt && c.termsSentVersion !== TERMS_VERSION && <div style={{ fontSize:11, color:"#B45309", fontWeight:600, marginTop:3 }}>⚠️ Terms outdated</div>}
         </Card>
       ))}
       {showForm && <CustomerForm data={data} onClose={() => setShowForm(false)} setView={setView} />}
@@ -797,6 +798,9 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
 
 // ── Repair Terms message (Text / WhatsApp) ────────────────────────────────────
 // ── Terms & Conditions ──────────────────────────────────────────────────────
+// Bump this whenever the wording below changes, so the app can tell who's been
+// sent an out-of-date version and flag them for a resend.
+const TERMS_VERSION = "2026-07-24";
 const TERMS_SECTIONS = [
   { title: "1. General & Bookings", items: [
     { h: "Contract Formation", t: "A binding contract is formed when a booking is confirmed either verbally (during a phone call or in person) or in writing (via text message, email, or website booking)." },
@@ -896,7 +900,7 @@ Full Terms and Conditions: https://www.windscreenrepairsbristol.co.uk/terms`;
   function logSend(type) {
     const entry = { id: uid(), customerId: customer.id, contactId: "", contactName: "", type, direction: "out", note: message, timestamp: Date.now(), createdAt: todayISO() };
     silentSave(current => ({
-      customers: current.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c),
+      customers: current.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now(), termsSentVersion: TERMS_VERSION } : c),
       communications: [...(current.communications || []), entry],
     }));
   }
@@ -1190,7 +1194,7 @@ function CustomerDetail({ data, id, setView }) {
     const entry = { id: uid(), customerId: customer.id, contactId: "", contactName: "", type, direction: "out", note, timestamp: Date.now(), createdAt: todayISO(), ...extra };
     silentSave(current => ({
       communications: [...(current.communications || []), entry],
-      customers: markTermsSent ? current.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now() } : c) : current.customers,
+      customers: markTermsSent ? current.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: Date.now(), termsSentVersion: TERMS_VERSION } : c) : current.customers,
     }));
   }
   async function deleteComm(commId) {
@@ -1237,12 +1241,16 @@ function CustomerDetail({ data, id, setView }) {
         )}
         {customer.notes && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:6 }}>{customer.notes}</div>}
         <button onClick={async () => {
-          const customers = data.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: c.termsSentAt ? "" : Date.now() } : c);
+          const customers = data.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: c.termsSentAt ? "" : Date.now(), termsSentVersion: c.termsSentAt ? "" : TERMS_VERSION } : c);
           try { await saveAndReload({ ...data, customers }); } catch (e) { alert("Save failed: " + (e?.message||e)); }
-        }} style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, padding:"8px 12px", borderRadius:8, border: customer.termsSentAt ? "1.5px solid #A7F3D0" : "1.5px solid #E5E7EB", background: customer.termsSentAt ? "#ECFDF5" : "#F9FAFB", cursor:"pointer", width:"100%", textAlign:"left" }}>
-          <span style={{ fontSize:16 }}>{customer.termsSentAt ? "✅" : "⬜"}</span>
-          <span style={{ fontSize:13, fontWeight:600, color: customer.termsSentAt ? "#059669" : "#6B7280" }}>
-            {customer.termsSentAt ? `Terms sent ${new Date(customer.termsSentAt).toLocaleDateString("en-GB")} — tap to unmark` : "Terms & Conditions not yet marked as sent — tap once sent"}
+        }} style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, padding:"8px 12px", borderRadius:8, border: customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "1.5px solid #A7F3D0" : "1.5px solid #FDE68A") : "1.5px solid #E5E7EB", background: customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "#ECFDF5" : "#FFFBEB") : "#F9FAFB", cursor:"pointer", width:"100%", textAlign:"left" }}>
+          <span style={{ fontSize:16 }}>{customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "✅" : "⚠️") : "⬜"}</span>
+          <span style={{ fontSize:13, fontWeight:600, color: customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "#059669" : "#B45309") : "#6B7280" }}>
+            {customer.termsSentAt
+              ? (customer.termsSentVersion===TERMS_VERSION
+                  ? `Terms sent ${new Date(customer.termsSentAt).toLocaleDateString("en-GB")} (current version) — tap to unmark`
+                  : `Terms sent ${new Date(customer.termsSentAt).toLocaleDateString("en-GB")} — an older version, terms have since been updated`)
+              : "Terms & Conditions not yet marked as sent — tap once sent"}
           </span>
         </button>
         <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
@@ -3168,7 +3176,16 @@ function SettingsView({ data, setView }) {
   const [pricing, setPricing] = useState(getDefaultPricing(data));
   const [privatePricing, setPrivatePricing] = useState(getPrivatePricing(data));
   const tradeCustomers = (data.customers || []).filter(c => c.custType === "Trade").sort((a,b) => (a.company||"").localeCompare(b.company||"", undefined, { sensitivity:"base" }));
-  const tradeEmails = tradeCustomers.map(c => c.email).filter(Boolean);
+  const withEmail = tradeCustomers.filter(c => c.email);
+  const noEmailWithPhone = tradeCustomers.filter(c => !c.email && c.phone);
+  const noContact = tradeCustomers.filter(c => !c.email && !c.phone);
+  const isCurrent = c => c.termsSentAt && c.termsSentVersion === TERMS_VERSION;
+
+  const [selected, setSelected] = useState(() => {
+    const s = {}; withEmail.forEach(c => { s[c.id] = !isCurrent(c); }); return s;
+  });
+  const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
+  const selectedCount = Object.values(selected).filter(Boolean).length;
 
   async function save() {
     const existing = data.settings || [];
@@ -3181,16 +3198,33 @@ function SettingsView({ data, setView }) {
     }
   }
 
-  function emailAllTrade() {
+  function statusFor(c) {
+    if (!c.termsSentAt) return { label: "Not sent", color: "#9CA3AF", bg: "#F3F4F6" };
+    if (c.termsSentVersion === TERMS_VERSION) return { label: `Sent ${new Date(c.termsSentAt).toLocaleDateString("en-GB")}`, color: "#059669", bg: "#ECFDF5" };
+    return { label: `Outdated — sent ${new Date(c.termsSentAt).toLocaleDateString("en-GB")}`, color: "#B45309", bg: "#FFFBEB" };
+  }
+
+  function emailSelectedTrade() {
+    const targets = withEmail.filter(c => selected[c.id]);
+    if (targets.length === 0) return;
     const subject = encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol");
     const body = encodeURIComponent("Hi,\n\nPlease find attached our current Terms and Conditions for windscreen repair services.\n\nWindscreen Repairs (Bristol)\n07946 222246");
-    window.location.href = `mailto:?bcc=${tradeEmails.join(",")}&subject=${subject}&body=${body}`;
+    window.location.href = `mailto:?bcc=${targets.map(c => c.email).join(",")}&subject=${subject}&body=${body}`;
 
-    const emailedIds = tradeCustomers.filter(c => c.email).map(c => c.id);
-    const newEntries = emailedIds.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: "Terms & Conditions sent (PDF, bulk)", timestamp: Date.now(), createdAt: todayISO() }));
+    const ids = targets.map(c => c.id);
+    const newEntries = ids.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: `Terms & Conditions sent (PDF, bulk, v${TERMS_VERSION})`, timestamp: Date.now(), createdAt: todayISO() }));
     silentSave(current => ({
-      customers: current.customers.map(c => emailedIds.includes(c.id) ? { ...c, termsSentAt: Date.now() } : c),
+      customers: current.customers.map(c => ids.includes(c.id) ? { ...c, termsSentAt: Date.now(), termsSentVersion: TERMS_VERSION } : c),
       communications: [...(current.communications || []), ...newEntries],
+    }));
+  }
+
+  function textOne(c) {
+    const body = `Hi, please see our current Terms and Conditions for windscreen repair services here: https://www.windscreenrepairsbristol.co.uk/terms\n\nWindscreen Repairs (Bristol)\n07946 222246`;
+    window.location.href = `sms:${c.phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(body)}`;
+    silentSave(current => ({
+      customers: current.customers.map(x => x.id === c.id ? { ...x, termsSentAt: Date.now(), termsSentVersion: TERMS_VERSION } : x),
+      communications: [...(current.communications || []), { id: uid(), customerId: c.id, contactId: "", contactName: "", type: "Text", direction: "out", note: "Terms & Conditions link sent (text)", timestamp: Date.now(), createdAt: todayISO() }],
     }));
   }
 
@@ -3203,10 +3237,47 @@ function SettingsView({ data, setView }) {
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
         <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Terms & Conditions</h3>
-        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>View or print your current Terms and Conditions, or email them to every Trade customer with an email address on file ({tradeEmails.length} of {tradeCustomers.length}).</p>
-        <Btn variant="ghost" onClick={() => openTermsWindow()} style={{ width:"100%", justifyContent:"center", marginBottom:8 }}>📜 View / Print Terms</Btn>
-        <Btn onClick={emailAllTrade} disabled={tradeEmails.length===0} style={{ width:"100%", justifyContent:"center" }}>✉️ Email to All Trade Customers</Btn>
-        <p style={{ fontSize:11, color:"#9CA3AF", margin:"8px 0 0", textAlign:"center" }}>Opens Mail with everyone BCC'd — save the PDF from "View / Print Terms" first and attach it before sending.</p>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Current version: <b>{TERMS_VERSION}</b>. Ticked below are Trade customers who haven't been sent this version yet.</p>
+        <Btn variant="ghost" onClick={() => openTermsWindow()} style={{ width:"100%", justifyContent:"center", marginBottom:12 }}>📜 View / Print Terms</Btn>
+
+        {withEmail.length > 0 && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", marginBottom:6 }}>Email ({withEmail.length})</div>
+            {withEmail.map(c => {
+              const st = statusFor(c);
+              return (
+                <label key={c.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:5, cursor:"pointer" }}>
+                  <input type="checkbox" checked={!!selected[c.id]} onChange={() => toggle(c.id)} style={{ width:16, height:16 }} />
+                  <span style={{ flex:1, fontSize:13, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+                  <span style={{ fontSize:10, fontWeight:700, color: st.color, background: st.bg, padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap" }}>{st.label}</span>
+                </label>
+              );
+            })}
+            <Btn onClick={emailSelectedTrade} disabled={selectedCount===0} style={{ width:"100%", justifyContent:"center", marginTop:6 }}>✉️ Email Selected ({selectedCount})</Btn>
+            <p style={{ fontSize:11, color:"#9CA3AF", margin:"8px 0 0", textAlign:"center" }}>Opens Mail with everyone selected BCC'd — save the PDF from "View / Print Terms" first and attach it before sending.</p>
+          </>
+        )}
+
+        {noEmailWithPhone.length > 0 && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", margin:"16px 0 6px" }}>No email on file — text instead ({noEmailWithPhone.length})</div>
+            {noEmailWithPhone.map(c => {
+              const st = statusFor(c);
+              return (
+                <div key={c.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:5 }}>
+                  <span style={{ flex:1, fontSize:13, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+                  <span style={{ fontSize:10, fontWeight:700, color: st.color, background: st.bg, padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap" }}>{st.label}</span>
+                  <button onClick={() => textOne(c)} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>📱 Text</button>
+                </div>
+              );
+            })}
+            <p style={{ fontSize:11, color:"#9CA3AF", margin:"8px 0 0", textAlign:"center" }}>Each opens Messages with a link to your terms page, ready to send — texted one at a time since there's no bulk-text option.</p>
+          </>
+        )}
+
+        {noContact.length > 0 && (
+          <p style={{ fontSize:12, color:"#DC2626", marginTop:12 }}>{noContact.length} Trade customer(s) have no email or phone on file: {noContact.map(c => c.company || c.companyContact || "Unnamed").join(", ")}</p>
+        )}
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
