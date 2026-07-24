@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B17 · 18 Jul 2026";
+const BUILD_NUMBER = "B18 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -801,7 +801,7 @@ const TERMS_SECTIONS = [
   { title: "1. General & Bookings", items: [
     { h: "Contract Formation", t: "A binding contract is formed when a booking is confirmed either verbally (during a phone call or in person) or in writing (via text message, email, or website booking)." },
     { h: "Mobile Service Area", t: "We reserve the right to cancel or reschedule bookings if your vehicle is located outside our designated operating radius." },
-    { h: "Safe Working Environment", t: "You must provide a safe, off-road working space (such as a private driveway, workshop, or secure commercial yard) with adequate clearance around the vehicle. We reserve the right to cancel the appointment if heavy rain, extreme temperatures, or unsafe location conditions make a quality repair impossible." },
+    { h: "Safe Working Environment", t: "You must provide a safe, off-road working space (such as a private driveway, workshop, or secure commercial yard) with adequate clearance around the vehicle. You must provide access to a covered area (garage, carport, or similar) if rain is forecast, and a shaded area if the vehicle will be in direct sunlight, as both rain and direct sunlight can compromise the repair resin. Where suitable cover or shade isn't available, or heavy rain, extreme temperatures, or unsafe location conditions make a quality repair impossible, we reserve the right to cancel or reschedule the appointment." },
   ]},
   { title: "2. Windscreen Repair & The \"Spreading Crack\" Disclaimer", items: [
     { h: "Inherent Repair Risks", t: "You acknowledge that a stone chip repair involves applying localized mechanical pressure and heat to damaged, weakened glass. There is an inherent, unavoidable risk that the chip may spread into a larger, unrepairable crack during the standard repair process." },
