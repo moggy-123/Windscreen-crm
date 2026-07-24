@@ -15,6 +15,7 @@ const customerToDb = c => ({
   cust_type: c.custType || "Trade",
   pricing: c.pricing || {},
   terms_sent_at: c.termsSentAt || null,
+  terms_sent_version: c.termsSentVersion || "",
   follow_up_date: c.followUpDate || null,
   follow_up_note: c.followUpNote || "",
   contacts: c.contacts || [],
@@ -29,6 +30,7 @@ const customerFromDb = r => ({
   custType: r.cust_type || "Trade",
   pricing: r.pricing || {},
   termsSentAt: r.terms_sent_at || null,
+  termsSentVersion: r.terms_sent_version || "",
   followUpDate: r.follow_up_date || "",
   followUpNote: r.follow_up_note || "",
   contacts: r.contacts || [],
@@ -37,11 +39,11 @@ const customerFromDb = r => ({
 
 const vehicleToDb = v => ({
   id: v.id, customer_id: v.customerId, make: v.make, model: v.model, reg: v.reg,
-  updated_at: v.updatedAt || Date.now(),
+  updated_at: v.updatedAt || Date.now(), created_at: v.createdAt || Date.now(),
 });
 const vehicleFromDb = r => ({
   id: r.id, customerId: r.customer_id, make: r.make, model: r.model, reg: r.reg,
-  updatedAt: r.updated_at,
+  updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
 const jobToDb = j => ({
