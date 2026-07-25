@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B20 · 18 Jul 2026";
+const BUILD_NUMBER = "B21 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -3190,12 +3190,13 @@ function SettingsView({ data, setView }) {
   const [offerMessage, setOfferMessage] = useState(
 `Hi,
 
-We're now offering a flat rate of £30 per chip or stone-pit repair for trade accounts — however many you need doing on a vehicle, it's £30 each, no sliding scale to work out.
+Thanks for continuing to use us for your windscreen repairs — we appreciate the business.
 
-(This doesn't currently cover crack repairs, which we're not offering at this time.)
+To make things simpler going forward, we're introducing a flat rate of £30 per chip or stone-pit repair — however many you need doing on a vehicle, it's £30 each, no working out a sliding scale.
 
-If you'd like to take advantage of this, just reply and let us know or get in touch.
+If you'd like to make use of this, just get in touch or reply to this email.
 
+Thanks again,
 Windscreen Repairs (Bristol)
 07946 222246`
   );
