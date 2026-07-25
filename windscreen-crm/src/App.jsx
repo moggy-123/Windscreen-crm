@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B19 · 18 Jul 2026";
+const BUILD_NUMBER = "B20 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -3187,6 +3187,46 @@ function SettingsView({ data, setView }) {
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
   const selectedCount = Object.values(selected).filter(Boolean).length;
 
+  const [offerMessage, setOfferMessage] = useState(
+`Hi,
+
+We're now offering a flat rate of £30 per chip or stone-pit repair for trade accounts — however many you need doing on a vehicle, it's £30 each, no sliding scale to work out.
+
+(This doesn't currently cover crack repairs, which we're not offering at this time.)
+
+If you'd like to take advantage of this, just reply and let us know or get in touch.
+
+Windscreen Repairs (Bristol)
+07946 222246`
+  );
+  const [offerSelected, setOfferSelected] = useState(() => {
+    const s = {}; withEmail.forEach(c => { s[c.id] = true; }); return s;
+  });
+  const toggleOffer = (id) => setOfferSelected(s => ({ ...s, [id]: !s[id] }));
+  const offerSelectedCount = Object.values(offerSelected).filter(Boolean).length;
+
+  function emailSelectedOffer() {
+    const targets = withEmail.filter(c => offerSelected[c.id]);
+    if (targets.length === 0) return;
+    const subject = encodeURIComponent("New: £30 Flat Rate Chip Repairs — Windscreen Repairs Bristol");
+    window.location.href = `mailto:?bcc=${targets.map(c => c.email).join(",")}&subject=${subject}&body=${encodeURIComponent(offerMessage)}`;
+
+    const ids = targets.map(c => c.id);
+    const newEntries = ids.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: "£30 flat rate offer sent", timestamp: Date.now(), createdAt: todayISO() }));
+    silentSave(current => ({
+      customers: current.customers.map(c => ids.includes(c.id) ? { ...c, offerSentAt: Date.now() } : c),
+      communications: [...(current.communications || []), ...newEntries],
+    }));
+  }
+
+  function textOneOffer(c) {
+    window.location.href = `sms:${c.phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(offerMessage)}`;
+    silentSave(current => ({
+      customers: current.customers.map(x => x.id === c.id ? { ...x, offerSentAt: Date.now() } : x),
+      communications: [...(current.communications || []), { id: uid(), customerId: c.id, contactId: "", contactName: "", type: "Text", direction: "out", note: "£30 flat rate offer sent (text)", timestamp: Date.now(), createdAt: todayISO() }],
+    }));
+  }
+
   async function save() {
     const existing = data.settings || [];
     const rec = { id: "app", defaultPricing: pricing, privatePricing, updatedAt: Date.now() };
@@ -3277,6 +3317,42 @@ function SettingsView({ data, setView }) {
 
         {noContact.length > 0 && (
           <p style={{ fontSize:12, color:"#DC2626", marginTop:12 }}>{noContact.length} Trade customer(s) have no email or phone on file: {noContact.map(c => c.company || c.companyContact || "Unnamed").join(", ")}</p>
+        )}
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>£30 Flat Rate Offer</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>A one-off promotional message to Trade customers about the new flat rate. This doesn't change any prices in the app — set those in the pricing grids below once customers take you up on it.</p>
+        <Field label="Message">
+          <textarea value={offerMessage} onChange={e => setOfferMessage(e.target.value)} rows={8}
+            style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:13, resize:"vertical", boxSizing:"border-box" }} />
+        </Field>
+
+        {withEmail.length > 0 && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", marginBottom:6 }}>Email ({withEmail.length})</div>
+            {withEmail.map(c => (
+              <label key={c.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:5, cursor:"pointer" }}>
+                <input type="checkbox" checked={!!offerSelected[c.id]} onChange={() => toggleOffer(c.id)} style={{ width:16, height:16 }} />
+                <span style={{ flex:1, fontSize:13, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+                {c.offerSentAt && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap" }}>Sent {new Date(c.offerSentAt).toLocaleDateString("en-GB")}</span>}
+              </label>
+            ))}
+            <Btn onClick={emailSelectedOffer} disabled={offerSelectedCount===0} style={{ width:"100%", justifyContent:"center", marginTop:6 }}>✉️ Email Selected ({offerSelectedCount})</Btn>
+          </>
+        )}
+
+        {noEmailWithPhone.length > 0 && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", margin:"16px 0 6px" }}>No email on file — text instead ({noEmailWithPhone.length})</div>
+            {noEmailWithPhone.map(c => (
+              <div key={c.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:5 }}>
+                <span style={{ flex:1, fontSize:13, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+                {c.offerSentAt && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap" }}>Sent {new Date(c.offerSentAt).toLocaleDateString("en-GB")}</span>}
+                <button onClick={() => textOneOffer(c)} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>📱 Text</button>
+              </div>
+            ))}
+          </>
         )}
       </div>
 
