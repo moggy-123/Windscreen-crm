@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B32 · 18 Jul 2026";
+const BUILD_NUMBER = "B33 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2786,6 +2786,7 @@ function JobDetail({ data, id, setView }) {
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
               <div style={{ fontWeight:700, fontSize:14, color:"#065F46" }}>Invoice · £{invoice.total}</div>
+              {invoice.sageInvoiceNo && <div style={{ fontSize:12, color:"#065F46", fontWeight:600 }}>Sage: {invoice.sageInvoiceNo}</div>}
               <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? "✓ Paid" : "Awaiting payment"}</div>
             </div>
             <div style={{ display:"flex", gap:8 }}>
@@ -2850,16 +2851,17 @@ function InvoiceForm({ data, jobId, editInvoice, onClose }) {
   const [labour, setLabour] = useState(editInvoice?.labour ?? (pricing.total ? pricing.total.toFixed(2) : ""));
   const [parts,  setParts]  = useState(editInvoice?.parts ?? "");
   const [vat,    setVat]    = useState(editInvoice?.vat ?? false);
+  const [sageInvoiceNo, setSageInvoiceNo] = useState(editInvoice?.sageInvoiceNo ?? "");
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
     let invoices;
     if (editInvoice) {
-      invoices = data.invoices.map(i => i.id === editInvoice.id ? { ...i, details, labour, parts, vat, total: total.toFixed(2) } : i);
+      invoices = data.invoices.map(i => i.id === editInvoice.id ? { ...i, details, labour, parts, vat, sageInvoiceNo, total: total.toFixed(2) } : i);
       await saveAndReload({ ...data, invoices });
     } else {
-      invoices = [...data.invoices, { id:uid(), jobId, details, labour, parts, vat, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
+      invoices = [...data.invoices, { id:uid(), jobId, details, labour, parts, vat, sageInvoiceNo, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
       const jobs = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
       await saveAndReload({ ...data, invoices, jobs });
     }
@@ -2886,6 +2888,9 @@ function InvoiceForm({ data, jobId, editInvoice, onClose }) {
           </div>
         </div>
       )}
+      <Field label="Sage Invoice Number">
+        <Input value={sageInvoiceNo} onChange={setSageInvoiceNo} placeholder="e.g. INV-00123" />
+      </Field>
       <Field label="Labour (£)"><Input type="number" value={labour} onChange={setLabour} placeholder="0.00" /></Field>
       <Field label="Parts (£)"><Input type="number" value={parts} onChange={setParts} placeholder="0.00" /></Field>
       <Field label="VAT">
@@ -2907,6 +2912,7 @@ function InvoiceForm({ data, jobId, editInvoice, onClose }) {
 // ── Invoices List ─────────────────────────────────────────────────────────────
 function InvoicesList({ data, setView, initialFilter }) {
   const [filter, setFilter] = useState(initialFilter || "Unpaid");
+  const [search, setSearch] = useState("");
   const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
   const invOverdue = (inv, jobDate) => !inv.paid && ((jobDate || inv.createdAt || "") < oneMonthAgo) && (jobDate || inv.createdAt);
   const anyOverdue = data.invoices.some(inv => {
@@ -2919,6 +2925,7 @@ function InvoicesList({ data, setView, initialFilter }) {
     const vehicle  = job?.vehicleId ? data.vehicles.find(v => v.id === job.vehicleId) : null;
     return { ...inv, job, customer, vehicle, overdue: invOverdue(inv, job?.date) };
   }).filter(inv => {
+    if (search.trim()) return (inv.sageInvoiceNo||"").toLowerCase().includes(search.trim().toLowerCase());
     if (filter==="Unpaid") return !inv.paid;
     if (filter==="Paid")   return  inv.paid;
     return true;
@@ -2935,6 +2942,8 @@ function InvoicesList({ data, setView, initialFilter }) {
           ⚠️ You have unpaid invoices over 1 month overdue
         </div>
       )}
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by Sage invoice number…"
+        style={{ ...inputStyle, marginBottom:12 }} />
       <div style={{ display:"flex", gap:10, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
         {["Unpaid","Paid","All"].map(f => <button key={f} style={pill(filter===f, f==="Unpaid" && anyOverdue)} onClick={() => setFilter(f)}>{f}</button>)}
       </div>
@@ -2954,6 +2963,7 @@ function InvoicesList({ data, setView, initialFilter }) {
               <div style={{ fontWeight:700, fontSize:15 }}>{inv.customer?.company||"Unknown"}</div>
               <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.job?.date || inv.createdAt)}{inv.job?.jobType ? " · " + inv.job.jobType : ""}</div>
               {inv.vehicle && <div style={{ fontSize:12, color:"#6B7280", marginTop:1 }}>🚗 {[inv.vehicle.make, inv.vehicle.model, inv.vehicle.reg].filter(Boolean).join(" · ")}</div>}
+              {inv.sageInvoiceNo && <div style={{ fontSize:12, color:"#1E3A5F", fontWeight:600, marginTop:1 }}>Sage: {inv.sageInvoiceNo}</div>}
             </div>
             <div style={{ textAlign:"right" }}>
               <div style={{ fontWeight:800, fontSize:16, color:inv.paid?"#059669":"#1E3A5F" }}>£{parseFloat(inv.total).toFixed(2)}</div>
