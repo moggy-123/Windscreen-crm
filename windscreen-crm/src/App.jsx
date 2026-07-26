@@ -5,7 +5,7 @@ const DB_KEY = "wscrm_data";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B21 · 18 Jul 2026";
+const BUILD_NUMBER = "B22 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -332,6 +332,44 @@ function exportBackup() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Restores from an exported backup file — a full replace, not a merge. Deletes anything
+// in the cloud that isn't in the backup, then pushes everything the backup contains, on
+// every table. Destructive and deliberately hard to trigger by accident.
+async function restoreBackup(file) {
+  const sure = window.confirm("Restore from this backup?\n\nThis will REPLACE ALL current data — customers, vehicles, jobs, invoices, everything — with what's saved in this backup file, on every device.\n\nAnything created or changed since this backup was made will be lost. This cannot be undone.");
+  if (!sure) return;
+  const typed = window.prompt('To confirm, type RESTORE (in capitals) below:');
+  if (typed !== "RESTORE") { alert("Restore cancelled — nothing was changed."); return; }
+
+  showSavingOverlay();
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+    const tables = ["customers","vehicles","jobs","invoices","mileage","inspections","communications","settings"];
+    const cloud = await pullFromCloud();
+    for (const table of tables) {
+      const backupIds = new Set((backup[table]||[]).map(r => r.id));
+      for (const rec of (cloud[table]||[])) {
+        if (!backupIds.has(rec.id)) {
+          try { await deleteRecord(table, rec.id); } catch {}
+        }
+      }
+      for (const rec of (backup[table]||[])) {
+        try { await pushOne(table, rec); } catch (e) { console.warn(`Restore: failed on ${table}`, rec.id, e); }
+      }
+    }
+    localStorage.setItem(DB_KEY, JSON.stringify(backup));
+    localStorage.removeItem("wscrm_deleted");
+    localStorage.removeItem("wscrm_sigs");
+    hideSavingOverlay();
+    alert("Restore complete — the app will now reload.");
+    window.location.reload();
+  } catch (e) {
+    hideSavingOverlay();
+    alert("Restore failed: " + (e?.message || e) + "\n\nNothing has been changed — your current data is untouched.");
+  }
+}
+
 // Delete photos from jobs older than one year (keeps the job records)
 function cleanupOldPhotos() {
   const data = loadData();
@@ -577,10 +615,13 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
         <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tools</h3>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <Btn variant="ghost" onClick={exportBackup} style={{ width:"100%", justifyContent:"center" }}>💾 Download Backup</Btn>
+          <label style={{ width:"100%", display:"flex", justifyContent:"center", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:10, border:"1.5px solid #E5E7EB", background:"#fff", color:"#374151", fontSize:14, fontWeight:600, cursor:"pointer", boxSizing:"border-box" }}>
+            📤 Restore Backup
+            <input type="file" accept="application/json,.json" style={{ display:"none" }} onChange={e => { const f = e.target.files?.[0]; if (f) restoreBackup(f); e.target.value = ""; }} />
+          </label>
           <Btn variant="ghost" onClick={cleanupOldPhotos} style={{ width:"100%", justifyContent:"center" }}>🗑️ Clear Photos Over 1 Year Old</Btn>
         </div>
       </div>
-      <div style={{ textAlign:"center", marginTop:18, fontSize:11, color:"#D1D5DB" }}>{BUILD_NUMBER}</div>
     </div>
   );
 }
@@ -3386,7 +3427,6 @@ Windscreen Repairs (Bristol)
           );
         })}
       </div>
-      <div style={{ textAlign:"center", marginTop:18, fontSize:11, color:"#D1D5DB" }}>{BUILD_NUMBER}</div>
     </div>
   );
 }
@@ -3870,6 +3910,7 @@ export default function App() {
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#93C5FD", background:"rgba(255,255,255,.12)", padding:"4px 9px", borderRadius:6, letterSpacing:"0.02em", whiteSpace:"nowrap" }}>{BUILD_NUMBER}</div>
           {notifStatus !== "unsupported" && (
             <button onClick={notifStatus === "granted" ? undefined : requestNotifications}
               title={notifStatus === "granted" ? "Notifications on" : "Tap to enable alerts"}
