@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B31 · 18 Jul 2026";
+const BUILD_NUMBER = "B32 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -3076,17 +3076,17 @@ function CalendarView({ data, setView, device }) {
     const cells = [];
     for (let i = 0; i < startOffset; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    const cellMinH = device === "phone" ? 74 : device === "tablet" ? 92 : 110;
-    const maxEntries = device === "phone" ? 3 : 4;
+    const cellMinH = device === "phone" ? 52 : device === "tablet" ? 92 : 110;
+    const maxEntries = device === "phone" ? 2 : 4;
     return (
-      <div style={device === "phone" ? { marginLeft:-10, marginRight:-10 } : undefined}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, paddingLeft: device==="phone"?10:0, paddingRight: device==="phone"?10:0 }}>
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <Btn size="sm" variant="ghost" onClick={() => setCursor(new Date(year, month-1, 1))}>‹</Btn>
           <div style={{ fontWeight:800, fontSize:18, color:"#1E3A5F" }}>{monthNames[month]} {year}</div>
           <Btn size="sm" variant="ghost" onClick={() => setCursor(new Date(year, month+1, 1))}>›</Btn>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap: device==="phone"?3:5 }}>
-          {dayNames.map(d => <div key={d} style={{ textAlign:"center", fontSize:device==="phone"?13:12, fontWeight:700, color:"#9CA3AF", padding:"6px 0" }}>{device==="phone" ? d[0] : d}</div>)}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:5 }}>
+          {dayNames.map(d => <div key={d} style={{ textAlign:"center", fontSize:12, fontWeight:700, color:"#9CA3AF", padding:"6px 0" }}>{device==="phone" ? d[0] : d}</div>)}
           {cells.map((d, i) => {
             if (d === null) return <div key={"e"+i} />;
             const iso = toISO(year, month, d);
@@ -3094,18 +3094,14 @@ function CalendarView({ data, setView, device }) {
             const isToday = iso === todayISO;
             return (
               <div key={iso} onClick={() => { setSelectedDate(iso); setMode("day"); }}
-                style={{ minHeight:cellMinH, borderRadius:10, padding:device==="phone"?5:6, background: isToday ? "#EFF6FF" : "#fff", border: isToday ? "2px solid #2563EB" : "1px solid #F3F4F6", cursor:"pointer", display:"flex", flexDirection:"column" }}>
-                <div style={{ fontSize:device==="phone"?15:15, fontWeight:700, color: isToday ? "#2563EB" : "#374151" }}>{d}</div>
+                style={{ minHeight:cellMinH, borderRadius:10, padding:device==="phone"?4:6, background: isToday ? "#EFF6FF" : "#fff", border: isToday ? "2px solid #2563EB" : "1px solid #F3F4F6", cursor:"pointer", display:"flex", flexDirection:"column" }}>
+                <div style={{ fontSize:device==="phone"?13:15, fontWeight:700, color: isToday ? "#2563EB" : "#374151" }}>{d}</div>
                 {device === "phone" ? (
-                  dayJobs.length === 1 ? (
-                    // Room for a single compact label when there's just one job
-                    <div style={{ fontSize:9, fontWeight:700, color:"#fff", background:(STATUS_META[dayJobs[0].status]||STATUS_META.Booked).color, borderRadius:3, padding:"2px 3px", marginTop:3, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
-                      {dayJobs[0].jobTime ? dayJobs[0].jobTime + " " : ""}{custName(dayJobs[0])}
-                    </div>
-                  ) : dayJobs.length > 1 && (
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginTop:4 }}>
-                      {dayJobs.slice(0,6).map(j => (
-                        <div key={j.id} style={{ width:7, height:7, borderRadius:"50%", background:(STATUS_META[j.status]||STATUS_META.Booked).color }} />
+                  // Compact: coloured dots on phone
+                  dayJobs.length > 0 && (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:2, marginTop:2 }}>
+                      {dayJobs.slice(0,4).map(j => (
+                        <div key={j.id} style={{ width:6, height:6, borderRadius:"50%", background:(STATUS_META[j.status]||STATUS_META.Booked).color }} />
                       ))}
                     </div>
                   )
