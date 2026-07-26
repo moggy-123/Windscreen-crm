@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B25 · 18 Jul 2026";
+const BUILD_NUMBER = "B26 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -288,12 +288,22 @@ async function pushChangedOnly(data) {
   ];
 
   let failed = 0;
-  let lastError = "";
+  let firstError = "";
   const newSigs = {};
+  const failedVehicleIds = new Set();
+  const failedCustomerIds = new Set();
+  const failedJobIds = new Set();
 
   for (const t of tables) {
     const current = data[t.key] || [];
     for (const rec of current) {
+      // If this record depends on something that already failed to save this run, skip it
+      // rather than attempting a save that's guaranteed to fail on a foreign key — that
+      // just produces a second, confusing error that hides the real one.
+      if (t.name === "vehicles" && failedCustomerIds.has(rec.customerId)) continue;
+      if (t.name === "jobs" && (failedCustomerIds.has(rec.customerId) || failedVehicleIds.has(rec.vehicleId))) continue;
+      if (t.name === "invoices" && failedJobIds.has(rec.jobId)) continue;
+
       const photoRefs = arr => (arr || []).map(p => p.url || p.id);
       const clean = { ...rec, photosBefore: photoRefs(rec.photosBefore), photosAfter: photoRefs(rec.photosAfter) };
       const sig = JSON.stringify(clean);
@@ -303,7 +313,10 @@ async function pushChangedOnly(data) {
           newSigs[rec.id] = sig; // only record signature AFTER a successful upload
         } catch (e) {
           failed++;
-          lastError = (e?.message || JSON.stringify(e));
+          if (!firstError) firstError = e?.message || JSON.stringify(e);
+          if (t.name === "customers") failedCustomerIds.add(rec.id);
+          if (t.name === "vehicles") failedVehicleIds.add(rec.id);
+          if (t.name === "jobs") failedJobIds.add(rec.id);
           // Keep the OLD signature (if any) so we retry next time; do NOT mark as uploaded
           if (sigs[rec.id]) newSigs[rec.id] = sigs[rec.id];
           console.warn("Sync skipped for", t.name, rec.id, e?.message);
@@ -317,7 +330,7 @@ async function pushChangedOnly(data) {
   try { localStorage.setItem("wscrm_sigs", JSON.stringify(newSigs)); } catch {}
 
   if (failed > 0) {
-    throw new Error(`${failed} record(s) failed to sync. Last error: ${lastError}`);
+    throw new Error(`${failed} record(s) failed to sync. First error: ${firstError}`);
   }
 }
 
