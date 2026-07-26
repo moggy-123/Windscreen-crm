@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B33 · 18 Jul 2026";
+const BUILD_NUMBER = "B34 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -938,6 +938,87 @@ function openTermsWindow(mailtoLink) {
   window.open(url, "_blank");
 }
 
+// A customer's unpaid invoices, each enriched with its job/vehicle for display, oldest first
+function getUnpaidInvoices(data, customerId) {
+  const jobIds = new Set(data.jobs.filter(j => j.customerId === customerId).map(j => j.id));
+  return data.invoices
+    .filter(inv => !inv.paid && jobIds.has(inv.jobId))
+    .map(inv => {
+      const job = data.jobs.find(j => j.id === inv.jobId);
+      const vehicle = job?.vehicleId ? data.vehicles.find(v => v.id === job.vehicleId) : null;
+      return { ...inv, job, vehicle };
+    })
+    .sort((a,b) => (a.job?.date||a.createdAt||"").localeCompare(b.job?.date||b.createdAt||""));
+}
+
+// Pure, synchronous — opens a printable/emailable statement of everything a customer owes
+function openStatementWindow(data, customer) {
+  const unpaid = getUnpaidInvoices(data, customer.id);
+  const totalOwed = unpaid.reduce((s,inv) => s + (parseFloat(inv.total)||0), 0);
+  const logoUrl = window.location.origin + "/logo.png";
+  const fmtD = new Date().toLocaleDateString("en-GB");
+  const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
+
+  const rows = unpaid.map((inv, i) => {
+    const dateStr = inv.job?.date || inv.createdAt;
+    const overdue = dateStr && dateStr < oneMonthAgo;
+    const desc = [inv.job?.jobType, inv.vehicle ? `${inv.vehicle.reg}` : "", inv.sageInvoiceNo ? `Inv ${inv.sageInvoiceNo}` : ""].filter(Boolean).join(" · ");
+    return `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${fmtDate(dateStr)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${desc || "—"}${overdue ? ' <span style="color:#DC2626;font-weight:700;">(overdue)</span>' : ""}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;text-align:right;font-weight:700;">£${(parseFloat(inv.total)||0).toFixed(2)}</td>
+      </tr>`;
+  }).join("");
+
+  const toEmail = customer.email || "";
+  const subject = encodeURIComponent(`Statement of Account — ${customer.company || customer.companyContact || ""}`);
+  const bodyText = encodeURIComponent(`Please find our statement attached, showing a total outstanding balance of £${totalOwed.toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`);
+  const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${bodyText}`;
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Statement of Account</title>
+<style>
+  body { margin:0; padding:0; background:#F8FAFC; font-family:Arial,sans-serif; }
+  @media print { .no-print { display:none !important; } body { background:#fff; } }
+</style></head><body>
+<div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+  <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
+  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${toEmail ? `<a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>` : ""}
+</div>
+<div style="max-width:700px;margin:0 auto;padding:24px;background:#fff;">
+  <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:14px;margin-bottom:18px;">
+    <img src="${logoUrl}" style="width:56px;height:56px;object-fit:contain;" />
+    <div>
+      <div style="font-size:20px;font-weight:800;color:#1E3A5F;">Windscreen Repairs (Bristol)</div>
+      <div style="font-size:12px;color:#6B7280;">3 Goosander Grove, Cheddar, BS27 3FY · 07946 222246</div>
+      <div style="font-size:12px;color:#6B7280;">info@windscreenrepairsbristol.co.uk</div>
+    </div>
+  </div>
+  <div style="font-size:16px;font-weight:800;color:#1E3A5F;margin-bottom:4px;">Statement of Account</div>
+  <div style="font-size:13px;color:#6B7280;margin-bottom:2px;">${customer.company || customer.companyContact || ""}</div>
+  <div style="font-size:12px;color:#9CA3AF;margin-bottom:18px;">Statement date: ${fmtD}</div>
+  <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;">
+    <thead><tr style="background:#F9FAFB;">
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Date</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Description</th>
+      <th style="padding:10px 12px;text-align:right;font-size:11px;color:#6B7280;text-transform:uppercase;">Amount</th>
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="3" style="padding:14px;color:#9CA3AF;font-size:13px;">Nothing outstanding</td></tr>'}</tbody>
+  </table>
+  <div style="display:flex;justify-content:space-between;align-items:center;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:14px 16px;margin-top:16px;">
+    <span style="font-size:14px;font-weight:700;color:#92400E;">Total Outstanding</span>
+    <span style="font-size:20px;font-weight:800;color:#92400E;">£${totalOwed.toFixed(2)}</span>
+  </div>
+  <div style="font-size:12px;color:#9CA3AF;margin-top:20px;">Payment is due within 30 days of invoice date. Please get in touch if you have any queries about this statement.</div>
+</div>
+</body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
 function RepairTermsModal({ customer, data, onClose }) {
   const [price, setPrice] = useState(String(priceForRepair(getRepairPricing(data, customer), "Chip", 1) || ""));
 
@@ -1323,6 +1404,9 @@ function CustomerDetail({ data, id, setView }) {
           )}
           {customer.phone && customer.custType === "Private" && <Btn size="sm" variant="ghost" onClick={() => setShowTerms(true)}>💬 Send Terms</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
+          {customer.custType === "Trade" && getUnpaidInvoices(data, customer.id).length > 0 && (
+            <Btn size="sm" variant="ghost" onClick={() => openStatementWindow(data, customer)}>💷 Statement</Btn>
+          )}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
           {customer.email && customer.custType === "Trade" && (
@@ -3436,6 +3520,29 @@ Windscreen Repairs (Bristol)
             ))}
           </>
         )}
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Outstanding Balances</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Trade customers with unpaid invoices — tap Statement to view/print/email a full breakdown for that customer.</p>
+        {(() => {
+          const withBalances = tradeCustomers
+            .map(c => ({ customer: c, unpaid: getUnpaidInvoices(data, c.id) }))
+            .filter(x => x.unpaid.length > 0)
+            .map(x => ({ ...x, total: x.unpaid.reduce((s,inv) => s + (parseFloat(inv.total)||0), 0) }))
+            .sort((a,b) => b.total - a.total);
+          if (withBalances.length === 0) return <p style={{ fontSize:13, color:"#9CA3AF" }}>Nothing outstanding 🎉</p>;
+          return withBalances.map(({ customer, unpaid, total }) => (
+            <div key={customer.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 10px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:5 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:"#111827" }}>{customer.company || customer.companyContact || "Unnamed"}</div>
+                <div style={{ fontSize:11, color:"#9CA3AF" }}>{unpaid.length} unpaid invoice{unpaid.length===1?"":"s"}</div>
+              </div>
+              <span style={{ fontSize:14, fontWeight:800, color:"#92400E" }}>£{total.toFixed(2)}</span>
+              <button onClick={() => openStatementWindow(data, customer)} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>💷 Statement</button>
+            </div>
+          ));
+        })()}
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
