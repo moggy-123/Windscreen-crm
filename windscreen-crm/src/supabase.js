@@ -41,11 +41,11 @@ const customerFromDb = r => ({
 
 const vehicleToDb = v => ({
   id: v.id, customer_id: v.customerId, make: v.make, model: v.model, reg: v.reg,
-  updated_at: v.updatedAt || Date.now(), created_at: v.createdAt || Date.now(),
+  updated_at: v.updatedAt || Date.now(), created_at: v.createdAt ? new Date(v.createdAt).toISOString() : new Date().toISOString(),
 });
 const vehicleFromDb = r => ({
   id: r.id, customerId: r.customer_id, make: r.make, model: r.model, reg: r.reg,
-  updatedAt: r.updated_at, createdAt: r.created_at,
+  updatedAt: r.updated_at, createdAt: r.created_at ? new Date(r.created_at).getTime() : 0,
 });
 
 const jobToDb = j => ({
