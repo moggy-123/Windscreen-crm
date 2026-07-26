@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B23 · 18 Jul 2026";
+const BUILD_NUMBER = "B24 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1391,7 +1391,6 @@ function CustomerDetail({ data, id, setView }) {
       {(() => {
         const isVehicleRepaired = (vehId) => data.jobs.some(j => j.vehicleId === vehId && ["Complete","Invoiced","Paid"].includes(j.status));
         const unrepairedVehicles = vehicles.filter(v => !isVehicleRepaired(v.id));
-        const repairedVehicles = vehicles.filter(v => isVehicleRepaired(v.id));
         return (
           <>
             {unrepairedVehicles.map(v => (
@@ -1407,39 +1406,26 @@ function CustomerDetail({ data, id, setView }) {
             ))}
             {vehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No vehicles added</p>}
             {vehicles.length > 0 && unrepairedVehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No outstanding vehicles — everything's been repaired</p>}
-
-            {repairedVehicles.length > 0 && (
-              <>
-                <h3 style={{ fontSize:12, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.05em", margin:"16px 0 8px" }}>Repaired Vehicles ({repairedVehicles.length})</h3>
-                {repairedVehicles.map(v => (
-                  <Card key={v.id}>
-                    <div onClick={() => setView({ screen:"vehicleDetail", id:v.id, customerId:id })} style={{ cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <div>
-                        <div style={{ fontWeight:600, fontSize:14, color:"#6B7280" }}>{v.make} {v.model}</div>
-                        <div style={{ fontSize:13, color:"#9CA3AF" }}>{v.reg}</div>
-                      </div>
-                      <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>REPAIRED</span>
-                    </div>
-                  </Card>
-                ))}
-              </>
-            )}
           </>
         );
       })()}
 
       <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em", margin:"16px 0 8px" }}>Job History</h3>
-      {jobs.map(j => (
-        <Card key={j.id} onClick={() => setView({ screen:"jobDetail", id:j.id })}>
-          <div style={{ display:"flex", justifyContent:"space-between" }}>
-            <div>
-              <div style={{ fontWeight:600, fontSize:14 }}>{j.jobType}</div>
-              <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(j.date)}</div>
+      {jobs.map(j => {
+        const jVeh = data.vehicles.find(v => v.id === j.vehicleId);
+        return (
+          <Card key={j.id} onClick={() => setView({ screen:"jobDetail", id:j.id })}>
+            <div style={{ display:"flex", justifyContent:"space-between" }}>
+              <div>
+                <div style={{ fontWeight:600, fontSize:14 }}>{j.jobType}</div>
+                {jVeh && <div style={{ fontSize:12, color:"#6B7280" }}>{jVeh.make} {jVeh.model} · {jVeh.reg}</div>}
+                <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(j.date)}</div>
+              </div>
+              <StatusBadge status={j.status} />
             </div>
-            <StatusBadge status={j.status} />
-          </div>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
       {jobs.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No jobs yet</p>}
 
       {showEdit    && <CustomerForm data={data} onClose={() => setShowEdit(false)}    setView={setView} editCustomer={customer} />}
