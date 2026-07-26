@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B27 · 18 Jul 2026";
+const BUILD_NUMBER = "B28 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -313,7 +313,7 @@ async function pushChangedOnly(data) {
           newSigs[rec.id] = sig; // only record signature AFTER a successful upload
         } catch (e) {
           failed++;
-          if (!firstError) firstError = e?.message || JSON.stringify(e);
+          if (!firstError) firstError = `[${t.name}:${rec.id}] ${e?.message || JSON.stringify(e)}`;
           if (t.name === "customers") failedCustomerIds.add(rec.id);
           if (t.name === "vehicles") failedVehicleIds.add(rec.id);
           if (t.name === "jobs") failedJobIds.add(rec.id);
