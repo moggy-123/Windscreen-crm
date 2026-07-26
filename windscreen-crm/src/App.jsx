@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { pullFromCloud, pushToCloud, pushOne, deleteRecord, supabase, uploadPhoto, deletePhoto } from "./supabase";
 
 const DB_KEY = "wscrm_data";
+const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B22 · 18 Jul 2026";
+const BUILD_NUMBER = "B23 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -172,12 +173,13 @@ async function silentSave(patchFn) {
   }
 }
 
-async function saveAndReload(data) {
+async function saveAndReload(data, returnView) {
   data = cleanupOrphans(data);
   showSavingOverlay();
   SAVING_IN_PROGRESS = true;
   const stamped = stampData(data);
   localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  if (returnView) { try { localStorage.setItem(RETURN_VIEW_KEY, JSON.stringify(returnView)); } catch {} }
   // Push only changed records, with a safety timeout so it never hangs forever
   try {
     await Promise.race([
@@ -763,7 +765,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
       const vehicles = [...(data.vehicles || []), { id: uid(), customerId: savedCustomerId, make: vehMake, model: vehModel, reg: vehReg, createdAt: todayISO() }];
       newData.vehicles = vehicles;
     }
-    await saveAndReload(newData);
+    await saveAndReload(newData, { screen:"customerDetail", id:savedCustomerId });
   }
 
   return (
@@ -1223,7 +1225,7 @@ function CustomerDetail({ data, id, setView }) {
       ? existing.map(c => c.id === entry.id ? entry : c)
       : [...existing, entry];
     try {
-      await saveAndReload({ ...data, communications });
+      await saveAndReload({ ...data, communications }, { screen:"customerDetail", id });
     } catch (e) {
       alert("Save failed: " + (e?.message || e));
     }
@@ -1245,6 +1247,7 @@ function CustomerDetail({ data, id, setView }) {
     removeSig(commId);
     const d = loadData();
     localStorage.setItem(DB_KEY, JSON.stringify({ ...d, communications: (d.communications||[]).filter(c => c.id !== commId) }));
+    try { localStorage.setItem(RETURN_VIEW_KEY, JSON.stringify({ screen:"customerDetail", id })); } catch {}
     window.location.reload();
   }
 
@@ -1283,7 +1286,7 @@ function CustomerDetail({ data, id, setView }) {
         {customer.notes && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:6 }}>{customer.notes}</div>}
         <button onClick={async () => {
           const customers = data.customers.map(c => c.id === customer.id ? { ...c, termsSentAt: c.termsSentAt ? "" : Date.now(), termsSentVersion: c.termsSentAt ? "" : TERMS_VERSION } : c);
-          try { await saveAndReload({ ...data, customers }); } catch (e) { alert("Save failed: " + (e?.message||e)); }
+          try { await saveAndReload({ ...data, customers }, { screen:"customerDetail", id:customer.id }); } catch (e) { alert("Save failed: " + (e?.message||e)); }
         }} style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, padding:"8px 12px", borderRadius:8, border: customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "1.5px solid #A7F3D0" : "1.5px solid #FDE68A") : "1.5px solid #E5E7EB", background: customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "#ECFDF5" : "#FFFBEB") : "#F9FAFB", cursor:"pointer", width:"100%", textAlign:"left" }}>
           <span style={{ fontSize:16 }}>{customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "✅" : "⚠️") : "⬜"}</span>
           <span style={{ fontSize:13, fontWeight:600, color: customer.termsSentAt ? (customer.termsSentVersion===TERMS_VERSION ? "#059669" : "#B45309") : "#6B7280" }}>
@@ -1385,18 +1388,45 @@ function CustomerDetail({ data, id, setView }) {
         <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Vehicles</h3>
         <Btn size="sm" onClick={() => setShowVehicle(true)}><Icon name="plus" size={13} /> Add</Btn>
       </div>
-      {vehicles.map(v => (
-        <Card key={v.id}>
-          <div onClick={() => setView({ screen:"vehicleDetail", id:v.id, customerId:id })} style={{ cursor:"pointer" }}>
-            <div style={{ fontWeight:600, fontSize:14 }}>{v.make} {v.model}</div>
-            <div style={{ fontSize:13, color:"#6B7280" }}>{v.reg}</div>
-          </div>
-          <div style={{ marginTop:8 }}>
-            <Btn size="sm" onClick={() => setView({ screen:"newJob", prefill:{ customerId:id, vehicleId:v.id } })}><Icon name="plus" size={12} /> Add Job</Btn>
-          </div>
-        </Card>
-      ))}
-      {vehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No vehicles added</p>}
+      {(() => {
+        const isVehicleRepaired = (vehId) => data.jobs.some(j => j.vehicleId === vehId && ["Complete","Invoiced","Paid"].includes(j.status));
+        const unrepairedVehicles = vehicles.filter(v => !isVehicleRepaired(v.id));
+        const repairedVehicles = vehicles.filter(v => isVehicleRepaired(v.id));
+        return (
+          <>
+            {unrepairedVehicles.map(v => (
+              <Card key={v.id}>
+                <div onClick={() => setView({ screen:"vehicleDetail", id:v.id, customerId:id })} style={{ cursor:"pointer" }}>
+                  <div style={{ fontWeight:600, fontSize:14 }}>{v.make} {v.model}</div>
+                  <div style={{ fontSize:13, color:"#6B7280" }}>{v.reg}</div>
+                </div>
+                <div style={{ marginTop:8 }}>
+                  <Btn size="sm" onClick={() => setView({ screen:"newJob", prefill:{ customerId:id, vehicleId:v.id } })}><Icon name="plus" size={12} /> Add Job</Btn>
+                </div>
+              </Card>
+            ))}
+            {vehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No vehicles added</p>}
+            {vehicles.length > 0 && unrepairedVehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No outstanding vehicles — everything's been repaired</p>}
+
+            {repairedVehicles.length > 0 && (
+              <>
+                <h3 style={{ fontSize:12, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.05em", margin:"16px 0 8px" }}>Repaired Vehicles ({repairedVehicles.length})</h3>
+                {repairedVehicles.map(v => (
+                  <Card key={v.id}>
+                    <div onClick={() => setView({ screen:"vehicleDetail", id:v.id, customerId:id })} style={{ cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <div>
+                        <div style={{ fontWeight:600, fontSize:14, color:"#6B7280" }}>{v.make} {v.model}</div>
+                        <div style={{ fontSize:13, color:"#9CA3AF" }}>{v.reg}</div>
+                      </div>
+                      <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"3px 8px", borderRadius:6 }}>REPAIRED</span>
+                    </div>
+                  </Card>
+                ))}
+              </>
+            )}
+          </>
+        );
+      })()}
 
       <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em", margin:"16px 0 8px" }}>Job History</h3>
       {jobs.map(j => (
@@ -1433,7 +1463,7 @@ function VehicleForm({ data, customerId, onClose, editVehicle }) {
     } else {
       vehicles.push({ id:uid(), customerId, make, model, reg:reg.toUpperCase(), createdAt: Date.now() });
     }
-    await saveAndReload({ ...data, vehicles });
+    await saveAndReload({ ...data, vehicles }, { screen:"customerDetail", id:customerId });
   }
   return (
     <Modal title={editVehicle ? "Edit Vehicle" : "Add Vehicle"} onClose={onClose}>
@@ -1461,6 +1491,7 @@ function VehicleDetail({ data, id, customerId, setView }) {
     removeSig(id);
     const d = loadData();
     localStorage.setItem(DB_KEY, JSON.stringify({ ...d, vehicles: d.vehicles.filter(v => v.id !== id) }));
+    try { localStorage.setItem(RETURN_VIEW_KEY, JSON.stringify({ screen:"customerDetail", id: customerId || vehicle.customerId })); } catch {}
     window.location.reload();
   }
 
@@ -3694,7 +3725,16 @@ function MileageView({ data, setView }) {
 
 export default function App() {
   const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
-  const [view, setViewState]        = useState({ screen:"dashboard" });
+  const [view, setViewState]        = useState(() => {
+    try {
+      const stored = localStorage.getItem(RETURN_VIEW_KEY);
+      if (stored) {
+        localStorage.removeItem(RETURN_VIEW_KEY);
+        return JSON.parse(stored);
+      }
+    } catch {}
+    return { screen:"dashboard" };
+  });
   const [tab,  setTab]              = useState("dashboard");
   const device = useDeviceType();
   const [notifStatus, setNotifStatus] = useState(
