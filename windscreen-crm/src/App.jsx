@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B24 · 18 Jul 2026";
+const BUILD_NUMBER = "B25 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1439,23 +1439,66 @@ function VehicleForm({ data, customerId, onClose, editVehicle }) {
   const [make,  setMake]  = useState(editVehicle?.make  || "");
   const [model, setModel] = useState(editVehicle?.model || "");
   const [reg,   setReg]   = useState(editVehicle?.reg   || "");
+  const [repairs, setRepairs] = useState([]);
+  const updateRepair = (id, field, value) => setRepairs(rs => rs.map(r => r.id === id ? { ...r, [field]: value } : r));
+  const addRepair = () => setRepairs(rs => [...rs, { id: uid(), type: "Chip", side: "", position: "" }]);
+  const removeRepair = (id) => setRepairs(rs => rs.filter(r => r.id !== id));
 
   async function save() {
     if (!reg) return;
     const vehicles = [...data.vehicles];
+    let vehId;
     if (editVehicle) {
+      vehId = editVehicle.id;
       const idx = vehicles.findIndex(v => v.id === editVehicle.id);
       vehicles[idx] = { ...editVehicle, make, model, reg: reg.toUpperCase() };
     } else {
-      vehicles.push({ id:uid(), customerId, make, model, reg:reg.toUpperCase(), createdAt: Date.now() });
+      vehId = uid();
+      vehicles.push({ id:vehId, customerId, make, model, reg:reg.toUpperCase(), createdAt: Date.now() });
     }
-    await saveAndReload({ ...data, vehicles }, { screen:"customerDetail", id:customerId });
+    const validRepairs = repairs.filter(r => r.type);
+    let jobs = data.jobs;
+    if (validRepairs.length > 0) {
+      const first = validRepairs[0];
+      jobs = [...data.jobs, {
+        id: uid(), customerId, vehicleId: vehId, date: todayISO(), jobType: "Repair",
+        repairs: validRepairs, damageType: first.type || "", damageSide: first.side || "", damagePosition: first.position || "",
+        status: "Booked", notes: "", paymentType: "Private", photosBefore: [], photosAfter: [], createdAt: todayISO(),
+      }];
+    }
+    await saveAndReload({ ...data, vehicles, jobs }, { screen:"customerDetail", id:customerId });
   }
   return (
     <Modal title={editVehicle ? "Edit Vehicle" : "Add Vehicle"} onClose={onClose}>
       <Field label="Registration" required><Input value={reg} onChange={setReg} placeholder="AB12 CDE" /></Field>
       <Field label="Make"><Input value={make} onChange={setMake} placeholder="Ford" /></Field>
       <Field label="Model"><Input value={model} onChange={setModel} placeholder="Focus" /></Field>
+
+      <div style={{ marginBottom:14 }}>
+        <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>Damage (optional)</label>
+        {repairs.map((r, idx) => (
+          <div key={r.id} style={{ background:"#F8FAFC", border:"1px solid #F3F4F6", borderRadius:10, padding:12, marginBottom:8 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <span style={{ fontSize:12, fontWeight:700, color:"#1E3A5F" }}>Damage {idx + 1}</span>
+              <button onClick={() => removeRepair(r.id)} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:600, cursor:"pointer" }}>Remove</button>
+            </div>
+            <div style={{ marginBottom:8 }}>
+              <Select value={r.type} onChange={v => updateRepair(r.id, "type", v)} options={DAMAGE_TYPES} />
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ flex:1 }}>
+                <Select value={r.side} onChange={v => updateRepair(r.id, "side", v)} options={["Drivers Side","Passenger Side","Middle"]} placeholder="Side…" />
+              </div>
+              <div style={{ flex:1 }}>
+                <Select value={r.position} onChange={v => updateRepair(r.id, "position", v)} options={["Top Right","Top Left","Top Centre","Centre","Bottom Right","Bottom Left","Bottom Centre"]} placeholder="Position…" />
+              </div>
+            </div>
+          </div>
+        ))}
+        <Btn size="sm" variant="ghost" onClick={addRepair} style={{ width:"100%", justifyContent:"center" }}>+ Add Damage Location</Btn>
+        {repairs.length > 0 && <p style={{ fontSize:11, color:"#9CA3AF", margin:"8px 0 0", textAlign:"center" }}>A job will be created for this damage when you save.</p>}
+      </div>
+
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }} disabled={!reg}>Save Vehicle</Btn>
     </Modal>
   );
