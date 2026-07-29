@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B35 · 18 Jul 2026";
+const BUILD_NUMBER = "B36 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2511,7 +2511,7 @@ function JobForm({ data, onClose, editJob, prefill }) {
         </div>
       </Field>
       <div style={{ display:"flex", gap:10 }}>
-        <div style={{ flex:1 }}><Field label="Status"><Select value={status} onChange={setStatus} options={Object.keys(STATUS_META)} /></Field></div>
+        <div style={{ flex:1 }}><Field label="Status"><Select value={status} onChange={setStatus} options={Object.keys(STATUS_META).filter(s => s !== "Paid" || status === "Paid")} /></Field></div>
       </div>
 
       <div style={{ marginBottom:14 }}>
