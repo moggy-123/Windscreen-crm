@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B34 · 18 Jul 2026";
+const BUILD_NUMBER = "B35 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -3393,6 +3393,46 @@ Windscreen Repairs (Bristol)
     }));
   }
 
+  const [inspectionOfferMessage, setInspectionOfferMessage] = useState(
+`Hi,
+
+We're offering a free site inspection for trade accounts — we'll walk round your vehicles and check every windscreen for damage, no obligation.
+
+You'll get back a detailed checklist showing exactly how much damage there is and where it is on each vehicle, with a tick box next to each one so you can simply mark which ones you'd like us to repair.
+
+If you'd like to arrange a time, just get in touch or reply to this email.
+
+Windscreen Repairs (Bristol)
+07946 222246`
+  );
+  const [inspectionOfferSelected, setInspectionOfferSelected] = useState(() => {
+    const s = {}; withEmail.forEach(c => { s[c.id] = true; }); return s;
+  });
+  const toggleInspectionOffer = (id) => setInspectionOfferSelected(s => ({ ...s, [id]: !s[id] }));
+  const inspectionOfferSelectedCount = Object.values(inspectionOfferSelected).filter(Boolean).length;
+
+  function emailSelectedInspectionOffer() {
+    const targets = withEmail.filter(c => inspectionOfferSelected[c.id]);
+    if (targets.length === 0) return;
+    const subject = encodeURIComponent("Free Site Inspection — Windscreen Repairs Bristol");
+    window.location.href = `mailto:?bcc=${targets.map(c => c.email).join(",")}&subject=${subject}&body=${encodeURIComponent(inspectionOfferMessage)}`;
+
+    const ids = targets.map(c => c.id);
+    const newEntries = ids.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: "Free site inspection offer sent", timestamp: Date.now(), createdAt: todayISO() }));
+    silentSave(current => ({
+      customers: current.customers.map(c => ids.includes(c.id) ? { ...c, inspectionOfferSentAt: Date.now() } : c),
+      communications: [...(current.communications || []), ...newEntries],
+    }));
+  }
+
+  function textOneInspectionOffer(c) {
+    window.location.href = `sms:${c.phone}${/iphone|ipad|mac/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(inspectionOfferMessage)}`;
+    silentSave(current => ({
+      customers: current.customers.map(x => x.id === c.id ? { ...x, inspectionOfferSentAt: Date.now() } : x),
+      communications: [...(current.communications || []), { id: uid(), customerId: c.id, contactId: "", contactName: "", type: "Text", direction: "out", note: "Free site inspection offer sent (text)", timestamp: Date.now(), createdAt: todayISO() }],
+    }));
+  }
+
   async function save() {
     const existing = data.settings || [];
     const rec = { id: "app", defaultPricing: pricing, privatePricing, updatedAt: Date.now() };
@@ -3516,6 +3556,42 @@ Windscreen Repairs (Bristol)
                 <span style={{ flex:1, fontSize:13, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
                 {c.offerSentAt && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap" }}>Sent {new Date(c.offerSentAt).toLocaleDateString("en-GB")}</span>}
                 <button onClick={() => textOneOffer(c)} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>📱 Text</button>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#374151" }}>Free Site Inspection Offer</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>A one-off promotional message offering a free site inspection — a low-commitment way to get in front of Trade customers before talking price.</p>
+        <Field label="Message">
+          <textarea value={inspectionOfferMessage} onChange={e => setInspectionOfferMessage(e.target.value)} rows={8}
+            style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:13, resize:"vertical", boxSizing:"border-box" }} />
+        </Field>
+
+        {withEmail.length > 0 && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", marginBottom:6 }}>Email ({withEmail.length})</div>
+            {withEmail.map(c => (
+              <label key={c.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:5, cursor:"pointer" }}>
+                <input type="checkbox" checked={!!inspectionOfferSelected[c.id]} onChange={() => toggleInspectionOffer(c.id)} style={{ width:16, height:16 }} />
+                <span style={{ flex:1, fontSize:13, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+                {c.inspectionOfferSentAt && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap" }}>Sent {new Date(c.inspectionOfferSentAt).toLocaleDateString("en-GB")}</span>}
+              </label>
+            ))}
+            <Btn onClick={emailSelectedInspectionOffer} disabled={inspectionOfferSelectedCount===0} style={{ width:"100%", justifyContent:"center", marginTop:6 }}>✉️ Email Selected ({inspectionOfferSelectedCount})</Btn>
+          </>
+        )}
+
+        {noEmailWithPhone.length > 0 && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", margin:"16px 0 6px" }}>No email on file — text instead ({noEmailWithPhone.length})</div>
+            {noEmailWithPhone.map(c => (
+              <div key={c.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:5 }}>
+                <span style={{ flex:1, fontSize:13, color:"#111827" }}>{c.company || c.companyContact || "Unnamed"}</span>
+                {c.inspectionOfferSentAt && <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#ECFDF5", padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap" }}>Sent {new Date(c.inspectionOfferSentAt).toLocaleDateString("en-GB")}</span>}
+                <button onClick={() => textOneInspectionOffer(c)} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>📱 Text</button>
               </div>
             ))}
           </>
