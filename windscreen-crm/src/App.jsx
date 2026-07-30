@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B36 · 18 Jul 2026";
+const BUILD_NUMBER = "B37 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2860,10 +2860,17 @@ function JobDetail({ data, id, setView }) {
           <Icon name="check" size={15} /> Mark as {nextStatuses[job.status][0]}
         </Btn>
       )}
-      {job.status==="Complete" && !invoice && (
-        <Btn onClick={() => setShowInvoice(true)} style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>
-          Create Invoice
-        </Btn>
+      {job.status!=="Booked" && !invoice && (
+        <>
+          {job.status!=="Complete" && (
+            <p style={{ fontSize:12, color:"#B45309", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"8px 10px", marginBottom:8 }}>
+              ⚠️ This job's status says "{job.status}" but no invoice was ever created — create one below to fix it.
+            </p>
+          )}
+          <Btn onClick={() => setShowInvoice(true)} style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>
+            Create Invoice
+          </Btn>
+        </>
       )}
       {invoice && (
         <Card style={{ background:"#F0FDF4", borderColor:"#BBF7D0" }}>
