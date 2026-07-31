@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B37 · 18 Jul 2026";
+const BUILD_NUMBER = "B38 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -505,6 +505,10 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
   const dueFollowUps = data.customers
     .filter(c => c.followUpDate && c.followUpDate <= todayStr)
     .sort((a,b) => a.followUpDate.localeCompare(b.followUpDate));
+  // Site inspections booked for today or in the future
+  const upcomingInspections = (data.inspections || [])
+    .filter(i => i.date && i.date >= todayStr)
+    .sort((a,b) => a.date.localeCompare(b.date));
 
   const StatCard = ({ label, value, color, sub, onClick }) => (
     <div onClick={onClick} style={{ background:"#fff", borderRadius:12, padding:16, border:"1px solid #F3F4F6", boxShadow:"0 1px 3px rgba(0,0,0,.07)", flex:1, minWidth:100, cursor: onClick ? "pointer" : "default" }}>
@@ -586,6 +590,26 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+      {upcomingInspections.length > 0 && (
+        <div style={{ marginBottom:20 }}>
+          <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>🔍 Site Inspections Booked</h3>
+          {upcomingInspections.map(insp => {
+            const cust = insp.customerId ? data.customers.find(c => c.id === insp.customerId) : null;
+            const name = cust ? (cust.company || cust.companyContact) : (insp.siteName || "Unnamed site");
+            return (
+              <Card key={insp.id} onClick={() => setView({ screen:"inspectionDetail", id:insp.id })}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{name}</div>
+                    <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{insp.date === todayStr ? "Today" : fmtDate(insp.date)} · {(insp.vehicles||[]).length} vehicle{(insp.vehicles||[]).length===1?"":"s"} logged so far</div>
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:700, color:"#1E3A5F", background:"#EFF6FF", padding:"3px 8px", borderRadius:6 }}>{insp.date === todayStr ? "TODAY" : "BOOKED"}</span>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
       <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Today's Jobs</h3>
