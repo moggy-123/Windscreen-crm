@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B40 · 18 Jul 2026";
+const BUILD_NUMBER = "B41 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1639,7 +1639,11 @@ function VehicleDetail({ data, id, customerId, setView }) {
 
 // ── Site Inspections ─────────────────────────────────────────────────────────
 function describeRepair(r) {
-  return [r.type, r.side, r.position].filter(Boolean).join(" · ");
+  const base = [r.type, r.side, r.position].filter(Boolean).join(" · ");
+  const flags = [];
+  if (r.previouslyRepaired) flags.push("Previously Repaired");
+  if (r.unrepairable) flags.push(r.unrepairableReason ? `Unrepairable — ${r.unrepairableReason}` : "Unrepairable");
+  return flags.length ? `${base} (${flags.join("; ")})` : base;
 }
 
 // Small popup for recording one vehicle found during a walkaround
@@ -1697,6 +1701,21 @@ function InspectionVehicleForm({ onSave, onClose, editVehicle }) {
                 <Select value={r.position} onChange={v => updateRepair(r.id, "position", v)} options={["Top Right","Top Left","Top Centre","Centre","Bottom Right","Bottom Left","Bottom Centre"]} placeholder="Position…" />
               </div>
             </div>
+            <label style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, cursor:"pointer" }}>
+              <input type="checkbox" checked={!!r.previouslyRepaired} onChange={e => updateRepair(r.id, "previouslyRepaired", e.target.checked)} style={{ width:16, height:16 }} />
+              <span style={{ fontSize:13, color:"#374151" }}>Previously repaired</span>
+            </label>
+            <label style={{ display:"flex", alignItems:"center", gap:8, marginTop:6, cursor:"pointer" }}>
+              <input type="checkbox" checked={!!r.unrepairable} onChange={e => updateRepair(r.id, "unrepairable", e.target.checked)} style={{ width:16, height:16 }} />
+              <span style={{ fontSize:13, color:"#374151" }}>Unrepairable (size / location)</span>
+            </label>
+            {r.unrepairable && (
+              <div style={{ marginTop:8 }}>
+                <Select value={r.unrepairableReason||""} onChange={v => updateRepair(r.id, "unrepairableReason", v)} options={["Too large","In driver's vision (Zone A)","Blocks ADAS camera","Edge crack / spreading"]} placeholder="Reason…" />
+              </div>
+            )}
+            <textarea value={r.notes||""} onChange={e => updateRepair(r.id, "notes", e.target.value)} rows={2} placeholder="Notes (optional)…"
+              style={{ width:"100%", marginTop:8, padding:"8px 10px", borderRadius:6, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:13, resize:"vertical", boxSizing:"border-box" }} />
           </div>
         ))}
         <Btn size="sm" variant="ghost" onClick={addRepair} style={{ width:"100%", justifyContent:"center" }}>+ Add another chip/crack</Btn>
@@ -1895,8 +1914,8 @@ function SendReportModal({ data, inspection, onClose }) {
       <tr>
         <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${rows.length+1}</td>
         <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
-        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}</td>
-        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span></td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}${r.notes ? `<br><span style="color:#9CA3AF;font-style:italic;">${r.notes}</span>` : ""}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;text-align:center;">${r.unrepairable ? '<span style="font-size:11px;font-weight:700;color:#DC2626;">Not repairable</span>' : '<span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span>'}</td>
       </tr>`);
       });
     });
