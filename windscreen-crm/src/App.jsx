@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B38 · 18 Jul 2026";
+const BUILD_NUMBER = "B39 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1980,8 +1980,13 @@ function BookVehiclesModal({ data, inspection, onClose }) {
   const [selected, setSelected] = useState(() => {
     const s = {}; (inspection.vehicles||[]).forEach(v => { s[v.id] = !v.bookedJobId; }); return s;
   });
+  const [bookDate, setBookDate] = useState(inspection.date || todayISO());
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
   const count = Object.values(selected).filter(Boolean).length;
+
+  const existingJobsThatDay = inspection.customerId
+    ? data.jobs.filter(j => j.customerId === inspection.customerId && j.date === bookDate)
+    : [];
 
   // Saves records only — deliberately never opens a popup, so it's never blocked
   // and the page reload it triggers can't interfere with a report tab.
@@ -2022,7 +2027,7 @@ function BookVehiclesModal({ data, inspection, onClose }) {
         customerId: custId,
         vehicleId: vehRec.id,
         driverName: inspection.contactName || "",
-        date: todayISO(),
+        date: bookDate,
         jobType: "Repair",
         repairs: v.repairs || [],
         damageType: v.repairs?.[0]?.type || "",
@@ -2051,6 +2056,14 @@ function BookVehiclesModal({ data, inspection, onClose }) {
 
   return (
     <Modal title="Book Vehicles In" onClose={onClose}>
+      <Field label="Date to book these in for">
+        <Input type="date" value={bookDate} onChange={setBookDate} />
+      </Field>
+      {existingJobsThatDay.length > 0 && (
+        <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 12px", marginBottom:14, fontSize:13, color:"#1D4ED8" }}>
+          📅 This customer already has {existingJobsThatDay.length} job{existingJobsThatDay.length===1?"":"s"} booked on this day — these will be added alongside {existingJobsThatDay.length===1?"it":"them"}, so you can do them all on the same visit.
+        </div>
+      )}
       <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Tick the vehicles the customer has confirmed</div>
       {(inspection.vehicles||[]).map(v => (
         <label key={v.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, cursor:"pointer", background: selected[v.id] ? "#EFF6FF" : "#fff" }}>
@@ -2066,7 +2079,7 @@ function BookVehiclesModal({ data, inspection, onClose }) {
       <Btn onClick={bookSelected} disabled={count===0} style={{ width:"100%", justifyContent:"center", marginTop:10 }}>
         ✅ Book {count} Vehicle{count===1?"":"s"} In
       </Btn>
-      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Creates a job for each ticked vehicle so you can schedule the repair.</p>
+      <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, textAlign:"center" }}>Creates a job for each ticked vehicle, dated for the day above.</p>
     </Modal>
   );
 }
