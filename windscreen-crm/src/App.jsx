@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B41 · 18 Jul 2026";
+const BUILD_NUMBER = "B42 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -3646,6 +3646,31 @@ Windscreen Repairs (Bristol)
             ))}
           </>
         )}
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #FCA5A5", borderRadius:12, padding:16, marginBottom:16 }}>
+        <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#DC2626" }}>⚠️ Overdue (30+ Days)</h3>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Trade customers with at least one invoice more than 30 days old and still unpaid — worth chasing. Tap Statement to view/print/email a full breakdown for that customer.</p>
+        {(() => {
+          const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
+          const overdue = tradeCustomers
+            .map(c => ({ customer: c, unpaid: getUnpaidInvoices(data, c.id) }))
+            .map(x => ({ ...x, overdueInvoices: x.unpaid.filter(inv => (inv.job?.date || inv.createdAt || "") < oneMonthAgo) }))
+            .filter(x => x.overdueInvoices.length > 0)
+            .map(x => ({ ...x, total: x.unpaid.reduce((s,inv) => s + (parseFloat(inv.total)||0), 0) }))
+            .sort((a,b) => b.total - a.total);
+          if (overdue.length === 0) return <p style={{ fontSize:13, color:"#9CA3AF" }}>Nothing overdue 🎉</p>;
+          return overdue.map(({ customer, unpaid, overdueInvoices, total }) => (
+            <div key={customer.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 10px", border:"1px solid #FEE2E2", background:"#FEF2F2", borderRadius:8, marginBottom:5 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:"#111827" }}>{customer.company || customer.companyContact || "Unnamed"}</div>
+                <div style={{ fontSize:11, color:"#DC2626", fontWeight:600 }}>{overdueInvoices.length} overdue · {unpaid.length} unpaid total</div>
+              </div>
+              <span style={{ fontSize:14, fontWeight:800, color:"#92400E" }}>£{total.toFixed(2)}</span>
+              <button onClick={() => openStatementWindow(data, customer)} style={{ background:"#DC2626", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>💷 Statement</button>
+            </div>
+          ));
+        })()}
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
