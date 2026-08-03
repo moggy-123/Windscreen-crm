@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B42 · 18 Jul 2026";
+const BUILD_NUMBER = "B43 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1034,6 +1034,14 @@ function openStatementWindow(data, customer) {
   <div style="display:flex;justify-content:space-between;align-items:center;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:14px 16px;margin-top:16px;">
     <span style="font-size:14px;font-weight:700;color:#92400E;">Total Outstanding</span>
     <span style="font-size:20px;font-weight:800;color:#92400E;">£${totalOwed.toFixed(2)}</span>
+  </div>
+  <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;margin-top:16px;">
+    <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Payment Details</div>
+    <div style="font-size:13px;color:#111827;line-height:1.6;">
+      David Morgan trading as Windscreen Repairs (Bristol)<br>
+      Account number: 02340725<br>
+      Sort code: 04-00-06
+    </div>
   </div>
   <div style="font-size:12px;color:#9CA3AF;margin-top:20px;">Payment is due within 30 days of invoice date. Please get in touch if you have any queries about this statement.</div>
 </div>
