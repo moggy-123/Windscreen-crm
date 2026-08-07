@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B44 · 18 Jul 2026";
+const BUILD_NUMBER = "B45 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1550,7 +1550,10 @@ function CustomerDetail({ data, id, setView }) {
                 {jVeh && <div style={{ fontSize:12, color:"#6B7280" }}>{jVeh.make} {jVeh.model} · {jVeh.reg}</div>}
                 <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(j.date)}</div>
               </div>
-              <StatusBadge status={j.status} />
+              <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                {j.noCharge && <span style={{ fontSize:10, fontWeight:700, color:"#92400E", background:"#FFFBEB", padding:"2px 6px", borderRadius:5 }}>FREE</span>}
+                <StatusBadge status={j.status} />
+              </div>
             </div>
           </Card>
         );
@@ -2446,6 +2449,7 @@ function JobForm({ data, onClose, editJob, prefill }) {
   const [technicianId,  setTechnicianId]  = useState(editJob?.technicianId  || "");
   const [notes,         setNotes]         = useState(editJob?.notes         || "");
   const [paymentType,   setPaymentType]   = useState(editJob?.paymentType   || "Private");
+  const [noCharge,      setNoCharge]      = useState(editJob?.noCharge      || false);
   const [insuranceCo,   setInsuranceCo]   = useState(editJob?.insuranceCo   || "");
   const [claimNo,       setClaimNo]       = useState(editJob?.claimNo       || "");
   const [photosBefore,  setPhotosBefore]  = useState(editJob?.photosBefore  || []);
@@ -2462,7 +2466,7 @@ function JobForm({ data, onClose, editJob, prefill }) {
     const jobs = [...data.jobs];
     const vehicles = [...data.vehicles, ...newVehicles];
     const first = repairs[0] || {};
-    const rec = { customerId, driverName, contactName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, repairs, damageType: first.type || "", damageSide: first.side || "", damagePosition: first.position || "", adasRequired, status, technicianId, notes, paymentType, insuranceCo, claimNo, photosBefore, photosAfter };
+    const rec = { customerId, driverName, contactName, vehicleId, date, jobTime, locAddress1, locAddress2, locTown, locCounty, locPostcode, jobType, repairs, damageType: first.type || "", damageSide: first.side || "", damagePosition: first.position || "", adasRequired, status, technicianId, notes, paymentType, noCharge, insuranceCo, claimNo, photosBefore, photosAfter };
     if (editJob) {
       const idx = jobs.findIndex(j => j.id === editJob.id);
       jobs[idx] = { ...editJob, ...rec };
@@ -2591,6 +2595,10 @@ function JobForm({ data, onClose, editJob, prefill }) {
         <Btn size="sm" variant="ghost" onClick={addRepair} style={{ width:"100%", justifyContent:"center" }}>+ Add repair</Btn>
       </div>
       <Field label="Payment Type"><Select value={paymentType} onChange={setPaymentType} options={PAYMENT_TYPES} /></Field>
+      <label style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16, cursor:"pointer", background: noCharge ? "#FFFBEB" : "#F9FAFB", border: noCharge ? "1.5px solid #FDE68A" : "1.5px solid #E5E7EB", borderRadius:8, padding:"10px 12px" }}>
+        <input type="checkbox" checked={noCharge} onChange={e => setNoCharge(e.target.checked)} style={{ width:18, height:18 }} />
+        <span style={{ fontSize:14, color:"#92400E", fontWeight:600 }}>Free / No Charge (e.g. unsuccessful repair)</span>
+      </label>
       {paymentType==="Insurance" && (
         <>
           <Field label="Insurance Company"><Input value={insuranceCo} onChange={setInsuranceCo} placeholder="e.g. Admiral" /></Field>
@@ -2877,7 +2885,10 @@ function JobDetail({ data, id, setView }) {
       </div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
         <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:"#1E3A5F" }}>Job Detail</h2>
-        <StatusBadge status={job.status} />
+        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+          {job.noCharge && <span style={{ fontSize:11, fontWeight:700, color:"#92400E", background:"#FFFBEB", border:"1px solid #FDE68A", padding:"3px 8px", borderRadius:6 }}>FREE / NO CHARGE</span>}
+          <StatusBadge status={job.status} />
+        </div>
       </div>
       <Card>
         <Row label="Company"      value={customer?.company || null} />
@@ -2911,17 +2922,23 @@ function JobDetail({ data, id, setView }) {
           <Icon name="check" size={15} /> Mark as {nextStatuses[job.status][0]}
         </Btn>
       )}
-      {job.status!=="Booked" && !invoice && (
-        <>
-          {job.status!=="Complete" && (
-            <p style={{ fontSize:12, color:"#B45309", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"8px 10px", marginBottom:8 }}>
-              ⚠️ This job's status says "{job.status}" but no invoice was ever created — create one below to fix it.
-            </p>
-          )}
-          <Btn onClick={() => setShowInvoice(true)} style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>
-            Create Invoice
-          </Btn>
-        </>
+      {job.noCharge && !invoice ? (
+        <p style={{ fontSize:13, color:"#92400E", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"10px 12px", marginBottom:10, textAlign:"center" }}>
+          💷 Marked Free / No Charge — no invoice needed for this job.
+        </p>
+      ) : (
+        job.status!=="Booked" && !invoice && (
+          <>
+            {job.status!=="Complete" && (
+              <p style={{ fontSize:12, color:"#B45309", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"8px 10px", marginBottom:8 }}>
+                ⚠️ This job's status says "{job.status}" but no invoice was ever created — create one below to fix it.
+              </p>
+            )}
+            <Btn onClick={() => setShowInvoice(true)} style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>
+              Create Invoice
+            </Btn>
+          </>
+        )
       )}
       {invoice && (
         <Card style={{ background:"#F0FDF4", borderColor:"#BBF7D0" }}>
