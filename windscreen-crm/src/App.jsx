@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B46 · 18 Jul 2026";
+const BUILD_NUMBER = "B47 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2214,12 +2214,13 @@ function JobsList({ data, setView, initialFilter }) {
     return dateRef && dateRef < oneMonthAgo;
   };
   const anyOverdue = data.jobs.some(isOverdue);
+  const toInvoiceCount = data.jobs.filter(j => j.status === "Complete" && !invoiceByJob[j.id] && !j.noCharge).length;
 
   const filtered = data.jobs.filter(j => {
     if (filter==="Today")    return j.date === todayISO();
     if (filter==="Open")     return j.status === "Booked";        // still to do
     if (filter==="Unpaid")   return isUnpaid(j);                  // invoiced but not paid
-    if (filter==="Complete") return ["Complete","Paid"].includes(j.status);
+    if (filter==="To Invoice") return j.status === "Complete" && !invoiceByJob[j.id] && !j.noCharge;
     return true;
   }).sort((a,b) => b.date.localeCompare(a.date));
 
@@ -2237,8 +2238,8 @@ function JobsList({ data, setView, initialFilter }) {
         </div>
       )}
       <div style={{ display:"flex", gap:10, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
-        {["Today","Open","Unpaid","Complete","All"].map(f => (
-          <button key={f} style={pill(filter===f, f==="Unpaid" && anyOverdue)} onClick={() => setFilter(f)}>{f}</button>
+        {["Today","Open","To Invoice","Unpaid","All"].map(f => (
+          <button key={f} style={pill(filter===f, f==="Unpaid" && anyOverdue)} onClick={() => setFilter(f)}>{f}{f==="To Invoice" && toInvoiceCount > 0 ? ` (${toInvoiceCount})` : ""}</button>
         ))}
       </div>
       {filtered.length === 0 && <p style={{ color:"#9CA3AF", textAlign:"center", fontSize:14 }}>No jobs found</p>}
