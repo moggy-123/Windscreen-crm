@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { pullFromCloud, pushToCloud, pushOne, deleteRecord, supabase, uploadPhoto, deletePhoto } from "./supabase";
+import { pullFromCloud, pushOne, deleteRecord, supabase, uploadPhoto, deletePhoto } from "./supabase";
 
 const DB_KEY = "wscrm_data";
 const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B43 · 18 Jul 2026";
+const BUILD_NUMBER = "B44 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -105,7 +105,7 @@ function clearStorageBloat() {
 function saveData(data) {
   const stamped = stampData(data);
   localStorage.setItem(DB_KEY, JSON.stringify(stamped));
-  return pushToCloud(stamped).catch(() => {/* offline — will sync later */});
+  return pushChangedOnly(stamped).catch(() => {/* offline — will sync later */});
 }
 
 // Add/refresh an updatedAt timestamp so the newest edit wins when merging
@@ -4040,8 +4040,10 @@ export default function App() {
         };
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
         setData(merged);
-        // Push the merged result (including any local-newer records) back up
-        pushToCloud(merged).catch(() => {});
+        // Push only what's actually changed since last sync — NOT everything.
+        // (Re-uploading the whole dataset on every single reload was the main
+        // driver of excessive egress usage.)
+        pushChangedOnly(merged).catch(() => {});
         setSyncStatus("synced");
       } catch (e) {
         if (!cancelled) setSyncStatus("offline");
@@ -4161,7 +4163,7 @@ export default function App() {
           return prev;
         });
       } catch {}
-    }, 20000);
+    }, 300000);
     return () => clearInterval(interval);
   }, []);
 
