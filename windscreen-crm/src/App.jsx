@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B45 · 18 Jul 2026";
+const BUILD_NUMBER = "B46 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2260,7 +2260,10 @@ function JobsList({ data, setView, initialFilter }) {
                 {job.locAddress1 && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:2 }}>📍 {[job.locAddress1, job.locTown, job.locPostcode].filter(Boolean).join(", ")}</div>}
                 {(job.photosBefore?.length > 0 || job.photosAfter?.length > 0) && <div style={{ fontSize:11, color:"#6B7280", marginTop:3 }}>📷 {(job.photosBefore?.length||0)} before · {(job.photosAfter?.length||0)} after</div>}
               </div>
-              <StatusBadge status={job.status} />
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                {job.noCharge && <span style={{ background:"#FFFBEB", color:"#92400E", border:"1px solid #FDE68A", fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6, letterSpacing:"0.03em" }}>FREE</span>}
+                <StatusBadge status={job.status} />
+              </div>
             </div>
           </Card>
         );
