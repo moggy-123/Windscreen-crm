@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { pullFromCloud, pushOne, deleteRecord, supabase, uploadPhoto, deletePhoto } from "./supabase";
+import { pullFromCloud, pushOne, deleteRecord, supabase, uploadPhoto, deletePhoto, signIn, signOut, getSession, onAuthChange } from "./supabase";
 
 const DB_KEY = "wscrm_data";
 const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B47 · 18 Jul 2026";
+const BUILD_NUMBER = "B49 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -3754,6 +3754,10 @@ Windscreen Repairs (Bristol)
           );
         })}
       </div>
+
+      <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginTop:16, marginBottom:16 }}>
+        <Btn variant="ghost" onClick={async () => { if (window.confirm("Sign out?")) await signOut(); }} style={{ width:"100%", justifyContent:"center", color:"#DC2626" }}>🚪 Log Out</Btn>
+      </div>
     </div>
   );
 }
@@ -4019,7 +4023,7 @@ function MileageView({ data, setView }) {
   );
 }
 
-export default function App() {
+function AuthenticatedApp() {
   const [data, setData]             = useState(() => { clearStorageBloat(); return loadData(); });
   const [view, setViewState]        = useState(() => {
     try {
@@ -4054,6 +4058,7 @@ export default function App() {
           vehicles:    merge(cloud.vehicles,    local.vehicles || []),
           jobs:        merge(cloud.jobs,        local.jobs || []),
           invoices:    merge(cloud.invoices,    local.invoices || []),
+          mileage:     merge(cloud.mileage,     local.mileage || []),
           inspections: merge(cloud.inspections, local.inspections || []),
           communications: merge(cloud.communications, local.communications || []),
           settings: merge(cloud.settings, local.settings || []),
@@ -4300,4 +4305,67 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+// ── Login ────────────────────────────────────────────────────────────────────
+function LoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await signIn(email.trim(), password);
+      // onAuthChange in the parent picks up the new session automatically
+    } catch (err) {
+      setError(err?.message === "Invalid login credentials" ? "Incorrect email or password." : (err?.message || "Sign in failed."));
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#F8FAFC", padding:20, fontFamily:"inherit" }}>
+      <form onSubmit={submit} style={{ width:"100%", maxWidth:360, background:"#fff", borderRadius:16, padding:28, boxShadow:"0 1px 3px rgba(0,0,0,0.08)" }}>
+        <div style={{ textAlign:"center", marginBottom:22 }}>
+          <img src="/logo.png" style={{ width:56, height:56, objectFit:"contain", margin:"0 auto 10px" }} />
+          <div style={{ fontSize:19, fontWeight:800, color:"#1E3A5F" }}>Windscreen Repairs (Bristol)</div>
+          <div style={{ fontSize:13, color:"#9CA3AF", marginTop:2 }}>Sign in to continue</div>
+        </div>
+        <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>Email</label>
+        <input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)}
+          style={{ width:"100%", padding:"11px 14px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:16, marginBottom:14, boxSizing:"border-box", fontFamily:"inherit" }} />
+        <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.05em" }}>Password</label>
+        <input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}
+          style={{ width:"100%", padding:"11px 14px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:16, marginBottom:18, boxSizing:"border-box", fontFamily:"inherit" }} />
+        {error && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", color:"#DC2626", fontSize:13, borderRadius:8, padding:"9px 12px", marginBottom:14 }}>{error}</div>}
+        <button type="submit" disabled={loading} style={{ width:"100%", padding:"12px", borderRadius:10, border:"none", background:"#1E3A5F", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", opacity: loading ? 0.7 : 1 }}>
+          {loading ? "Signing in…" : "Sign In"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ── Auth gate — nothing else in the app renders until this passes ──────────
+// LOGIN GATE — TEMPORARILY DISABLED. All the code is built and ready (LoginScreen,
+// session handling, Log Out button in Settings), but it stays switched off here until
+// the Supabase side is done: a login user created, and RLS locked to authenticated-only
+// on every table + storage. Turning this on before then would lock the account out, since
+// there'd be no way to sign in yet. Once that's done, replace this function's body with:
+//
+//   const [session, setSession] = useState(undefined);
+//   useEffect(() => {
+//     getSession().then(setSession).catch(() => setSession(null));
+//     const unsubscribe = onAuthChange(setSession);
+//     return unsubscribe;
+//   }, []);
+//   if (session === undefined) return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#F8FAFC" }}><div style={{ color:"#9CA3AF", fontSize:14 }}>Loading…</div></div>;
+//   if (!session) return <LoginScreen />;
+//   return <AuthenticatedApp />;
+export default function App() {
+  return <AuthenticatedApp />;
 }
