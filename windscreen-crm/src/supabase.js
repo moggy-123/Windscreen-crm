@@ -3,7 +3,28 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = "https://ubnwpghiozmydkczklek.supabase.co";
 const SUPABASE_KEY = "sb_publishable_kmHWMBjAz8jb8AvkDH0rUA_b4TWa0wc";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// persistSession + autoRefreshToken are essential here — this app reloads the whole
+// page on every save, so the login must survive a reload rather than logging out.
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: "wscrm_auth" },
+});
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+export async function signIn(email, password) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+export async function signOut() {
+  await supabase.auth.signOut();
+}
+export async function getSession() {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
+export function onAuthChange(callback) {
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  return () => data.subscription.unsubscribe();
+}
 
 // ── Field mapping: app (camelCase) <-> db (snake_case) ──────────────────────
 
