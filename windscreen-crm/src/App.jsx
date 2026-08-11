@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B51 · 18 Jul 2026";
+const BUILD_NUMBER = "B52 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2819,6 +2819,17 @@ function openDaySheet(data, customer, dateISO) {
       <td style="padding:5px 0;font-size:12px;color:#111827;font-weight:600;">${value}</td>
     </tr>` : "";
 
+  const photoRow = (photos, label) => {
+    if (!photos || photos.length === 0) return "";
+    return `
+      <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;margin:10px 0 6px;">${label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${photos.map(p => `<img src="${p.url || p.pending}" style="width:110px;height:82px;object-fit:cover;border-radius:6px;border:1px solid #E5E7EB;" />`).join("")}
+      </div>`;
+  };
+
+  const isTrade = customer.custType === "Trade";
+
   const sections = jobs.map((job, i) => {
     const vehicle = job.vehicleId ? data.vehicles.find(v => v.id === job.vehicleId) : null;
     const car = vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : "";
@@ -2830,10 +2841,12 @@ function openDaySheet(data, customer, dateISO) {
         ${row("Job Type", job.jobType)}
         ${row("Driver", job.driverName)}
         ${(job.repairs?.length ? job.repairs : [{type:job.damageType,side:job.damageSide,position:job.damagePosition}]).map((r,ri) => row(job.repairs?.length>1?`Repair ${ri+1}`:"Damage", [r.type, r.side, r.position].filter(Boolean).join(" · "))).join("")}
-        ${row("Payment", job.noCharge ? "Free / No Charge" : job.paymentType)}
+        ${!isTrade ? row("Payment", job.noCharge ? "Free / No Charge" : job.paymentType) : ""}
         ${row("Notes", job.notes)}
       </table>
-      ${invoice ? `<div style="margin-top:10px;font-size:13px;font-weight:700;color:${invoice.paid?"#059669":"#D97706"};">£${parseFloat(invoice.total).toFixed(2)} — ${invoice.paid?"Paid":"Payment Awaited"}</div>` : ""}
+      ${!isTrade && invoice ? `<div style="margin-top:10px;font-size:13px;font-weight:700;color:${invoice.paid?"#059669":"#D97706"};">£${parseFloat(invoice.total).toFixed(2)} — ${invoice.paid?"Paid":"Payment Awaited"}</div>` : ""}
+      ${photoRow(job.photosBefore, "Before")}
+      ${photoRow(job.photosAfter, "After")}
     </div>`;
   }).join("");
 
