@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B50 · 18 Jul 2026";
+const BUILD_NUMBER = "B51 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -1309,6 +1309,7 @@ function CustomerDetail({ data, id, setView }) {
   const [showVehicle, setShowVehicle] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
   const [showDamageReport, setShowDamageReport] = useState(false);
+  const [showDaySheet, setShowDaySheet] = useState(false);
   const [showCommLog, setShowCommLog] = useState(false);
   const [editingComm, setEditingComm] = useState(null);
   const [logContact, setLogContact]   = useState(null);
@@ -1436,6 +1437,7 @@ function CustomerDetail({ data, id, setView }) {
           )}
           {customer.phone && customer.custType === "Private" && <Btn size="sm" variant="ghost" onClick={() => setShowTerms(true)}>💬 Send Terms</Btn>}
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowDamageReport(true)}>📄 Damage Report</Btn>}
+          {data.jobs.some(j => j.customerId === customer.id) && <Btn size="sm" variant="ghost" onClick={() => setShowDaySheet(true)}>📋 Day Sheet</Btn>}
           {customer.custType === "Trade" && getUnpaidInvoices(data, customer.id).length > 0 && (
             <Btn size="sm" variant="ghost" onClick={() => openStatementWindow(data, customer)}>💷 Statement</Btn>
           )}
@@ -1453,6 +1455,7 @@ function CustomerDetail({ data, id, setView }) {
       </Card>
       {showTerms && <RepairTermsModal customer={customer} data={data} onClose={() => setShowTerms(false)} />}
       {showDamageReport && <DamageReportModal customer={customer} vehicles={vehicles} data={data} onClose={() => setShowDamageReport(false)} />}
+      {showDaySheet && <DaySheetModal customer={customer} data={data} onClose={() => setShowDaySheet(false)} />}
       {showCommLog && <CommLogModal customer={customer} contact={logContact} editEntry={editingComm} onSave={saveComm} onClose={() => setShowCommLog(false)} />}
 
 
@@ -2797,6 +2800,96 @@ function sendJobCard(job, customer, vehicle, invoice) {
   const blob = new Blob([html], { type:"text/html" });
   const url  = URL.createObjectURL(blob);
   window.open(url, "_blank");
+}
+
+// Combines every job for one customer on one date into a single printable/emailable
+// document — one section per vehicle/job, useful when several vehicles were done on
+// the same visit and you want one sheet to hand over rather than several.
+function openDaySheet(data, customer, dateISO) {
+  const jobs = data.jobs.filter(j => j.customerId === customer.id && j.date === dateISO);
+  const fmtD = iso => { if (!iso) return ""; const [y,m,d] = iso.split("-"); return `${d}/${m}/${y}`; };
+  const toEmail = customer.email || "";
+  const subject = encodeURIComponent(`Job Sheet — ${customer.company || customer.companyContact || ""} · ${fmtD(dateISO)}`);
+  const bodyText = encodeURIComponent(`Please find attached the job sheet for ${fmtD(dateISO)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`);
+  const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${bodyText}`;
+
+  const row = (label, value) => value ? `
+    <tr>
+      <td style="padding:5px 0;font-size:12px;color:#6B7280;width:35%;vertical-align:top;">${label}</td>
+      <td style="padding:5px 0;font-size:12px;color:#111827;font-weight:600;">${value}</td>
+    </tr>` : "";
+
+  const sections = jobs.map((job, i) => {
+    const vehicle = job.vehicleId ? data.vehicles.find(v => v.id === job.vehicleId) : null;
+    const car = vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : "";
+    const invoice = data.invoices.find(inv => inv.jobId === job.id);
+    return `
+    <div style="border:1px solid #E5E7EB;border-radius:10px;padding:16px 18px;margin-bottom:14px;${i>0 ? 'page-break-inside:avoid;' : ''}">
+      <div style="font-size:14px;font-weight:800;color:#1E3A5F;margin-bottom:8px;">${i+1}. ${car || job.jobType}</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${row("Job Type", job.jobType)}
+        ${row("Driver", job.driverName)}
+        ${(job.repairs?.length ? job.repairs : [{type:job.damageType,side:job.damageSide,position:job.damagePosition}]).map((r,ri) => row(job.repairs?.length>1?`Repair ${ri+1}`:"Damage", [r.type, r.side, r.position].filter(Boolean).join(" · "))).join("")}
+        ${row("Payment", job.noCharge ? "Free / No Charge" : job.paymentType)}
+        ${row("Notes", job.notes)}
+      </table>
+      ${invoice ? `<div style="margin-top:10px;font-size:13px;font-weight:700;color:${invoice.paid?"#059669":"#D97706"};">£${parseFloat(invoice.total).toFixed(2)} — ${invoice.paid?"Paid":"Payment Awaited"}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Job Sheet</title>
+<style>
+  body { margin:0; padding:0; background:#F8FAFC; font-family:Arial,sans-serif; }
+  @media print { .no-print { display:none !important; } body { background:#fff; } }
+</style></head><body>
+<div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+  <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
+  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${toEmail ? `<a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>` : ""}
+</div>
+<div style="max-width:700px;margin:0 auto;padding:24px;background:#fff;">
+  <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:14px;margin-bottom:18px;">
+    <img src="${window.location.origin}/logo.png" style="width:56px;height:56px;object-fit:contain;" />
+    <div>
+      <div style="font-size:20px;font-weight:800;color:#1E3A5F;">Windscreen Repairs (Bristol)</div>
+      <div style="font-size:12px;color:#6B7280;">3 Goosander Grove, Cheddar, BS27 3FY · 07946 222246</div>
+    </div>
+  </div>
+  <div style="font-size:16px;font-weight:800;color:#1E3A5F;margin-bottom:4px;">Job Sheet — ${jobs.length} vehicle${jobs.length===1?"":"s"}</div>
+  <div style="font-size:13px;color:#6B7280;margin-bottom:18px;">${customer.company || customer.companyContact || ""} · ${fmtD(dateISO)}</div>
+  ${sections || '<p style="color:#9CA3AF;font-size:13px;">No jobs found for this date.</p>'}
+</div>
+</body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+// Picker for openDaySheet — lists every date this customer has at least one job on,
+// most recent first, flagging days with more than one vehicle since that's the
+// main use case (several vehicles done on the same visit).
+function DaySheetModal({ customer, data, onClose }) {
+  const byDate = {};
+  data.jobs.filter(j => j.customerId === customer.id).forEach(j => {
+    if (!j.date) return;
+    byDate[j.date] = (byDate[j.date] || 0) + 1;
+  });
+  const dates = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
+
+  return (
+    <Modal title="Day Sheet" onClose={onClose}>
+      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Pick a date to generate one combined sheet for every job done for {customer.company || customer.companyContact || "this customer"} that day.</p>
+      {dates.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No jobs found for this customer.</p>}
+      {dates.map(d => (
+        <button key={d} onClick={() => { openDaySheet(data, customer, d); onClose(); }}
+          style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", textAlign:"left", padding:"10px 12px", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:6, background: byDate[d]>1 ? "#EFF6FF" : "#fff", cursor:"pointer", fontFamily:"inherit" }}>
+          <span style={{ fontSize:14, fontWeight:600, color:"#111827" }}>{fmtDate(d)}</span>
+          <span style={{ fontSize:12, fontWeight:700, color: byDate[d]>1 ? "#1E3A5F" : "#9CA3AF" }}>{byDate[d]} vehicle{byDate[d]===1?"":"s"}</span>
+        </button>
+      ))}
+    </Modal>
+  );
 }
 
 // ── iCal Export ──────────────────────────────────────────────────────────────
