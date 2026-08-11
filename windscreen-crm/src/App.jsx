@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B49 · 18 Jul 2026";
+const BUILD_NUMBER = "B50 · 18 Jul 2026";
 
 const STATUS_META = {
   Booked:        { color: "#2563EB", bg: "#EFF6FF" },
@@ -2467,6 +2467,14 @@ function JobForm({ data, onClose, editJob, prefill }) {
 
   async function save() {
     if (!customerId) return;
+    if (["Complete","Invoiced","Paid"].includes(status) && date >= todayISO()) {
+      const proceed = window.confirm(
+        `This job is dated ${fmtDate(date)} (today or in the future) but its status is still "${status}" from before.\n\n` +
+        `If you're rescheduling this job, you probably want to change its Status back to "Booked" too — otherwise it'll show as already done.\n\n` +
+        `Save anyway with status "${status}"?`
+      );
+      if (!proceed) return;
+    }
     const jobs = [...data.jobs];
     const vehicles = [...data.vehicles, ...newVehicles];
     const first = repairs[0] || {};
