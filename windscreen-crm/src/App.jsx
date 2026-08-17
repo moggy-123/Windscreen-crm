@@ -6,7 +6,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B66 · 18 Jul 2026";
+const BUILD_NUMBER = "B67 · 18 Jul 2026";
 // Embedded directly (not a URL) so nothing in any emailed/printed report ever
 // reveals or links back to the actual live app address.
 const LOGO_DATA_URI = "data:image/png;base64,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";
@@ -78,6 +78,19 @@ function calcRepairPricing(data, customer, repairs) {
   });
   const total = lines.reduce((s, l) => s + l.price, 0);
   return { lines, total };
+}
+
+// Finds a job's invoice, whether it's a standalone single-job invoice (the Private
+// customer flow) or one line among several in a Trade customer's combined invoice.
+function findInvoiceForJob(data, jobId) {
+  return data.invoices.find(i => i.jobId === jobId || (i.lineItems || []).some(li => li.jobId === jobId));
+}
+// Every job id an invoice actually covers — its primary jobId plus any line items.
+function jobIdsForInvoice(invoice) {
+  const ids = new Set();
+  if (invoice.jobId) ids.add(invoice.jobId);
+  (invoice.lineItems || []).forEach(li => ids.add(li.jobId));
+  return [...ids];
 }
 
 function loadData() {
@@ -2253,7 +2266,7 @@ function JobsList({ data, setView, initialFilter }) {
 
   // Find which job ids have an invoice, and which are unpaid/overdue
   const invoiceByJob = {};
-  (data.invoices || []).forEach(inv => { invoiceByJob[inv.jobId] = inv; });
+  (data.invoices || []).forEach(inv => { jobIdsForInvoice(inv).forEach(jid => { invoiceByJob[jid] = inv; }); });
   const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
   const isUnpaid = (j) => { const inv = invoiceByJob[j.id]; return inv && !inv.paid; };
   const isOverdue = (j) => {
@@ -2810,15 +2823,22 @@ function sendJobCard(job, customer, vehicle, invoice) {
       ${row("Notes", job.notes)}
     </table>
 
-    ${invoice ? `
+    ${invoice ? (() => {
+      const thisLine = invoice.lineItems?.find(li => li.jobId === job.id);
+      const displayTotal = thisLine ? parseFloat(thisLine.price||0) : parseFloat(invoice.total||0);
+      const breakdown = thisLine
+        ? `This vehicle's share of a combined invoice`
+        : `Labour: £${parseFloat(invoice.labour||0).toFixed(2)} · Parts: £${parseFloat(invoice.parts||0).toFixed(2)}`;
+      return `
     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:20px 0;display:flex;justify-content:space-between;align-items:center;">
       <div>
         <div style="font-size:13px;color:#065F46;font-weight:600;">Total${invoice.vat ? " (inc. 20% VAT)" : ""}</div>
-        <div style="font-size:11px;color:#059669;">Labour: £${parseFloat(invoice.labour||0).toFixed(2)} · Parts: £${parseFloat(invoice.parts||0).toFixed(2)}</div>
+        <div style="font-size:11px;color:#059669;">${breakdown}</div>
         <div style="font-size:12px;color:${invoice.paid?"#059669":"#D97706"};font-weight:600;margin-top:4px;">${invoice.paid ? "✓ Paid" : "⏳ Payment Awaited"}</div>
       </div>
-      <div style="font-size:28px;font-weight:800;color:#065F46;">£${parseFloat(invoice.total).toFixed(2)}</div>
-    </div>` : ""}
+      <div style="font-size:28px;font-weight:800;color:#065F46;">£${displayTotal.toFixed(2)}</div>
+    </div>`;
+    })() : ""}
 
     ${photoSection(job.photosBefore, "📷 Before")}
     ${photoSection(job.photosAfter,  "✅ After")}
@@ -3026,7 +3046,7 @@ function JobDetail({ data, id, setView }) {
   const customer   = data.customers.find(c => c.id === job.customerId);
   const vehicle    = data.vehicles.find(v => v.id === job.vehicleId);
   const technician = data.technicians.find(t => t.id === job.technicianId);
-  const invoice    = data.invoices.find(i => i.jobId === id);
+  const invoice    = findInvoiceForJob(data, id);
 
   const nextStatuses = { "Booked":["Complete"], "Complete":[], "Invoiced":[], "Paid":[] };
 
@@ -3117,6 +3137,7 @@ function JobDetail({ data, id, setView }) {
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
               <div style={{ fontWeight:700, fontSize:14, color:"#065F46" }}>Invoice · £{invoice.total}</div>
+              {invoice.lineItems?.length > 1 && <div style={{ fontSize:12, color:"#065F46", fontWeight:600 }}>Combined — covers {invoice.lineItems.length} vehicles</div>}
               {invoice.sageInvoiceNo && <div style={{ fontSize:12, color:"#065F46", fontWeight:600 }}>Sage: {invoice.sageInvoiceNo}</div>}
               <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? "✓ Paid" : "Awaiting payment"}</div>
             </div>
@@ -3125,7 +3146,8 @@ function JobDetail({ data, id, setView }) {
               {!invoice.paid && (
                 <Btn size="sm" onClick={async () => {
                   const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
-                  const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Paid"} : j);
+                  const coveredIds = jobIdsForInvoice(invoice);
+                  const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Paid"} : j);
                   await saveAndReload({ ...data, invoices, jobs });
                 }}>Mark Paid</Btn>
               )}
@@ -3133,7 +3155,8 @@ function JobDetail({ data, id, setView }) {
                 <Btn size="sm" variant="ghost" onClick={async () => {
                   if (!window.confirm("Unmark this invoice as paid?")) return;
                   const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:false,paidDate:""} : i);
-                  const jobs = data.jobs.map(j => j.id===id ? {...j,status:"Invoiced"} : j);
+                  const coveredIds = jobIdsForInvoice(invoice);
+                  const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Invoiced"} : j);
                   await saveAndReload({ ...data, invoices, jobs });
                 }}>Unmark Paid</Btn>
               )}
@@ -3174,8 +3197,12 @@ function JobDetail({ data, id, setView }) {
 function InvoiceForm({ data, jobId, editInvoice, onClose }) {
   const job = data.jobs.find(j => j.id === jobId);
   const customer = data.customers.find(c => c.id === job?.customerId);
+  const isTrade = customer?.custType === "Trade";
+
+  if (isTrade) return <TradeInvoiceForm data={data} job={job} customer={customer} editInvoice={editInvoice} onClose={onClose} />;
+
+  // ── Private customers: unchanged simple single-job invoice ──
   const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
-  // Auto-fill details from the job's repairs (for new invoices)
   const autoDetails = reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
   const pricing = calcRepairPricing(data, customer, reps);
   const [details, setDetails] = useState(editInvoice?.details ?? autoDetails);
@@ -3207,7 +3234,7 @@ function InvoiceForm({ data, jobId, editInvoice, onClose }) {
       </Field>
       {pricing.lines.length > 0 && !editInvoice && (
         <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:8, padding:"10px 12px", marginBottom:14 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", marginBottom:6 }}>Suggested Price (from {customer?.custType === "Trade" ? customer.company || "customer" : "default"} pricing)</div>
+          <div style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", marginBottom:6 }}>Suggested Price (default pricing)</div>
           {pricing.lines.map((l, idx) => (
             <div key={idx} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#374151", marginBottom:2 }}>
               <span>{l.repair.type || "Repair"} ({l.count === 1 ? "1st" : l.count === 2 ? "2nd" : "3rd+"})</span>
@@ -3223,6 +3250,121 @@ function InvoiceForm({ data, jobId, editInvoice, onClose }) {
         <Input value={sageInvoiceNo} onChange={setSageInvoiceNo} placeholder="e.g. INV-00123" />
       </Field>
       <Field label="Labour (£)"><Input type="number" value={labour} onChange={setLabour} placeholder="0.00" /></Field>
+      <Field label="Parts (£)"><Input type="number" value={parts} onChange={setParts} placeholder="0.00" /></Field>
+      <Field label="VAT">
+        <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151" }}>
+          <input type="checkbox" checked={vat} onChange={e => setVat(e.target.checked)} style={{ width:16, height:16 }} />
+          Apply 20% VAT
+        </label>
+      </Field>
+      <div style={{ background:"#F9FAFB", borderRadius:8, padding:"12px 14px", marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>Subtotal</span><span>£{subtotal.toFixed(2)}</span></div>
+        {vat && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>VAT (20%)</span><span>£{(subtotal*0.2).toFixed(2)}</span></div>}
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, fontWeight:800, color:"#111827", borderTop:"1px solid #E5E7EB", paddingTop:8, marginTop:4 }}><span>Total</span><span>£{total.toFixed(2)}</span></div>
+      </div>
+      <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>Save Invoice</Btn>
+    </Modal>
+  );
+}
+
+// Trade customers: rather than one invoice per job, every job for the same customer on
+// the same day is automatically combined into a single invoice. Opening "Create Invoice"
+// from any job on that day either starts a new combined invoice, or adds to whichever one
+// already exists for that customer + date.
+function TradeInvoiceForm({ data, job, customer, editInvoice, onClose }) {
+  const buildLine = (j) => {
+    const vehicle = j.vehicleId ? data.vehicles.find(v => v.id === j.vehicleId) : null;
+    const reps = j.repairs?.length ? j.repairs : (j.damageType ? [{ type: j.damageType, side: j.damageSide, position: j.damagePosition }] : []);
+    const desc = [vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : "", reps.map(r => `${r.type||"Repair"}${r.side?" – "+r.side:""}${r.position?" "+r.position:""}`).join(", ")].filter(Boolean).join(" — ");
+    const price = calcRepairPricing(data, customer, reps).total;
+    return { id: uid(), jobId: j.id, description: desc, price: price ? price.toFixed(2) : "0.00" };
+  };
+
+  // If not already editing a specific invoice, look for one already covering this
+  // customer + date (started from a sibling job) so we add to it rather than duplicate.
+  const existingCombined = !editInvoice && job
+    ? data.invoices.find(inv => (inv.lineItems||[]).some(li => {
+        const j2 = data.jobs.find(x => x.id === li.jobId);
+        return j2 && j2.customerId === customer.id && j2.date === job.date;
+      }))
+    : null;
+  const baseInvoice = editInvoice || existingCombined;
+
+  const [lineItems, setLineItems] = useState(() => {
+    let items = baseInvoice?.lineItems ? [...baseInvoice.lineItems] : [];
+    if (job && !items.some(li => li.jobId === job.id)) items = [...items, buildLine(job)];
+    return items;
+  });
+  const [parts, setParts] = useState(baseInvoice?.parts ?? "");
+  const [vat, setVat] = useState(baseInvoice?.vat ?? false);
+  const [sageInvoiceNo, setSageInvoiceNo] = useState(baseInvoice?.sageInvoiceNo ?? "");
+
+  // Other jobs for this same customer + date, not yet on the invoice — offered as an
+  // easy way to pull in a sibling job that wasn't auto-detected (e.g. added afterwards).
+  const otherSameDayJobs = job
+    ? data.jobs.filter(j2 => j2.customerId === customer.id && j2.date === job.date && j2.id !== job.id && !lineItems.some(li => li.jobId === j2.id))
+    : [];
+
+  const updateLine = (id, field, value) => setLineItems(items => items.map(li => li.id === id ? { ...li, [field]: value } : li));
+  const removeLine = (id) => setLineItems(items => items.length > 1 ? items.filter(li => li.id !== id) : items);
+  const addJob = (jobId) => { const j2 = data.jobs.find(x => x.id === jobId); if (j2) setLineItems(items => [...items, buildLine(j2)]); };
+
+  const linesTotal = lineItems.reduce((s, li) => s + (parseFloat(li.price)||0), 0);
+  const subtotal = linesTotal + (parseFloat(parts)||0);
+  const total = vat ? subtotal * 1.2 : subtotal;
+
+  async function save() {
+    const rec = { lineItems, parts, vat, sageInvoiceNo, total: total.toFixed(2), jobId: lineItems[0]?.jobId };
+    const coveredIds = lineItems.map(li => li.jobId);
+    let invoices;
+    if (baseInvoice) {
+      invoices = data.invoices.map(i => i.id === baseInvoice.id ? { ...i, ...rec } : i);
+    } else {
+      invoices = [...data.invoices, { id: uid(), ...rec, paid: false, createdAt: todayISO() }];
+    }
+    const jobs = data.jobs.map(j2 => coveredIds.includes(j2.id) ? { ...j2, status: "Invoiced" } : j2);
+    try {
+      await saveAndReload({ ...data, invoices, jobs });
+    } catch (e) {
+      alert("Save failed: " + (e?.message || e));
+    }
+  }
+
+  return (
+    <Modal title={baseInvoice ? "Edit Invoice" : "Create Invoice"} onClose={onClose}>
+      {lineItems.length > 1 && (
+        <p style={{ fontSize:12, color:"#1D4ED8", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"8px 10px", marginBottom:12 }}>
+          📋 Combined invoice — covers {lineItems.length} vehicles done for {customer.company || customer.companyContact} on {fmtDate(job?.date)}.
+        </p>
+      )}
+      <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Line Items</div>
+      {lineItems.map((li, idx) => (
+        <div key={li.id} style={{ background:"#F8FAFC", border:"1px solid #F3F4F6", borderRadius:10, padding:12, marginBottom:8 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:"#1E3A5F" }}>Line {idx+1}</span>
+            {lineItems.length > 1 && <button onClick={() => removeLine(li.id)} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:600, cursor:"pointer" }}>Remove</button>}
+          </div>
+          <textarea value={li.description} onChange={e => updateLine(li.id, "description", e.target.value)} rows={2}
+            style={{ width:"100%", padding:"8px 10px", borderRadius:6, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:13, resize:"vertical", boxSizing:"border-box", marginBottom:6 }} />
+          <Input type="number" value={li.price} onChange={v => updateLine(li.id, "price", v)} placeholder="0.00" />
+        </div>
+      ))}
+      {otherSameDayJobs.length > 0 && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"#6B7280", marginBottom:6 }}>Other vehicles for {customer.company || customer.companyContact} that day:</div>
+          {otherSameDayJobs.map(j2 => {
+            const v2 = j2.vehicleId ? data.vehicles.find(v => v.id === j2.vehicleId) : null;
+            return (
+              <button key={j2.id} onClick={() => addJob(j2.id)} style={{ display:"block", width:"100%", textAlign:"left", background:"#F3F4F6", border:"1px dashed #D1D5DB", borderRadius:8, padding:"8px 10px", fontSize:13, color:"#374151", cursor:"pointer", marginBottom:5, fontFamily:"inherit" }}>
+                + Add {v2 ? `${v2.make} ${v2.model} · ${v2.reg}` : j2.jobType}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <Field label="Sage Invoice Number">
+        <Input value={sageInvoiceNo} onChange={setSageInvoiceNo} placeholder="e.g. INV-00123" />
+      </Field>
       <Field label="Parts (£)"><Input type="number" value={parts} onChange={setParts} placeholder="0.00" /></Field>
       <Field label="VAT">
         <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151" }}>
@@ -3293,6 +3435,7 @@ function InvoicesList({ data, setView, initialFilter }) {
             <div>
               <div style={{ fontWeight:700, fontSize:15 }}>{inv.customer?.company||"Unknown"}</div>
               <div style={{ fontSize:12, color:"#9CA3AF" }}>{fmtDate(inv.job?.date || inv.createdAt)}{inv.job?.jobType ? " · " + inv.job.jobType : ""}</div>
+              {inv.lineItems?.length > 1 && <div style={{ fontSize:12, color:"#1E3A5F", fontWeight:600, marginTop:1 }}>📋 Combined — {inv.lineItems.length} vehicles</div>}
               {inv.vehicle && <div style={{ fontSize:12, color:"#6B7280", marginTop:1 }}>🚗 {[inv.vehicle.make, inv.vehicle.model, inv.vehicle.reg].filter(Boolean).join(" · ")}</div>}
               {inv.sageInvoiceNo && <div style={{ fontSize:12, color:"#1E3A5F", fontWeight:600, marginTop:1 }}>Sage: {inv.sageInvoiceNo}</div>}
             </div>
