@@ -100,12 +100,14 @@ const jobFromDb = r => ({
 const invoiceToDb = i => ({
   id: i.id, job_id: i.jobId, details: i.details || "", labour: i.labour, parts: i.parts, vat: !!i.vat,
   total: i.total, paid: !!i.paid, paid_date: i.paidDate, sage_invoice_no: i.sageInvoiceNo || "",
+  line_items: i.lineItems || [],
   updated_at: i.updatedAt || Date.now(),
   created_at: i.createdAt || new Date().toISOString(),
 });
 const invoiceFromDb = r => ({
   id: r.id, jobId: r.job_id, details: r.details, labour: r.labour, parts: r.parts, vat: r.vat,
   total: r.total, paid: r.paid, paidDate: r.paid_date, sageInvoiceNo: r.sage_invoice_no || "",
+  lineItems: r.line_items || [],
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
