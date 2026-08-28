@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   const redirectUri = `${APP_URL}/api/sage-callback`;
   const state = Math.random().toString(36).slice(2);
 
-  const authUrl = `https://www.sageone.com/oauth2/auth/central` +
+  const authUrl = `https://www.sageone.com/oauth2/auth` +
     `?filter=apiv3.1` +
     `&response_type=code` +
     `&client_id=${encodeURIComponent(CLIENT_ID)}` +
