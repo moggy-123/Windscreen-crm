@@ -9,7 +9,7 @@
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-const RESEND_FROM = "Windscreen Repairs Bristol <invoices@windscreenrepairsbristol.co.uk>";
+const RESEND_FROM = "Windscreen Repairs Bristol <info@windscreenrepairsbristol.co.uk>";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
