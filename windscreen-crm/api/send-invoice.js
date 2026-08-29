@@ -1,9 +1,10 @@
 // Serverless function (runs on Vercel, not in the browser) — this is the "backend piece".
-// It builds a real PDF invoice from scratch (not a browser print-to-PDF) and emails it
-// directly via Resend, with the PDF properly attached. No manual download/attach step.
+// It builds a real PDF invoice from scratch (not a browser print-to-PDF). Two modes:
+//   previewOnly: true  -> builds the PDF and returns it as base64, doesn't send anything
+//   previewOnly: false -> builds the PDF and actually emails it via Resend
 //
-// Needs one thing set up in Vercel before it will work: an environment variable called
-// RESEND_API_KEY (Vercel dashboard -> Project -> Settings -> Environment Variables).
+// Needs one thing set up in Vercel before sending will work: an environment variable
+// called RESEND_API_KEY (Vercel dashboard -> Project -> Settings -> Environment Variables).
 // The RESEND_FROM address below must be on a domain verified in your Resend account.
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
@@ -15,15 +16,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (!RESEND_API_KEY) {
-    return res.status(500).json({ error: "Email sending isn't set up yet — RESEND_API_KEY is missing from Vercel's environment variables." });
-  }
-
   try {
-    const { to, customerName, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate } = req.body || {};
-    if (!to) return res.status(400).json({ error: "No recipient email address was provided." });
+    const { to, customerName, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate, previewOnly } = req.body || {};
     if (!total) return res.status(400).json({ error: "No invoice total was provided." });
+    if (!previewOnly && !to) return res.status(400).json({ error: "No recipient email address was provided." });
+    // Every invoice needs its Sage reference recorded before it goes out — keeps the
+    // app and Sage in sync, and avoids sending something with no way to reconcile it later.
+    if (!sageInvoiceNo) return res.status(400).json({ error: "Add the Sage Invoice Number before sending this invoice." });
 
     // ── Build the PDF ──────────────────────────────────────────────────────
     const pdfDoc = await PDFDocument.create();
@@ -54,7 +53,8 @@ export default async function handler(req, res) {
     const dateStr = new Date().toLocaleDateString("en-GB");
     page.drawText(`Invoice date: ${dateStr}`, { x: left, y, size: 9, font, color: grey });
     y -= 12;
-    if (sageInvoiceNo) { page.drawText(`Reference: ${sageInvoiceNo}`, { x: left, y, size: 9, font, color: grey }); y -= 12; }
+    page.drawText(`Reference: ${sageInvoiceNo}`, { x: left, y, size: 9, font, color: grey });
+    y -= 12;
     y -= 14;
 
     // Table header
@@ -100,26 +100,41 @@ export default async function handler(req, res) {
     y -= 24;
     page.drawText(`Total${vat ? " (inc. VAT)" : ""}`, { x: right - 180, y, size: 13, font: bold, color: navy });
     page.drawText(`£${parseFloat(total).toFixed(2)}`, { x: right - 60, y, size: 13, font: bold, color: navy });
-    y -= 28;
+
+    // ── Footer — payment terms and payment details, fixed near the bottom of the
+    // page regardless of how long the itemised section above happens to be ──────
+    const footerTop = 150;
+    page.drawLine({ start: { x: left, y: footerTop }, end: { x: right, y: footerTop }, thickness: 1, color: rgb(0.9, 0.9, 0.9) });
+    let fy = footerTop - 20;
 
     const termsLine = paid
       ? `Paid${paidDate ? " " + paidDate : ""}`
       : (custType === "Trade" ? "Payment due within 30 days" : "Payment due by return — please pay promptly using the details below");
-    page.drawText(termsLine, { x: left, y, size: 10, font: bold, color: paid ? green : amber });
-    y -= 34;
+    page.drawText(termsLine, { x: left, y: fy, size: 10, font: bold, color: paid ? green : amber });
+    fy -= 22;
 
-    page.drawText("PAYMENT DETAILS", { x: left, y, size: 9, font: bold, color: grey });
-    y -= 15;
-    page.drawText("David Morgan trading as Windscreen Repairs (Bristol)", { x: left, y, size: 10, font, color: black });
-    y -= 14;
-    page.drawText("Account number: 02340725", { x: left, y, size: 10, font, color: black });
-    y -= 14;
-    page.drawText("Sort code: 04-00-06", { x: left, y, size: 10, font, color: black });
+    page.drawText("PAYMENT DETAILS", { x: left, y: fy, size: 9, font: bold, color: grey });
+    fy -= 15;
+    page.drawText("David Morgan trading as Windscreen Repairs (Bristol)", { x: left, y: fy, size: 10, font, color: black });
+    fy -= 14;
+    page.drawText("Account number: 02340725", { x: left, y: fy, size: 10, font, color: black });
+    fy -= 14;
+    page.drawText("Sort code: 04-00-06", { x: left, y: fy, size: 10, font, color: black });
 
     const pdfBytes = await pdfDoc.save();
     const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
 
+    // ── Preview mode: return the PDF, don't send anything ──────────────────
+    if (previewOnly) {
+      return res.status(200).json({ preview: true, pdfBase64 });
+    }
+
     // ── Send via Resend ────────────────────────────────────────────────────
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    if (!RESEND_API_KEY) {
+      return res.status(500).json({ error: "Email sending isn't set up yet — RESEND_API_KEY is missing from Vercel's environment variables." });
+    }
+
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
