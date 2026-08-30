@@ -41,19 +41,24 @@ export default async function handler(req, res) {
     let y = 800;
     const left = 50, right = 545;
 
-    // Logo — twice the size used previously
+    // Logo — twice the size used previously, vertically centred against the full
+    // 3-line text block (title + two address lines) rather than just its top.
+    const titleY = y;
+    const line2Y = titleY - 18;
+    const line3Y = line2Y - 14;
+    const titleSize = 18, addrSize = 10;
+    const textCenterY = ((titleY + titleSize * 0.72) + (line3Y - addrSize * 0.25)) / 2;
+
     const logoPng = await pdfDoc.embedPng(LOGO_DATA_URI);
     const logoDims = logoPng.scale(112 / logoPng.width);
-    page.drawImage(logoPng, { x: left, y: y - logoDims.height + 6, width: logoDims.width, height: logoDims.height });
+    page.drawImage(logoPng, { x: left, y: textCenterY - logoDims.height / 2, width: logoDims.width, height: logoDims.height });
 
     const textX = left + logoDims.width + 14;
-    page.drawText("Windscreen Repairs (Bristol)", { x: textX, y, size: 18, font: bold, color: navy });
-    y -= 18;
-    page.drawText("3 Goosander Grove, Cheddar, BS27 3FY  |  07946 222246", { x: textX, y, size: 10, font, color: grey });
-    y -= 14;
-    page.drawText("info@windscreenrepairsbristol.co.uk", { x: textX, y, size: 10, font, color: grey });
-    // Make sure the divider line clears the (now much taller) logo either way
-    y = Math.min(y - 10, y - logoDims.height + 6 - 8);
+    page.drawText("Windscreen Repairs (Bristol)", { x: textX, y: titleY, size: titleSize, font: bold, color: navy });
+    page.drawText("3 Goosander Grove, Cheddar, BS27 3FY  |  07946 222246", { x: textX, y: line2Y, size: addrSize, font, color: grey });
+    page.drawText("info@windscreenrepairsbristol.co.uk", { x: textX, y: line3Y, size: addrSize, font, color: grey });
+    // Make sure the divider line clears the (much taller) logo either way
+    y = Math.min(line3Y - 10, textCenterY - logoDims.height / 2 - 8);
     page.drawLine({ start: { x: left, y }, end: { x: right, y }, thickness: 2, color: rgb(0.96, 0.62, 0.04) });
     y -= 26;
 
