@@ -34,18 +34,16 @@ export default async function handler(req, res) {
     const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const navy = rgb(0.118, 0.227, 0.373);
     const grey = rgb(0.42, 0.45, 0.5);
-    const lightGrey = rgb(0.976, 0.980, 0.984);
-    const lineGrey = rgb(0.9, 0.9, 0.9);
     const green = rgb(0.02, 0.6, 0.4);
-    const greenBg = rgb(0.941, 0.992, 0.957);
-    const greenBorder = rgb(0.733, 0.969, 0.816);
     const amber = rgb(0.85, 0.55, 0.02);
     const black = rgb(0.07, 0.09, 0.11);
 
     let y = 800;
     const left = 50, right = 545;
+
+    // Logo — twice the size used previously
     const logoPng = await pdfDoc.embedPng(LOGO_DATA_URI);
-    const logoDims = logoPng.scale(56 / logoPng.width);
+    const logoDims = logoPng.scale(112 / logoPng.width);
     page.drawImage(logoPng, { x: left, y: y - logoDims.height + 6, width: logoDims.width, height: logoDims.height });
 
     const textX = left + logoDims.width + 14;
@@ -54,8 +52,8 @@ export default async function handler(req, res) {
     page.drawText("3 Goosander Grove, Cheddar, BS27 3FY  |  07946 222246", { x: textX, y, size: 10, font, color: grey });
     y -= 14;
     page.drawText("info@windscreenrepairsbristol.co.uk", { x: textX, y, size: 10, font, color: grey });
-    y = y - 10 < 800 - logoDims.height - 6 ? y : 800 - logoDims.height - 6;
-    y -= 8;
+    // Make sure the divider line clears the (now much taller) logo either way
+    y = Math.min(y - 10, y - logoDims.height + 6 - 8);
     page.drawLine({ start: { x: left, y }, end: { x: right, y }, thickness: 2, color: rgb(0.96, 0.62, 0.04) });
     y -= 26;
 
@@ -69,14 +67,12 @@ export default async function handler(req, res) {
     y -= 12;
     y -= 14;
 
-    // Table header, with a light grey background band like the rest of the app's reports
-    page.drawRectangle({ x: left, y: y - 4, width: right - left, height: 22, color: lightGrey });
-    page.drawText("#", { x: left + 8, y: y + 4, size: 9, font: bold, color: grey });
-    page.drawText("DESCRIPTION", { x: left + 32, y: y + 4, size: 9, font: bold, color: grey });
-    page.drawText("AMOUNT", { x: right - 60, y: y + 4, size: 9, font: bold, color: grey });
+    // Table header
+    page.drawText("Description", { x: left, y, size: 9, font: bold, color: grey });
+    page.drawText("Amount", { x: right - 60, y, size: 9, font: bold, color: grey });
     y -= 6;
-    page.drawLine({ start: { x: left, y }, end: { x: right, y }, thickness: 1, color: lineGrey });
-    y -= 20;
+    page.drawLine({ start: { x: left, y }, end: { x: right, y }, thickness: 1, color: rgb(0.9, 0.9, 0.9) });
+    y -= 16;
 
     const wrapText = (text, maxChars) => {
       const words = String(text || "").split(" ");
@@ -94,56 +90,46 @@ export default async function handler(req, res) {
       ? lineItems.map(li => ({ description: li.description, price: li.price }))
       : [{ description: details || "Windscreen Repair", price: labour || total }];
 
-    items.forEach((item, idx) => {
-      const lines = wrapText(item.description, 72);
+    for (const item of items) {
+      const lines = wrapText(item.description, 78);
       lines.forEach((line, i) => {
-        if (i === 0) page.drawText(String(idx + 1), { x: left + 8, y, size: 10, font, color: grey });
-        page.drawText(line, { x: left + 32, y, size: 10, font, color: black });
-        if (i === 0) page.drawText(`£${(parseFloat(item.price) || 0).toFixed(2)}`, { x: right - 60, y, size: 10, font: bold, color: black });
+        page.drawText(line, { x: left, y, size: 10, font, color: black });
+        if (i === 0) page.drawText(`£${(parseFloat(item.price) || 0).toFixed(2)}`, { x: right - 60, y, size: 10, font, color: black });
         y -= 14;
       });
-      y -= 6;
-      if (idx < items.length - 1) { page.drawLine({ start: { x: left, y: y + 4 }, end: { x: right, y: y + 4 }, thickness: 0.5, color: lineGrey }); y -= 4; }
-    });
-    if (parseFloat(parts) > 0) {
-      page.drawLine({ start: { x: left, y: y + 4 }, end: { x: right, y: y + 4 }, thickness: 0.5, color: lineGrey });
       y -= 4;
-      page.drawText("Parts", { x: left + 32, y, size: 10, font, color: black });
-      page.drawText(`£${parseFloat(parts).toFixed(2)}`, { x: right - 60, y, size: 10, font: bold, color: black });
-      y -= 20;
+    }
+    if (parseFloat(parts) > 0) {
+      page.drawText("Parts", { x: left, y, size: 10, font, color: black });
+      page.drawText(`£${parseFloat(parts).toFixed(2)}`, { x: right - 60, y, size: 10, font, color: black });
+      y -= 18;
     }
 
-    y -= 6;
-
-    // Total, in a green highlight box like the rest of the app's reports
-    const totalBoxH = 34;
-    page.drawRectangle({ x: left, y: y - totalBoxH + 12, width: right - left, height: totalBoxH, color: greenBg, borderColor: greenBorder, borderWidth: 1 });
-    page.drawText(`Total${vat ? " (inc. VAT)" : ""}`, { x: left + 14, y: y - 6, size: 13, font: bold, color: green });
-    page.drawText(`£${parseFloat(total).toFixed(2)}`, { x: right - 80, y: y - 6, size: 15, font: bold, color: green });
-    y -= totalBoxH + 8;
+    y -= 8;
+    page.drawLine({ start: { x: left, y }, end: { x: right, y }, thickness: 1, color: rgb(0.9, 0.9, 0.9) });
+    y -= 24;
+    page.drawText(`Total${vat ? " (inc. VAT)" : ""}`, { x: right - 180, y, size: 13, font: bold, color: navy });
+    page.drawText(`£${parseFloat(total).toFixed(2)}`, { x: right - 60, y, size: 13, font: bold, color: navy });
 
     // ── Footer — payment terms and payment details, fixed near the bottom of the
     // page regardless of how long the itemised section above happens to be ──────
     const footerTop = 150;
-    page.drawLine({ start: { x: left, y: footerTop }, end: { x: right, y: footerTop }, thickness: 1, color: lineGrey });
+    page.drawLine({ start: { x: left, y: footerTop }, end: { x: right, y: footerTop }, thickness: 1, color: rgb(0.9, 0.9, 0.9) });
     let fy = footerTop - 20;
 
     const termsLine = paid
       ? `Paid${paidDate ? " " + paidDate : ""}`
       : (custType === "Trade" ? "Payment due within 30 days" : "Payment due by return — please pay promptly using the details below");
     page.drawText(termsLine, { x: left, y: fy, size: 10, font: bold, color: paid ? green : amber });
-    fy -= 24;
+    fy -= 22;
 
-    // Payment details, in a light grey box like the rest of the app's reports
-    page.drawRectangle({ x: left, y: fy - 62, width: right - left, height: 78, color: lightGrey, borderColor: lineGrey, borderWidth: 1 });
-    fy -= 12;
-    page.drawText("PAYMENT DETAILS", { x: left + 14, y: fy, size: 9, font: bold, color: grey });
-    fy -= 18;
-    page.drawText("David Morgan trading as Windscreen Repairs (Bristol)", { x: left + 14, y: fy, size: 10, font, color: black });
+    page.drawText("PAYMENT DETAILS", { x: left, y: fy, size: 9, font: bold, color: grey });
     fy -= 15;
-    page.drawText("Account number: 02340725", { x: left + 14, y: fy, size: 10, font, color: black });
-    fy -= 15;
-    page.drawText("Sort code: 04-00-06", { x: left + 14, y: fy, size: 10, font, color: black });
+    page.drawText("David Morgan trading as Windscreen Repairs (Bristol)", { x: left, y: fy, size: 10, font, color: black });
+    fy -= 14;
+    page.drawText("Account number: 02340725", { x: left, y: fy, size: 10, font, color: black });
+    fy -= 14;
+    page.drawText("Sort code: 04-00-06", { x: left, y: fy, size: 10, font, color: black });
 
     const pdfBytes = await pdfDoc.save();
     const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
