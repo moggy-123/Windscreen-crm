@@ -8,7 +8,7 @@
 // called RESEND_API_KEY (Vercel dashboard -> Project -> Settings -> Environment Variables).
 // The RESEND_FROM address below must be on a domain verified in your Resend account.
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 
 const RESEND_FROM = "Windscreen Repairs Bristol <info@windscreenrepairsbristol.co.uk>";
 // Same logo image used throughout the app's own reports — embedded directly (not a
@@ -188,6 +188,20 @@ export default async function handler(req, res) {
     // Footer — payment terms and payment details, fixed near the bottom of the page
     // regardless of how long the itemised section above happens to be
     const footerTop = 150;
+
+    // PAID stamp — sits in whatever whitespace is available between the total and the
+    // footer, so it looks right whether the invoice is short or has several line items
+    if (paid) {
+      const stampCenterY = (y + footerTop) / 2;
+      page.drawText("PAID", {
+        x: LEFT + 130, y: stampCenterY - 25,
+        size: 64,
+        font: bold,
+        color: rgb(0.75, 0.1, 0.1),
+        rotate: degrees(-20),
+      });
+    }
+
     page.drawLine({ start: { x: LEFT, y: footerTop }, end: { x: RIGHT, y: footerTop }, thickness: 1, color: rgb(0.9, 0.9, 0.9) });
     let fy = footerTop - 20;
 
