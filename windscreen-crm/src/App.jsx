@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B91 · 18 Jul 2026";
+const BUILD_NUMBER = "B92 · 18 Jul 2026";
 // Embedded directly (not a URL) so nothing in any emailed/printed report ever
 // reveals or links back to the actual live app address.
 const LOGO_DATA_URI = "data:image/png;base64,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";
@@ -1009,6 +1009,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
 // Bump this whenever the wording below changes, so the app can tell who's been
 // sent an out-of-date version and flag them for a resend.
 const TERMS_VERSION = "2026-07-24";
+const TERMS_INTRO = "Please read these Terms and Conditions carefully. By booking a repair service with Windscreen Repairs Bristol (\"the Company\", \"we\", \"us\") verbally, over the phone, via text, or in writing, you (\"the Customer\", \"you\") agree to be bound by these terms.";
 const TERMS_SECTIONS = [
   { title: "1. General & Bookings", items: [
     { h: "Contract Formation", t: "A binding contract is formed when a booking is confirmed either verbally (during a phone call or in person) or in writing (via text message, email, or website booking)." },
@@ -1046,53 +1047,40 @@ const TERMS_SECTIONS = [
   ]},
 ];
 
-// Pure, synchronous — opens the formatted Terms & Conditions document. `mailtoLink` (if
-// given) drives the "Open Mail App" button; leave it out for a plain view/print-only open.
-function openTermsWindow(mailtoLink) {
-  const logoUrl = LOGO_DATA_URI;
-  const sections = TERMS_SECTIONS.map(sec => `
-    <div style="margin-bottom:18px;">
-      <div style="font-size:14px;font-weight:800;color:#1E3A5F;margin-bottom:8px;">${sec.title}</div>
-      ${sec.items.map(it => `
-        <div style="margin-bottom:8px;">
-          ${it.h ? `<span style="font-weight:700;color:#111827;font-size:13px;">${it.h}: </span>` : ""}
-          <span style="font-size:13px;color:#374151;line-height:1.5;">${it.t}</span>
-        </div>`).join("")}
-    </div>`).join("");
+// Emails the real Terms & Conditions PDF (built server-side) to one customer. Throws on
+// failure, so callers can decide how to handle/report it.
+async function sendTermsToCustomer(customer) {
+  const res = await fetch("/api/send-terms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      to: customer.email,
+      customerName: customer.company || customer.companyContact || "",
+      sections: TERMS_SECTIONS,
+      intro: TERMS_INTRO,
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Send failed");
+}
 
-  const html = `<!DOCTYPE html>
-<html><head><script>try{window.opener=null;}catch(e){}</script><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terms and Conditions</title>
-<style>
-  body { margin:0; padding:0; background:#F8FAFC; font-family:Arial,sans-serif; }
-  @media print { .no-print { display:none !important; } body { background:#fff; } }
-</style></head><body>
-<div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
-  <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
-  <div style="font-size:11px;color:#FCA5A5;font-weight:700;width:100%;text-align:center;margin-top:2px;">⚠️ On a computer: in the print dialog, turn OFF "Headers and Footers" first, or your private app address gets printed at the bottom</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
-  <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">✕ Close</button>
-  ${mailtoLink ? `<a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>` : ""}
-</div>
-<div style="max-width:760px;margin:0 auto;padding:24px;background:#fff;">
-  <div style="display:flex;align-items:center;gap:14px;border-bottom:3px solid #F59E0B;padding-bottom:14px;margin-bottom:18px;">
-    <img src="${logoUrl}" style="width:56px;height:56px;object-fit:contain;" />
-    <div>
-      <div style="font-size:20px;font-weight:800;color:#1E3A5F;">Windscreen Repairs (Bristol)</div>
-      <div style="font-size:12px;color:#6B7280;">3 Goosander Grove, Cheddar, BS27 3FY · 07946 222246</div>
-      <div style="font-size:12px;color:#6B7280;">info@windscreenrepairsbristol.co.uk</div>
-    </div>
-  </div>
-  <div style="font-size:17px;font-weight:800;color:#1E3A5F;margin-bottom:4px;">Terms and Conditions for Windscreen Repair Services</div>
-  <div style="font-size:12px;color:#9CA3AF;margin-bottom:18px;">Please read these Terms and Conditions carefully. By booking a repair service with Windscreen Repairs Bristol ("the Company", "we", "us") verbally, over the phone, via text, or in writing, you ("the Customer", "you") agree to be bound by these terms.</div>
-  ${sections}
-</div>
-</body></html>`;
-  // Opens a blank tab and writes the content directly in, rather than navigating
-  // to a blob: URL — a blob URL's address bar reveals the real app domain (which a
-  // browser's print footer can then expose); about:blank never does.
-  const win = window.open("about:blank", "_blank");
-  if (win) { win.document.open(); win.document.write(html); win.document.close(); }
-  else { alert("Please allow pop-ups for this site, then try again."); }
+// Opens the real Terms & Conditions PDF for viewing, without sending anything.
+async function previewTermsPdf() {
+  const res = await fetch("/api/send-terms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ previewOnly: true, sections: TERMS_SECTIONS, intro: TERMS_INTRO }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Preview failed");
+  const byteChars = atob(json.pdfBase64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  if (!win) alert("Please allow pop-ups for this site, then try again.");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // A customer's unpaid invoices, each enriched with its job/vehicle for display, oldest first
@@ -1472,6 +1460,7 @@ function CustomerDetail({ data, id, setView }) {
   const [showCommLog, setShowCommLog] = useState(false);
   const [editingComm, setEditingComm] = useState(null);
   const [logContact, setLogContact]   = useState(null);
+  const [termsSendStatus, setTermsSendStatus] = useState(null); // null | "sending" | "sent" | "error"
   const comms = data.communications ? data.communications.filter(c => c.customerId === id).sort((a,b) => (b.timestamp||0)-(a.timestamp||0)) : [];
   if (!customer) return <p>Not found</p>;
 
@@ -1603,10 +1592,17 @@ function CustomerDetail({ data, id, setView }) {
           {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
           <Btn size="sm" variant="ghost" onClick={() => { setEditingComm(null); setLogContact(null); setShowCommLog(true); }}>💬 Log / Message</Btn>
           {customer.email && customer.custType === "Trade" && (
-            <Btn size="sm" variant="ghost" onClick={() => {
-              openTermsWindow(`mailto:${customer.email}?subject=${encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol")}`);
-              quickLog("Email", "Terms & Conditions sent (PDF)", {}, true);
-            }}>📜 Download & Send T&Cs</Btn>
+            <Btn size="sm" variant="ghost" disabled={termsSendStatus==="sending"} onClick={async () => {
+              setTermsSendStatus("sending");
+              try {
+                await sendTermsToCustomer(customer);
+                quickLog("Email", "Terms & Conditions emailed", {}, true);
+                setTermsSendStatus("sent");
+              } catch (e) {
+                setTermsSendStatus("error");
+                alert("Couldn't send the terms: " + (e?.message || e));
+              }
+            }}>{termsSendStatus==="sending" ? "Sending…" : termsSendStatus==="sent" ? "✓ Sent" : "📜 Email T&Cs"}</Btn>
           )}
           <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
           <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
@@ -4063,19 +4059,43 @@ function SettingsTermsView({ data, setView }) {
     return { label: `Outdated — sent ${new Date(c.termsSentAt).toLocaleDateString("en-GB")}`, color: "#B45309", bg: "#FFFBEB" };
   }
 
-  function emailSelectedTrade() {
+  const [sendStatus, setSendStatus] = useState(null); // null | "sending" | { sentCount, failed: [{name, error}] }
+  const [previewStatus, setPreviewStatus] = useState(null); // null | "loading"
+
+  async function emailSelectedTrade() {
     const targets = withEmail.filter(c => selected[c.id]);
     if (targets.length === 0) return;
-    const subject = encodeURIComponent("Terms and Conditions — Windscreen Repairs Bristol");
-    const body = encodeURIComponent("Hi,\n\nPlease find attached our current Terms and Conditions for windscreen repair services.\n\nWindscreen Repairs (Bristol)\n07946 222246");
-    window.location.href = `mailto:?bcc=${targets.map(c => c.email).join(",")}&subject=${subject}&body=${body}`;
+    setSendStatus("sending");
 
-    const ids = targets.map(c => c.id);
-    const newEntries = ids.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: `Terms & Conditions sent (PDF, bulk, v${TERMS_VERSION})`, timestamp: Date.now(), createdAt: todayISO() }));
-    silentSave(current => ({
-      customers: current.customers.map(c => ids.includes(c.id) ? { ...c, termsSentAt: Date.now(), termsSentVersion: TERMS_VERSION } : c),
-      communications: [...(current.communications || []), ...newEntries],
-    }));
+    const sentIds = [];
+    const failed = [];
+    for (const c of targets) {
+      try {
+        await sendTermsToCustomer(c);
+        sentIds.push(c.id);
+      } catch (e) {
+        failed.push({ name: c.company || c.companyContact || "Unknown", error: e?.message || "Unknown error" });
+      }
+    }
+
+    if (sentIds.length > 0) {
+      const newEntries = sentIds.map(cid => ({ id: uid(), customerId: cid, contactId: "", contactName: "", type: "Email", direction: "out", note: `Terms & Conditions emailed (v${TERMS_VERSION})`, timestamp: Date.now(), createdAt: todayISO() }));
+      await silentSave(current => ({
+        customers: current.customers.map(c => sentIds.includes(c.id) ? { ...c, termsSentAt: Date.now(), termsSentVersion: TERMS_VERSION } : c),
+        communications: [...(current.communications || []), ...newEntries],
+      }));
+    }
+    setSendStatus({ sentCount: sentIds.length, failed });
+  }
+
+  async function handlePreview() {
+    setPreviewStatus("loading");
+    try {
+      await previewTermsPdf();
+    } catch (e) {
+      alert("Couldn't build the preview: " + (e?.message || e));
+    }
+    setPreviewStatus(null);
   }
 
   function textOne(c) {
@@ -4096,7 +4116,9 @@ function SettingsTermsView({ data, setView }) {
 
       <div style={{ background:"#fff", border:"1px solid #F3F4F6", borderRadius:12, padding:16, marginBottom:16 }}>
         <p style={{ margin:"0 0 12px", fontSize:13, color:"#6B7280" }}>Current version: <b>{TERMS_VERSION}</b>. Ticked below are Trade customers who haven't been sent this version yet.</p>
-        <Btn variant="ghost" onClick={() => openTermsWindow()} style={{ width:"100%", justifyContent:"center", marginBottom:12 }}>📜 View / Print Terms</Btn>
+        <Btn variant="ghost" onClick={handlePreview} disabled={previewStatus==="loading"} style={{ width:"100%", justifyContent:"center", marginBottom:12 }}>
+          {previewStatus==="loading" ? "Building…" : "👁️ Preview PDF"}
+        </Btn>
 
         {withEmail.length > 0 && (
           <>
@@ -4111,8 +4133,19 @@ function SettingsTermsView({ data, setView }) {
                 </label>
               );
             })}
-            <Btn onClick={emailSelectedTrade} disabled={selectedCount===0} style={{ width:"100%", justifyContent:"center", marginTop:6 }}>✉️ Email Selected ({selectedCount})</Btn>
-            <p style={{ fontSize:11, color:"#9CA3AF", margin:"8px 0 0", textAlign:"center" }}>Opens Mail with everyone selected BCC'd — save the PDF from "View / Print Terms" first and attach it before sending.</p>
+            <Btn onClick={emailSelectedTrade} disabled={selectedCount===0 || sendStatus==="sending"} style={{ width:"100%", justifyContent:"center", marginTop:6 }}>
+              {sendStatus==="sending" ? "Sending…" : `✉️ Email Selected (${selectedCount})`}
+            </Btn>
+            {sendStatus && sendStatus !== "sending" && (
+              <div style={{ marginTop:8, fontSize:12, textAlign:"center" }}>
+                {sendStatus.sentCount > 0 && <div style={{ color:"#059669", fontWeight:600 }}>✓ Sent to {sendStatus.sentCount} customer{sendStatus.sentCount===1?"":"s"}</div>}
+                {sendStatus.failed.length > 0 && (
+                  <div style={{ color:"#DC2626", marginTop:4 }}>
+                    ⚠️ Failed for: {sendStatus.failed.map(f => f.name).join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
