@@ -149,14 +149,17 @@ export default async function handler(req, res) {
     y -= 16;
 
     const wrapText = (text, maxChars) => {
-      const words = String(text || "").split(" ");
+      const paragraphs = String(text || "").split("\n");
       const lines = [];
-      let cur = "";
-      for (const w of words) {
-        if ((cur + " " + w).trim().length > maxChars) { lines.push(cur.trim()); cur = w; }
-        else cur = (cur + " " + w).trim();
+      for (const para of paragraphs) {
+        const words = para.split(" ");
+        let cur = "";
+        for (const w of words) {
+          if ((cur + " " + w).trim().length > maxChars) { lines.push(cur.trim()); cur = w; }
+          else cur = (cur + " " + w).trim();
+        }
+        lines.push(cur.trim());
       }
-      if (cur) lines.push(cur);
       return lines.length ? lines : [""];
     };
 
