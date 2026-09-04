@@ -114,6 +114,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: RESEND_FROM,
         to: [to],
+        bcc: ["info@windscreenrepairsbristol.co.uk"],
         subject: `Statement of Account — ${customerName || "Windscreen Repairs Bristol"}`,
         text: `Please find our statement attached, showing a total outstanding balance of £${parseFloat(totalOwed || 0).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
         attachments: [{ filename: "statement.pdf", content: pdfBase64 }],
@@ -130,4 +131,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err?.message || "Unknown error building or sending the statement." });
   }
 }
-
