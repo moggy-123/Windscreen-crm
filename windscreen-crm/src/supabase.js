@@ -158,11 +158,13 @@ const settingFromDb = r => ({ id: r.id, defaultPricing: r.default_pricing || {},
 
 const timeOffToDb = t => ({
   id: t.id, start_date: t.startDate, end_date: t.endDate, reason: t.reason || "",
+  start_time: t.startTime || null, end_time: t.endTime || null,
   updated_at: t.updatedAt || Date.now(),
   created_at: t.createdAt || new Date().toISOString(),
 });
 const timeOffFromDb = r => ({
   id: r.id, startDate: r.start_date, endDate: r.end_date, reason: r.reason,
+  startTime: r.start_time || "", endTime: r.end_time || "",
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
