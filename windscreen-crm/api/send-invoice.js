@@ -250,6 +250,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: RESEND_FROM,
         to: [to],
+        bcc: ["info@windscreenrepairsbristol.co.uk"],
         subject: `Invoice — ${customerName || "Windscreen Repairs Bristol"}`,
         text: `Please find your invoice${includeJobCard ? " and job card" : ""} attached, totalling £${parseFloat(total).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
         attachments: [{ filename: "invoice.pdf", content: pdfBase64 }],
