@@ -227,6 +227,17 @@ export async function pullFromCloud() {
     const ld = await supabase.from("leads").select("*");
     if (!ld.error) leads = (ld.data || []).map(leadFromDb);
   } catch {}
+  // Written only by the Resend webhook (server-side) — the app just reads and can
+  // dismiss entries, so no corresponding *ToDb mapper or push wiring is needed.
+  let emailEvents = [];
+  try {
+    const ee = await supabase.from("email_events").select("*").order("created_at", { ascending: false });
+    if (!ee.error) emailEvents = (ee.data || []).map(r => ({
+      id: r.id, resendEmailId: r.resend_email_id, eventType: r.event_type,
+      recipient: r.recipient, docType: r.doc_type, customerId: r.customer_id,
+      subject: r.subject, bounceMessage: r.bounce_message, createdAt: r.created_at,
+    }));
+  } catch {}
   return {
     customers:   (c.data || []).map(customerFromDb),
     vehicles:    (v.data || []).map(vehicleFromDb),
@@ -238,6 +249,7 @@ export async function pullFromCloud() {
     settings,
     timeOff,
     leads,
+    emailEvents,
     technicians: [],
   };
 }
