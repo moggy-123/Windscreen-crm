@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerName, rows, totalOwed, previewOnly } = req.body || {};
+    const { to, customerId, customerName, rows, totalOwed, previewOnly } = req.body || {};
     if (!Array.isArray(rows)) return res.status(400).json({ error: "No statement rows were provided." });
     if (!previewOnly && !to) return res.status(400).json({ error: "No recipient email address was provided." });
 
@@ -118,6 +118,10 @@ export default async function handler(req, res) {
         subject: `Statement of Account — ${customerName || "Windscreen Repairs Bristol"}`,
         text: `Please find our statement attached, showing a total outstanding balance of £${parseFloat(totalOwed || 0).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
         attachments: [{ filename: "statement.pdf", content: pdfBase64 }],
+        tags: [
+          ...(customerId ? [{ name: "customer_id", value: customerId }] : []),
+          { name: "doc_type", value: "statement" },
+        ],
       }),
     });
 
