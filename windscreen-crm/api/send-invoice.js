@@ -115,7 +115,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerId, customerName, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate, previewOnly, includeJobCard, jobCard } = req.body || {};
+    const { to, customerId, customerName, invoiceDate, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate, previewOnly, includeJobCard, jobCard } = req.body || {};
     if (!total) return res.status(400).json({ error: "No invoice total was provided." });
     if (!previewOnly && !to) return res.status(400).json({ error: "No recipient email address was provided." });
     // Every invoice needs its Sage reference recorded before it goes out — keeps the
@@ -135,7 +135,7 @@ export default async function handler(req, res) {
     page.drawText("Invoice", { x: LEFT, y, size: 15, font: bold, color: NAVY });
     y -= 18;
     if (customerName) { page.drawText(customerName, { x: LEFT, y, size: 11, font, color: BLACK }); y -= 14; }
-    const dateStr = new Date().toLocaleDateString("en-GB");
+    const dateStr = invoiceDate || new Date().toLocaleDateString("en-GB");
     page.drawText(`Invoice date: ${dateStr}`, { x: LEFT, y, size: 9, font, color: GREY });
     y -= 12;
     page.drawText(`Reference: ${sageInvoiceNo}`, { x: LEFT, y, size: 9, font, color: GREY });
