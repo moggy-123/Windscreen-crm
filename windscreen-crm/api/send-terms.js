@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerId, customerName, sections, intro, previewOnly } = req.body || {};
+    const { to, customerId, customerName, sections, intro, previewOnly, message } = req.body || {};
     if (!Array.isArray(sections) || sections.length === 0) {
       return res.status(400).json({ error: "No terms content was provided." });
     }
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
         to: [to],
         bcc: ["info@windscreenrepairsbristol.co.uk"],
         subject: "Terms and Conditions — Windscreen Repairs Bristol",
-        text: `Please find our current Terms and Conditions attached.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
+        text: message || `Please find our current Terms and Conditions attached.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
         attachments: [{ filename: "terms-and-conditions.pdf", content: pdfBase64 }],
         tags: [
           ...(customerId ? [{ name: "customer_id", value: customerId }] : []),
