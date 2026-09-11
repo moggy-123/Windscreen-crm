@@ -1,4 +1,4 @@
-// Serverless function — builds a Statement of Account as a real, multi-page-safe PDF
+ // Serverless function — builds a Statement of Account as a real, multi-page-safe PDF
 // and either returns it for preview or emails it via Resend. The list of unpaid
 // invoices is sent by the app itself (not recomputed here), so there's only ever one
 // source of truth for what's actually outstanding.
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerId, customerName, rows, totalOwed, previewOnly } = req.body || {};
+    const { to, customerId, customerName, rows, totalOwed, previewOnly, message } = req.body || {};
     if (!Array.isArray(rows)) return res.status(400).json({ error: "No statement rows were provided." });
     if (!previewOnly && !to) return res.status(400).json({ error: "No recipient email address was provided." });
 
@@ -116,7 +116,7 @@ export default async function handler(req, res) {
         to: [to],
         bcc: ["info@windscreenrepairsbristol.co.uk"],
         subject: `Statement of Account — ${customerName || "Windscreen Repairs Bristol"}`,
-        text: `Please find our statement attached, showing a total outstanding balance of £${parseFloat(totalOwed || 0).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
+        text: message || `Please find our statement attached, showing a total outstanding balance of £${parseFloat(totalOwed || 0).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
         attachments: [{ filename: "statement.pdf", content: pdfBase64 }],
         tags: [
           ...(customerId ? [{ name: "customer_id", value: customerId }] : []),
