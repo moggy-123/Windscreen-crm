@@ -115,7 +115,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerId, customerName, invoiceDate, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate, previewOnly, includeJobCard, jobCard } = req.body || {};
+    const { to, customerId, customerName, invoiceDate, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate, previewOnly, includeJobCard, jobCard, message } = req.body || {};
     if (!total) return res.status(400).json({ error: "No invoice total was provided." });
     if (!previewOnly && !to) return res.status(400).json({ error: "No recipient email address was provided." });
     // Every invoice needs its Sage reference recorded before it goes out — keeps the
@@ -252,7 +252,7 @@ export default async function handler(req, res) {
         to: [to],
         bcc: ["info@windscreenrepairsbristol.co.uk"],
         subject: `Invoice — ${customerName || "Windscreen Repairs Bristol"}`,
-        text: `Please find your invoice${includeJobCard ? " and job card" : ""} attached, totalling £${parseFloat(total).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
+        text: message || `Please find your invoice${includeJobCard ? " and job card" : ""} attached, totalling £${parseFloat(total).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
         attachments: [{ filename: "invoice.pdf", content: pdfBase64 }],
         tags: [
           ...(customerId ? [{ name: "customer_id", value: customerId }] : []),
