@@ -45,11 +45,12 @@ async function drawHeader(pdfDoc, page, font, bold) {
 // Builds the Job Card page(s) — vehicle/driver/damage details, then before/after photo
 // grids, spilling onto further pages automatically if there isn't room. Appended to the
 // same PDF document as the invoice (as extra pages), not a separate file.
-async function addJobCardPages(pdfDoc, font, bold, jobCard) {
+async function addJobCardPages(pdfDoc, font, bold, jobCard, cardIndex, cardTotal) {
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let y = await drawHeader(pdfDoc, page, font, bold);
 
-  page.drawText("Job Completion Report", { x: LEFT, y, size: 15, font: bold, color: NAVY });
+  const heading = cardTotal > 1 ? `Job Completion Report (${cardIndex + 1} of ${cardTotal})` : "Job Completion Report";
+  page.drawText(heading, { x: LEFT, y, size: 15, font: bold, color: NAVY });
   y -= 22;
 
   const rows = [
@@ -115,7 +116,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerId, customerName, invoiceDate, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate, previewOnly, includeJobCard, jobCard, message } = req.body || {};
+    const { to, customerId, customerName, invoiceDate, lineItems, details, labour, parts, vat, total, sageInvoiceNo, custType, paid, paidDate, previewOnly, includeJobCard, jobCards, jobCard, message } = req.body || {};
+    // Accept either the new `jobCards` array (one entry per job covered by the invoice,
+    // so combined Trade invoices get every vehicle's sheet attached) or the older
+    // singular `jobCard` for backwards compatibility with any in-flight requests.
+    const resolvedJobCards = Array.isArray(jobCards) ? jobCards : (jobCard ? [jobCard] : []);
     if (!total) return res.status(400).json({ error: "No invoice total was provided." });
     if (!previewOnly && !to) return res.status(400).json({ error: "No recipient email address was provided." });
     // Every invoice needs its Sage reference recorded before it goes out — keeps the
@@ -222,9 +227,14 @@ export default async function handler(req, res) {
     fy -= 14;
     page.drawText("Sort code: 04-00-06", { x: LEFT, y: fy, size: 10, font, color: BLACK });
 
-    // ── Optionally append the Job Card as extra page(s), including photos ─────
-    if (includeJobCard && jobCard) {
-      await addJobCardPages(pdfDoc, font, bold, jobCard);
+    // ── Optionally append the Job Card(s) as extra page(s), including photos ──
+    // One full Job Completion Report per job covered by the invoice — a combined
+    // Trade invoice for several vehicles gets one report per vehicle, all in the
+    // same PDF, rather than just the first job's sheet.
+    if (includeJobCard && resolvedJobCards.length) {
+      for (let i = 0; i < resolvedJobCards.length; i++) {
+        await addJobCardPages(pdfDoc, font, bold, resolvedJobCards[i], i, resolvedJobCards.length);
+      }
     }
 
     const pdfBytes = await pdfDoc.save();
