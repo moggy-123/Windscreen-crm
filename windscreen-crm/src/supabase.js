@@ -170,13 +170,13 @@ const timeOffFromDb = r => ({
 
 const reminderToDb = r => ({
   id: r.id, customer_id: r.customerId || null, contact_name: r.contactName || "",
-  phone: r.phone || "", note: r.note || "", due_date: r.dueDate || null, done: !!r.done,
+  phone: r.phone || "", note: r.note || "", due_date: r.dueDate || null, due_time: r.dueTime || null, done: !!r.done,
   updated_at: r.updatedAt || Date.now(),
   created_at: r.createdAt || new Date().toISOString(),
 });
 const reminderFromDb = r => ({
   id: r.id, customerId: r.customer_id, contactName: r.contact_name,
-  phone: r.phone, note: r.note, dueDate: r.due_date, done: !!r.done,
+  phone: r.phone, note: r.note, dueDate: r.due_date, dueTime: r.due_time || "", done: !!r.done,
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
