@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B115 · 19 Sep 2026";
+const BUILD_NUMBER = "B116 · 20 Sep 2026";
 // Embedded directly (not a URL) so nothing in any emailed/printed report ever
 // reveals or links back to the actual live app address.
 const LOGO_DATA_URI = "data:image/png;base64,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";
@@ -185,7 +185,7 @@ function loadData() {
       return data;
     }
   } catch {}
-  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], inspections: [], communications: [], settings: [], timeOff: [], leads: [], emailEvents: [], technicians: [] };
+  return { customers: [], vehicles: [], jobs: [], invoices: [], mileage: [], inspections: [], communications: [], settings: [], timeOff: [], leads: [], reminders: [], emailEvents: [], technicians: [] };
 }
 
 // One-time cleanup: remove the old duplicate lastsync copy
@@ -224,6 +224,7 @@ function stampData(data) {
     settings: stamp(data.settings, prev.settings),
     timeOff: stamp(data.timeOff, prev.timeOff),
     leads: stamp(data.leads, prev.leads),
+    reminders: stamp(data.reminders, prev.reminders),
   };
 }
 
@@ -381,6 +382,7 @@ async function pushChangedOnly(data) {
     { name: "settings", key: "settings" },
     { name: "time_off", key: "timeOff" },
     { name: "leads", key: "leads" },
+    { name: "reminders", key: "reminders" },
   ];
 
   let failed = 0;
@@ -474,6 +476,7 @@ async function restoreBackup(file) {
       { app: "settings", db: "settings" },
       { app: "timeOff", db: "time_off" },
       { app: "leads", db: "leads" },
+      { app: "reminders", db: "reminders" },
     ];
     const cloud = await pullFromCloud();
     for (const t of tables) {
@@ -501,6 +504,32 @@ async function restoreBackup(file) {
     hideSavingOverlay();
     alert("Restore failed: " + (e?.message || e) + "\n\nNothing has been changed — your current data is untouched.");
   }
+}
+
+// One-time migration from the old single "Call back on" field (one per customer) to
+// the new Reminders table (any number, per customer, per contact, or for someone who
+// isn't a customer at all). Runs once ever, guarded by a localStorage flag, and clears
+// the old fields off the customer once migrated so the two systems never show the same
+// reminder twice.
+function migrateFollowUpsToReminders(data) {
+  try {
+    if (localStorage.getItem("wscrm_reminders_migrated")) return data;
+  } catch {}
+  const toMigrate = (data.customers || []).filter(c => c.followUpDate);
+  try { localStorage.setItem("wscrm_reminders_migrated", "1"); } catch {}
+  if (toMigrate.length === 0) return data;
+  const newReminders = toMigrate.map(c => ({
+    id: uid(),
+    customerId: c.id,
+    contactName: c.company || c.companyContact || "",
+    phone: c.phone || "",
+    note: c.followUpNote || "",
+    dueDate: c.followUpDate,
+    done: false,
+    createdAt: new Date().toISOString(),
+  }));
+  const customers = data.customers.map(c => c.followUpDate ? { ...c, followUpDate:"", followUpNote:"" } : c);
+  return { ...data, customers, reminders: [...(data.reminders||[]), ...newReminders] };
 }
 
 // Delete photos from jobs older than one year (keeps the job records)
@@ -609,6 +638,62 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+// ── Set Reminder ──────────────────────────────────────────────────────────────
+// One shared modal for creating a call-back reminder, wherever it's opened from:
+// a Trade or Private customer, one specific contact at a Trade account, a driver
+// who isn't a customer at all (a "customer of a trader"), or a blank one from Home.
+// `contactOptions` (optional) pre-populates a picker of likely people to call —
+// the name/phone fields stay editable either way, so anyone can be typed in.
+function ReminderModal({ data, onClose, customerId, contactOptions, initialContactName = "", initialPhone = "", initialNote = "" }) {
+  const [pickedIdx, setPickedIdx] = useState(contactOptions?.length ? "0" : "");
+  const [contactName, setContactName] = useState(contactOptions?.length ? (contactOptions[0].name || "") : initialContactName);
+  const [phone, setPhone] = useState(contactOptions?.length ? (contactOptions[0].phone || "") : initialPhone);
+  const [note, setNote] = useState(initialNote);
+  const [dueDate, setDueDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; });
+  const [saving, setSaving] = useState(false);
+
+  function pickContact(idx) {
+    setPickedIdx(idx);
+    if (idx === "") return;
+    const c = contactOptions[parseInt(idx)];
+    setContactName(c.name || "");
+    setPhone(c.phone || "");
+  }
+
+  async function save() {
+    if (!contactName.trim() || !dueDate) return;
+    setSaving(true);
+    const rec = { id: uid(), customerId: customerId || null, contactName: contactName.trim(), phone: phone.trim(), note: note.trim(), dueDate, done: false, createdAt: new Date().toISOString() };
+    try {
+      await saveAndReload({ ...data, reminders: [...(data.reminders || []), rec] });
+    } catch (e) {
+      setSaving(false);
+      alert("Save failed: " + (e?.message || e));
+    }
+  }
+
+  return (
+    <Modal title="Set Reminder" onClose={onClose}>
+      {contactOptions?.length > 1 && (
+        <Field label="Who to call">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {contactOptions.map((c,i) => (
+              <button key={i} onClick={() => pickContact(String(i))} style={{ background: pickedIdx===String(i) ? "#1E3A5F" : "#F3F4F6", color: pickedIdx===String(i) ? "#fff" : "#374151", border:"none", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:600, cursor:"pointer" }}>{c.name || "Unnamed"}</button>
+            ))}
+          </div>
+        </Field>
+      )}
+      <Field label="Contact Name" required><Input value={contactName} onChange={setContactName} placeholder="Who are you calling?" required /></Field>
+      <Field label="Phone (optional)"><Input value={phone} onChange={setPhone} type="tel" placeholder="e.g. 07946 222246" /></Field>
+      <Field label="Call back on" required><Input type="date" value={dueDate} onChange={setDueDate} /></Field>
+      <Field label="About (optional)"><Input value={note} onChange={setNote} placeholder="e.g. quote for new fleet van" /></Field>
+      <Btn onClick={save} disabled={saving || !contactName.trim() || !dueDate} style={{ width:"100%", justifyContent:"center" }}>
+        {saving ? "Saving…" : "📞 Save Reminder"}
+      </Btn>
+    </Modal>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function Dashboard({ data, setView, notifStatus, requestNotifications }) {
   const todayStr = todayISO();
@@ -624,10 +709,11 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
   const openJobs = data.jobs.filter(j => j.status === "Booked");
   const unpaidInvoices = data.invoices.filter(i => !i.paid);
   const unpaidTotal = unpaidInvoices.reduce((s,i) => s + (parseFloat(i.total)||0), 0);
-  // Follow-ups due today or overdue
-  const dueFollowUps = data.customers
-    .filter(c => c.followUpDate && c.followUpDate <= todayStr)
-    .sort((a,b) => a.followUpDate.localeCompare(b.followUpDate));
+  // Reminders due today or overdue — a reminder can be for a customer, a specific
+  // contact at one, or someone who isn't a customer at all (e.g. a Trade driver)
+  const dueReminders = (data.reminders || [])
+    .filter(r => !r.done && r.dueDate && r.dueDate <= todayStr)
+    .sort((a,b) => a.dueDate.localeCompare(b.dueDate));
   // Site inspections booked for today or in the future
   const upcomingInspections = (data.inspections || [])
     .filter(i => i.date && i.date >= todayStr)
@@ -647,22 +733,16 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
     </div>
   );
 
-  // Follow-up actions
-  async function clearFollowUp(custId) {
-    const customers = data.customers.map(c => c.id === custId ? { ...c, followUpDate:"", followUpNote:"" } : c);
-    await saveAndReload({ ...data, customers });
+  // Reminder actions
+  const [showNewReminder, setShowNewReminder] = useState(false);
+  async function completeReminder(id) {
+    const reminders = (data.reminders || []).map(r => r.id === id ? { ...r, done:true } : r);
+    await saveAndReload({ ...data, reminders });
   }
-  async function snoozeFollowUp(custId, days) {
-    const base = new Date();
-    base.setDate(base.getDate() + days);
-    const newDate = `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
-    const customers = data.customers.map(c => c.id === custId ? { ...c, followUpDate:newDate } : c);
-    await saveAndReload({ ...data, customers });
-  }
-  async function snoozeToDate(custId, newDate) {
+  async function snoozeReminder(id, newDate) {
     if (!newDate) return;
-    const customers = data.customers.map(c => c.id === custId ? { ...c, followUpDate:newDate } : c);
-    await saveAndReload({ ...data, customers });
+    const reminders = (data.reminders || []).map(r => r.id === id ? { ...r, dueDate:newDate } : r);
+    await saveAndReload({ ...data, reminders });
   }
 
   return (
@@ -699,37 +779,39 @@ function Dashboard({ data, setView, notifStatus, requestNotifications }) {
           </div>
         </div>
       )}
-      {dueFollowUps.length > 0 && (
-        <div style={{ marginBottom:20 }}>
-          <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📞 Follow-ups Due</h3>
-          {dueFollowUps.map(c => (
-            <Card key={c.id}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
-                <div onClick={() => setView({ screen:"customerDetail", id:c.id })} style={{ cursor:"pointer", flex:1 }}>
-                  <div style={{ fontWeight:700, fontSize:15, color:"#1E3A5F" }}>{c.company || c.companyContact || "Customer"}</div>
-                  {c.followUpNote && <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{c.followUpNote}</div>}
-                  <div style={{ fontSize:12, color: c.followUpDate < todayStr ? "#DC2626" : "#D97706", fontWeight:600, marginTop:2 }}>
-                    {c.followUpDate < todayStr ? "⚠️ Overdue · " : "Due today · "}{fmtDate(c.followUpDate)}
-                  </div>
-                </div>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                  {c.phone && <a href={`tel:${c.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#1E3A5F", color:"#fff", borderRadius:8, padding:"10px 14px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>📞 Call</a>}
-                  {c.phone && <a href={`sms:${c.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#F3F4F6", color:"#374151", borderRadius:8, padding:"10px 12px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>💬</a>}
-                  {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ background:"#F3F4F6", color:"#374151", borderRadius:8, padding:"10px 12px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>✉️</a>}
-                </div>
-              </div>
-              <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
-                <button onClick={() => clearFollowUp(c.id)} style={{ background:"#DCFCE7", color:"#15803D", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Done</button>
-                <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#F3F4F6", borderRadius:8, padding:"6px 10px" }}>
-                  <span style={{ fontSize:13, fontWeight:600, color:"#374151" }}>📅 New date:</span>
-                  <input type="date" defaultValue={c.followUpDate} onChange={e => snoozeToDate(c.id, e.target.value)}
-                    style={{ border:"none", background:"transparent", fontSize:13, fontFamily:"inherit", color:"#1E3A5F", fontWeight:600 }} />
-                </div>
-              </div>
-            </Card>
-          ))}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", margin:"0 0 10px" }}>
+          <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:0, textTransform:"uppercase", letterSpacing:"0.05em" }}>📞 Reminders Due</h3>
+          <button onClick={() => setShowNewReminder(true)} style={{ background:"none", border:"none", color:"#1E3A5F", fontSize:13, fontWeight:700, cursor:"pointer", padding:0 }}>+ New</button>
         </div>
-      )}
+        {dueReminders.length === 0 && <Card><p style={{ margin:0, color:"#9CA3AF", fontSize:14, textAlign:"center" }}>Nothing due</p></Card>}
+        {dueReminders.map(r => (
+          <Card key={r.id}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+              <div onClick={() => r.customerId && setView({ screen:"customerDetail", id:r.customerId })} style={{ cursor: r.customerId ? "pointer" : "default", flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:15, color:"#1E3A5F" }}>{r.contactName || "Reminder"}</div>
+                {r.note && <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{r.note}</div>}
+                <div style={{ fontSize:12, color: r.dueDate < todayStr ? "#DC2626" : "#D97706", fontWeight:600, marginTop:2 }}>
+                  {r.dueDate < todayStr ? "⚠️ Overdue · " : "Due today · "}{fmtDate(r.dueDate)}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                {r.phone && <a href={`tel:${r.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#1E3A5F", color:"#fff", borderRadius:8, padding:"10px 14px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>📞 Call</a>}
+                {r.phone && <a href={`sms:${r.phone}`} onClick={e => e.stopPropagation()} style={{ background:"#F3F4F6", color:"#374151", borderRadius:8, padding:"10px 12px", textDecoration:"none", fontSize:14, fontWeight:600, whiteSpace:"nowrap" }}>💬</a>}
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
+              <button onClick={() => completeReminder(r.id)} style={{ background:"#DCFCE7", color:"#15803D", border:"none", borderRadius:8, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Done</button>
+              <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#F3F4F6", borderRadius:8, padding:"6px 10px" }}>
+                <span style={{ fontSize:13, fontWeight:600, color:"#374151" }}>📅 New date:</span>
+                <input type="date" defaultValue={r.dueDate} onChange={e => snoozeReminder(r.id, e.target.value)}
+                  style={{ border:"none", background:"transparent", fontSize:13, fontFamily:"inherit", color:"#1E3A5F", fontWeight:600 }} />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {showNewReminder && <ReminderModal data={data} onClose={() => setShowNewReminder(false)} />}
       {upcomingInspections.length > 0 && (
         <div style={{ marginBottom:20 }}>
           <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>🔍 Site Inspections Booked</h3>
@@ -892,8 +974,6 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
   const [onStop,   setOnStop]   = useState(editCustomer?.onStop   || false);
   const [custType, setCustType] = useState(editCustomer?.custType || "Trade");
   const [pricing,  setPricing]  = useState(editCustomer?.pricing  || {});
-  const [followUpDate, setFollowUpDate] = useState(editCustomer?.followUpDate || "");
-  const [followUpNote, setFollowUpNote] = useState(editCustomer?.followUpNote || "");
   // Unified contacts list. One contact is flagged main:true. For existing customers
   // without a contacts list yet, seed it from their old single company-contact fields.
   const [contacts, setContacts] = useState(() => {
@@ -922,7 +1002,7 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
     // Keep the legacy single fields in sync with whoever is the main contact,
     // so customer cards, dropdowns and call buttons keep working.
     const main = contacts.find(c => c.main) || contacts[0] || {};
-    const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, pricing, followUpDate, followUpNote, contacts };
+    const rec = { company, companyContact: main.name || companyContact, phone: main.phone || phone, email: main.email || email, address1, address2, town, county, postcode, notes, onStop, custType, pricing, contacts };
     let newData = { ...data };
     let savedCustomerId;
     if (editCustomer) {
@@ -1005,12 +1085,6 @@ function CustomerForm({ data, onClose, setView, editCustomer }) {
       <Field label="County"><Input value={county} onChange={setCounty} placeholder="Avon" /></Field>
       <Field label="Postcode"><Input value={postcode} onChange={setPostcode} placeholder="BS1 1AA" /></Field>
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
-      <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:10, padding:12, marginBottom:14 }}>
-        <div style={{ fontSize:12, fontWeight:700, color:"#1E3A5F", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>📞 Follow-up Reminder</div>
-        <Field label="Call back on"><Input type="date" value={followUpDate} onChange={setFollowUpDate} /></Field>
-        <Field label="About"><Input value={followUpNote} onChange={setFollowUpNote} placeholder="e.g. screen repair Monday" /></Field>
-        {followUpDate && <button onClick={() => { setFollowUpDate(""); setFollowUpNote(""); }} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Clear reminder</button>}
-      </div>
       <div style={{ marginBottom:14 }}>
         <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"12px 14px", borderRadius:8, border:`1.5px solid ${onStop ? "#FCA5A5" : "#E5E7EB"}`, background: onStop ? "#FEF2F2" : "#fff" }}>
           <input type="checkbox" checked={onStop} onChange={e => setOnStop(e.target.checked)} style={{ width:18, height:18 }} />
@@ -1320,6 +1394,7 @@ function CustomerDetail({ data, id, setView }) {
   const customer = data.customers.find(c => c.id === id);
   const vehicles = data.vehicles.filter(v => v.customerId === id).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.id > a.id ? 1 : -1));
   const jobs     = data.jobs.filter(j => j.customerId === id).sort((a,b) => b.date.localeCompare(a.date));
+  const customerReminders = (data.reminders || []).filter(r => !r.done && r.customerId === id).sort((a,b) => a.dueDate.localeCompare(b.dueDate));
   const [showEdit, setShowEdit]       = useState(false);
   const [showVehicle, setShowVehicle] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
@@ -1331,6 +1406,7 @@ function CustomerDetail({ data, id, setView }) {
   const [editingComm, setEditingComm] = useState(null);
   const [logContact, setLogContact]   = useState(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
+  const [showReminder, setShowReminder] = useState(false);
   const comms = data.communications ? data.communications.filter(c => c.customerId === id).sort((a,b) => (b.timestamp||0)-(a.timestamp||0)) : [];
   if (!customer) return <p>Not found</p>;
 
@@ -1406,18 +1482,18 @@ function CustomerDetail({ data, id, setView }) {
           🛑 ACCOUNT ON STOP — do not carry out work until paid
         </div>
       )}
-      {customer.followUpDate && (
-        <div style={{ background:"#FFF7ED", border:"1px solid #FED7AA", borderRadius:10, padding:"12px 16px", marginBottom:14, fontSize:14, display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+      {customerReminders.map(r => (
+        <div key={r.id} style={{ background:"#FFF7ED", border:"1px solid #FED7AA", borderRadius:10, padding:"12px 16px", marginBottom:14, fontSize:14, display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
           <div>
-            <span style={{ fontWeight:700, color:"#92400E" }}>📞 Follow up {fmtDate(customer.followUpDate)}</span>
-            {customer.followUpNote && <span style={{ color:"#B45309" }}> — {customer.followUpNote}</span>}
+            <span style={{ fontWeight:700, color:"#92400E" }}>📞 Call {r.contactName} {fmtDate(r.dueDate)}</span>
+            {r.note && <span style={{ color:"#B45309" }}> — {r.note}</span>}
           </div>
           <button onClick={async () => {
-            const customers = data.customers.map(c => c.id === customer.id ? { ...c, followUpDate:"", followUpNote:"" } : c);
-            await saveAndReload({ ...data, customers });
-          }} style={{ background:"#FEE2E2", color:"#DC2626", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>Delete</button>
+            const reminders = (data.reminders || []).map(x => x.id === r.id ? { ...x, done:true } : x);
+            await saveAndReload({ ...data, reminders });
+          }} style={{ background:"#DCFCE7", color:"#15803D", border:"none", borderRadius:6, padding:"6px 12px", fontSize:13, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>✓ Done</button>
         </div>
-      )}
+      ))}
       <Card>
         <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{customer.company || "No company name"}</div>
         {customer.companyContact && <div style={{ fontSize:14, color:"#374151", marginTop:4 }}>Contact: {customer.companyContact}</div>}
@@ -1479,6 +1555,7 @@ function CustomerDetail({ data, id, setView }) {
               </>
             )}
             {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
+            <Btn size="sm" variant="ghost" onClick={() => setShowReminder(true)}>📞 Set Reminder</Btn>
             <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
             <Btn size="sm" variant="danger" onClick={deleteCustomer}><Icon name="trash" size={13} /> Delete</Btn>
           </div>
@@ -1487,6 +1564,14 @@ function CustomerDetail({ data, id, setView }) {
       {showTerms && <RepairTermsModal customer={customer} data={data} onClose={() => setShowTerms(false)} />}
       {showDaySheet && <DaySheetModal customer={customer} data={data} onClose={() => setShowDaySheet(false)} />}
       {showRecordPayment && <RecordPaymentModal customer={customer} data={data} onClose={() => setShowRecordPayment(false)} />}
+      {showReminder && (
+        <ReminderModal
+          data={data}
+          customerId={customer.id}
+          contactOptions={customer.contacts?.length ? customer.contacts.map(ct => ({ name: ct.name, phone: ct.phone })) : [{ name: customer.company || customer.companyContact || "", phone: customer.phone || "" }]}
+          onClose={() => setShowReminder(false)}
+        />
+      )}
       {showComposeStatement && (
         <ComposeEmailModal
           to={getRecipientEmail(customer, "receivesStatements")}
@@ -3174,6 +3259,7 @@ function JobDetail({ data, id, setView }) {
   const [emailStatus, setEmailStatus] = useState(null); // null | "previewing" | "previewed" | "sending" | "sent" | "error"
   const [showComposeInvoice, setShowComposeInvoice] = useState(false);
   const [includeJobCard, setIncludeJobCard] = useState(false);
+  const [showReminder, setShowReminder] = useState(false);
   if (!job) return <p>Not found</p>;
 
   const customer   = data.customers.find(c => c.id === job.customerId);
@@ -3442,6 +3528,18 @@ function JobDetail({ data, id, setView }) {
       <Btn variant="amber" onClick={() => sendJobCard(job, customer, vehicle, invoice)} style={{ width:"100%", justifyContent:"center", marginTop:8 }}>
         📧 Email Job Card to Customer
       </Btn>
+      <Btn variant="ghost" onClick={() => setShowReminder(true)} style={{ width:"100%", justifyContent:"center", marginTop:8 }}>
+        📞 Set Reminder{job.driverName ? ` to Call ${job.driverName}` : ""}
+      </Btn>
+      {showReminder && (
+        <ReminderModal
+          data={data}
+          customerId={customer?.id || null}
+          initialContactName={job.driverName || customer?.company || customer?.companyContact || ""}
+          initialPhone={customer?.phone || ""}
+          onClose={() => setShowReminder(false)}
+        />
+      )}
       {showEdit    && <JobForm     data={data} editJob={job} onClose={() => setShowEdit(false)}    />}
       {showInvoice && <InvoiceForm data={data} jobId={id}   onClose={() => setShowInvoice(false)} />}
       {showEditInvoice && invoice && <InvoiceForm data={data} jobId={id} editInvoice={invoice} onClose={() => setShowEditInvoice(false)} />}
@@ -5712,15 +5810,20 @@ function AuthenticatedApp() {
           settings: merge(cloud.settings, local.settings || []),
           timeOff: merge(cloud.timeOff, local.timeOff || []),
           leads: merge(cloud.leads, local.leads || []),
+          reminders: merge(cloud.reminders, local.reminders || []),
           emailEvents: merge(cloud.emailEvents, local.emailEvents || []),
           technicians: local.technicians || [],
         };
-        localStorage.setItem(DB_KEY, JSON.stringify(merged));
-        setData(merged);
+        // One-time migration: the old single "Call back on" field per customer is
+        // replaced by proper Reminders (multiple per customer, or for someone who
+        // isn't a customer at all, like a Trade account's driver). Runs once ever.
+        const migrated = migrateFollowUpsToReminders(merged);
+        localStorage.setItem(DB_KEY, JSON.stringify(migrated));
+        setData(migrated);
         // Push only what's actually changed since last sync — NOT everything.
         // (Re-uploading the whole dataset on every single reload was the main
         // driver of excessive egress usage.)
-        pushChangedOnly(merged).catch(() => {});
+        pushChangedOnly(migrated).catch(() => {});
         setSyncStatus("synced");
       } catch (e) {
         if (!cancelled) setSyncStatus("offline");
@@ -5756,6 +5859,7 @@ function AuthenticatedApp() {
           settings: merge(cloud.settings, local.settings || []),
           timeOff: merge(cloud.timeOff, local.timeOff || []),
           leads: merge(cloud.leads, local.leads || []),
+          reminders: merge(cloud.reminders, local.reminders || []),
           emailEvents: merge(cloud.emailEvents, local.emailEvents || []),
             technicians: local.technicians || [],
           };
@@ -5832,16 +5936,17 @@ function AuthenticatedApp() {
           settings: merge(cloud.settings, local.settings || []),
           timeOff: merge(cloud.timeOff, local.timeOff || []),
           leads: merge(cloud.leads, local.leads || []),
+          reminders: merge(cloud.reminders, local.reminders || []),
           emailEvents: merge(cloud.emailEvents, local.emailEvents || []),
           technicians: local.technicians || [],
         };
-        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length + merged.inspections.length + merged.communications.length + merged.settings.length + merged.timeOff.length + merged.leads.length;
+        const after = merged.customers.length + merged.jobs.length + merged.vehicles.length + merged.invoices.length + merged.inspections.length + merged.communications.length + merged.settings.length + merged.timeOff.length + merged.leads.length + merged.reminders.length;
         localStorage.setItem(DB_KEY, JSON.stringify(merged));
         // Push any local records that haven't been uploaded yet (e.g. created offline)
         pushChangedOnly(merged).catch(() => {});
         // Only re-render if something actually changed, to avoid disrupting typing
         setData(prev => {
-          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0)+(prev.inspections?.length||0)+(prev.communications?.length||0)+(prev.settings?.length||0)+(prev.timeOff?.length||0)+(prev.leads?.length||0);
+          const prevCount = (prev.customers?.length||0)+(prev.jobs?.length||0)+(prev.vehicles?.length||0)+(prev.invoices?.length||0)+(prev.inspections?.length||0)+(prev.communications?.length||0)+(prev.settings?.length||0)+(prev.timeOff?.length||0)+(prev.leads?.length||0)+(prev.reminders?.length||0);
           if (prevCount !== after) return merged;
           return prev;
         });
