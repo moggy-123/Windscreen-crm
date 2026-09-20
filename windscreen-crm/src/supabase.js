@@ -168,6 +168,18 @@ const timeOffFromDb = r => ({
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
+const reminderToDb = r => ({
+  id: r.id, customer_id: r.customerId || null, contact_name: r.contactName || "",
+  phone: r.phone || "", note: r.note || "", due_date: r.dueDate || null, done: !!r.done,
+  updated_at: r.updatedAt || Date.now(),
+  created_at: r.createdAt || new Date().toISOString(),
+});
+const reminderFromDb = r => ({
+  id: r.id, customerId: r.customer_id, contactName: r.contact_name,
+  phone: r.phone, note: r.note, dueDate: r.due_date, done: !!r.done,
+  updatedAt: r.updated_at, createdAt: r.created_at,
+});
+
 const leadToDb = l => ({
   id: l.id, business_name: l.businessName || "", contact_name: l.contactName || "",
   phone: l.phone || "", email: l.email || "", address: l.address || "",
@@ -227,6 +239,11 @@ export async function pullFromCloud() {
     const ld = await supabase.from("leads").select("*");
     if (!ld.error) leads = (ld.data || []).map(leadFromDb);
   } catch {}
+  let reminders = [];
+  try {
+    const rm = await supabase.from("reminders").select("*");
+    if (!rm.error) reminders = (rm.data || []).map(reminderFromDb);
+  } catch {}
   // Written only by the Resend webhook (server-side) — the app just reads and can
   // dismiss entries, so no corresponding *ToDb mapper or push wiring is needed.
   let emailEvents = [];
@@ -249,6 +266,7 @@ export async function pullFromCloud() {
     settings,
     timeOff,
     leads,
+    reminders,
     emailEvents,
     technicians: [],
   };
@@ -269,6 +287,7 @@ export async function pushToCloud(data) {
     { name: "settings", rows: (data.settings || []).map(settingToDb) },
     { name: "time_off", rows: (data.timeOff || []).map(timeOffToDb) },
     { name: "leads", rows: (data.leads || []).map(leadToDb) },
+    { name: "reminders", rows: (data.reminders || []).map(reminderToDb) },
   ];
 
   for (const t of tables) {
@@ -285,7 +304,7 @@ export async function pushToCloud(data) {
 
 // Push only ONE record (used for single saves — fast, avoids re-uploading everything)
 export async function pushOne(table, record) {
-  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb, inspections: inspectionToDb, communications: commToDb, settings: settingToDb, time_off: timeOffToDb, leads: leadToDb };
+  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb, inspections: inspectionToDb, communications: commToDb, settings: settingToDb, time_off: timeOffToDb, leads: leadToDb, reminders: reminderToDb };
   const { error } = await supabase.from(table).upsert(map[table](record));
   if (error) {
     const msg = error.message || error.details || error.hint || JSON.stringify(error);
@@ -295,7 +314,7 @@ export async function pushOne(table, record) {
 
 // ── Push a single record ────────────────────────────────────────────────────
 export async function upsertRecord(table, record) {
-  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb, inspections: inspectionToDb, communications: commToDb, settings: settingToDb, time_off: timeOffToDb, leads: leadToDb };
+  const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb, inspections: inspectionToDb, communications: commToDb, settings: settingToDb, time_off: timeOffToDb, leads: leadToDb, reminders: reminderToDb };
   const { error } = await supabase.from(table).upsert(map[table](record));
   if (error) throw error;
 }
