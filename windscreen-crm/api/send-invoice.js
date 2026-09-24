@@ -53,11 +53,13 @@ async function addJobCardPages(pdfDoc, font, bold, jobCard, cardIndex, cardTotal
   page.drawText(heading, { x: LEFT, y, size: 15, font: bold, color: NAVY });
   y -= 22;
 
+  const repairCount = jobCard.repairCount || 0;
+  const repairCountText = repairCount > 0 ? `${repairCount} repair${repairCount === 1 ? "" : "s"} — ` : "";
   const rows = [
     ["Vehicle", jobCard.vehicleText],
     ["Driver", jobCard.driverName],
     ["Date", jobCard.date],
-    ["Damage", jobCard.damageLines],
+    ["Damage", jobCard.damageLines ? repairCountText + jobCard.damageLines : jobCard.damageLines],
     ["Notes", jobCard.notes],
   ].filter(([, v]) => v);
   for (const [label, value] of rows) {
