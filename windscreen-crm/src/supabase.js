@@ -305,7 +305,29 @@ export async function pushToCloud(data) {
 // Push only ONE record (used for single saves — fast, avoids re-uploading everything)
 export async function pushOne(table, record) {
   const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb, inspections: inspectionToDb, communications: commToDb, settings: settingToDb, time_off: timeOffToDb, leads: leadToDb, reminders: reminderToDb };
-  const { error } = await supabase.from(table).upsert(map[table](record));
+  const payload = map[table](record);
+
+  // Guard against wiping job photos: this device's local copy of a job can be
+  // missing photosBefore/photosAfter (e.g. it was loaded/merged before the photos
+  // synced down), and since every save pushes the FULL record, that empty array
+  // would otherwise silently overwrite Supabase's real photos with nothing. If
+  // the local side looks empty, check what's already stored in the cloud first
+  // and keep it rather than blindly wiping it.
+  if (table === "jobs" && (!record.photosBefore?.length || !record.photosAfter?.length)) {
+    try {
+      const { data: existing } = await supabase.from("jobs").select("photos_before, photos_after").eq("id", record.id).maybeSingle();
+      if (existing) {
+        if (!record.photosBefore?.length && existing.photos_before?.length) payload.photos_before = existing.photos_before;
+        if (!record.photosAfter?.length && existing.photos_after?.length) payload.photos_after = existing.photos_after;
+      }
+    } catch (e) {
+      // If the lookup itself fails, fall through and push the local payload as-is
+      // rather than blocking the whole save on a photo-safety check.
+      console.warn("pushOne: photo-preservation lookup failed for job", record.id, e?.message || e);
+    }
+  }
+
+  const { error } = await supabase.from(table).upsert(payload);
   if (error) {
     const msg = error.message || error.details || error.hint || JSON.stringify(error);
     throw new Error(msg);
@@ -315,7 +337,21 @@ export async function pushOne(table, record) {
 // ── Push a single record ────────────────────────────────────────────────────
 export async function upsertRecord(table, record) {
   const map = { customers: customerToDb, vehicles: vehicleToDb, jobs: jobToDb, invoices: invoiceToDb, mileage: mileageToDb, inspections: inspectionToDb, communications: commToDb, settings: settingToDb, time_off: timeOffToDb, leads: leadToDb, reminders: reminderToDb };
-  const { error } = await supabase.from(table).upsert(map[table](record));
+  const payload = map[table](record);
+
+  if (table === "jobs" && (!record.photosBefore?.length || !record.photosAfter?.length)) {
+    try {
+      const { data: existing } = await supabase.from("jobs").select("photos_before, photos_after").eq("id", record.id).maybeSingle();
+      if (existing) {
+        if (!record.photosBefore?.length && existing.photos_before?.length) payload.photos_before = existing.photos_before;
+        if (!record.photosAfter?.length && existing.photos_after?.length) payload.photos_after = existing.photos_after;
+      }
+    } catch (e) {
+      console.warn("upsertRecord: photo-preservation lookup failed for job", record.id, e?.message || e);
+    }
+  }
+
+  const { error } = await supabase.from(table).upsert(payload);
   if (error) throw error;
 }
 
