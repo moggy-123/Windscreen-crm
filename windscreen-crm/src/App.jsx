@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B133 · 30 Sep 2026";
+const BUILD_NUMBER = "B134 · 30 Sep 2026";
 // Embedded directly (not a URL) so nothing in any emailed/printed report ever
 // reveals or links back to the actual live app address.
 const LOGO_DATA_URI = "data:image/png;base64,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";
@@ -1401,6 +1401,92 @@ async function previewStatementPdf(data, customer) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+// Builds a full Account Statement for a date period — unlike buildStatementRows (which
+// only ever shows the CURRENT outstanding balance), this shows every charge (invoice) and
+// every payment received within the chosen period, in date order, with a running balance —
+// like a bank statement. Charges before the period roll up into an opening balance; any
+// invoice paid before the period reduces that opening balance too.
+function buildAccountStatementRows(data, customer, fromDate, toDate) {
+  const jobIds = new Set(data.jobs.filter(j => j.customerId === customer.id).map(j => j.id));
+  const invoices = data.invoices.filter(inv => jobIds.has(inv.jobId));
+  const chargeDateOf = (inv) => { const job = data.jobs.find(j => j.id === inv.jobId); return job?.date || inv.createdAt || ""; };
+
+  const chargeLines = (inv, dateStr) => {
+    if (inv.lineItems?.length > 1) {
+      return inv.lineItems.map((li, idx) => {
+        const j2 = data.jobs.find(x => x.id === li.jobId);
+        const v2 = j2?.vehicleId ? data.vehicles.find(v => v.id === j2.vehicleId) : null;
+        const desc = [v2?.reg, idx === 0 && inv.sageInvoiceNo ? `Inv ${inv.sageInvoiceNo}` : ""].filter(Boolean).join(" · ");
+        return { date: dateStr, description: desc || "Invoice", amount: parseFloat(li.price) || 0 };
+      });
+    }
+    const job = data.jobs.find(j => j.id === inv.jobId);
+    const vehicle = job?.vehicleId ? data.vehicles.find(v => v.id === job.vehicleId) : null;
+    const desc = [job?.jobType, vehicle?.reg, inv.sageInvoiceNo ? `Inv ${inv.sageInvoiceNo}` : ""].filter(Boolean).join(" · ");
+    return [{ date: dateStr, description: desc || "Invoice", amount: parseFloat(inv.total) || 0 }];
+  };
+
+  let opening = 0;
+  const txns = [];
+  for (const inv of invoices) {
+    const cd = chargeDateOf(inv);
+    const invTotal = parseFloat(inv.total) || 0;
+    if (cd && cd < fromDate) {
+      opening += invTotal;
+    } else if (cd && cd >= fromDate && cd <= toDate) {
+      chargeLines(inv, cd).forEach(l => txns.push({ date: l.date, type: "charge", description: l.description, amount: l.amount }));
+    }
+    if (inv.paid && inv.paidDate) {
+      if (inv.paidDate < fromDate) {
+        opening -= invTotal;
+      } else if (inv.paidDate >= fromDate && inv.paidDate <= toDate) {
+        txns.push({ date: inv.paidDate, type: "payment", description: `Payment received${inv.sageInvoiceNo ? ` — Inv ${inv.sageInvoiceNo}` : ""}`, amount: -invTotal });
+      }
+    }
+  }
+  // Charges before payments on the same day reads more naturally on a statement.
+  txns.sort((a, b) => a.date.localeCompare(b.date) || (a.type === b.type ? 0 : a.type === "charge" ? -1 : 1));
+
+  let running = opening;
+  const rows = txns.map(t => { running += t.amount; return { ...t, balance: running }; });
+  return { opening, rows, closing: running };
+}
+
+async function previewAccountStatementPdf(data, customer, fromDate, toDate) {
+  const { opening, rows, closing } = buildAccountStatementRows(data, customer, fromDate, toDate);
+  const res = await fetch("/api/send-statement", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ previewOnly: true, mode: "account", customerName: customer.company || customer.companyContact || "", periodFrom: fmtDate(fromDate), periodTo: fmtDate(toDate), opening, rows, closing }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Preview failed");
+  const byteChars = atob(json.pdfBase64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  if (!win) alert("Please allow pop-ups for this site, then try again.");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function emailAccountStatementToCustomer(data, customer, fromDate, toDate, message) {
+  const { opening, rows, closing } = buildAccountStatementRows(data, customer, fromDate, toDate);
+  const res = await fetch("/api/send-statement", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      to: getRecipientEmail(customer, "receivesStatements"), customerId: customer.id,
+      customerName: customer.company || customer.companyContact || "",
+      mode: "account", periodFrom: fmtDate(fromDate), periodTo: fmtDate(toDate),
+      opening, rows, closing, message,
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Send failed");
+}
+
 // Pure, synchronous — opens a printable/emailable statement of everything a customer owes
 // Shared "review before sending" modal — shows the recipient and subject, and lets the
 // body text be edited before the send actually happens. Used for every individual send
@@ -1548,6 +1634,7 @@ function CustomerDetail({ data, id, setView }) {
   const [showDaySheet, setShowDaySheet] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showComposeStatement, setShowComposeStatement] = useState(false);
+  const [showAccountStatement, setShowAccountStatement] = useState(false);
   const [showComposeTerms, setShowComposeTerms] = useState(false);
   const [showCommLog, setShowCommLog] = useState(false);
   const [editingComm, setEditingComm] = useState(null);
@@ -1704,6 +1791,7 @@ function CustomerDetail({ data, id, setView }) {
                 )}
               </>
             )}
+            {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setShowAccountStatement(true)}>📅 Account Statement</Btn>}
             {customer.custType === "Trade" && <Btn size="sm" variant="ghost" onClick={() => setView({ screen:"newInspection", prefillCustomerId:id })}>🔍 New Inspection</Btn>}
             <Btn size="sm" variant="ghost" onClick={() => setShowReminder(true)}>📞 Set Reminder</Btn>
             <Btn size="sm" variant="ghost" onClick={() => setShowEdit(true)}><Icon name="edit" size={13} /> Edit</Btn>
@@ -1714,6 +1802,7 @@ function CustomerDetail({ data, id, setView }) {
       {showTerms && <RepairTermsModal customer={customer} data={data} onClose={() => setShowTerms(false)} />}
       {showDaySheet && <DaySheetModal customer={customer} data={data} onClose={() => setShowDaySheet(false)} />}
       {showRecordPayment && <RecordPaymentModal customer={customer} data={data} onClose={() => setShowRecordPayment(false)} />}
+      {showAccountStatement && <AccountStatementModal customer={customer} data={data} onClose={() => setShowAccountStatement(false)} />}
       {showReminder && (
         <ReminderModal
           data={data}
@@ -3267,6 +3356,7 @@ function RecordPaymentModal({ customer, data, onClose }) {
   const [selected, setSelected] = useState(() => {
     const s = {}; unpaid.forEach(inv => { s[inv.id] = true; }); return s;
   });
+  const [paidDate, setPaidDate] = useState(todayISO());
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
   const selectedInvoices = unpaid.filter(inv => selected[inv.id]);
   const total = selectedInvoices.reduce((s, inv) => s + (parseFloat(inv.total)||0), 0);
@@ -3285,7 +3375,6 @@ function RecordPaymentModal({ customer, data, onClose }) {
 
   async function confirm() {
     if (selectedInvoices.length === 0) return;
-    const paidDate = todayISO();
     const selectedIds = new Set(selectedInvoices.map(inv => inv.id));
     const invoices = data.invoices.map(inv => selectedIds.has(inv.id) ? { ...inv, paid: true, paidDate } : inv);
     const coveredJobIds = new Set(selectedInvoices.flatMap(inv => jobIdsForInvoice(inv)));
@@ -3313,6 +3402,7 @@ function RecordPaymentModal({ customer, data, onClose }) {
       ))}
       {unpaid.length > 0 && (
         <>
+          <Field label="Payment Date"><Input type="date" value={paidDate} onChange={setPaidDate} /></Field>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:8, padding:"12px 14px", margin:"14px 0" }}>
             <span style={{ fontSize:14, fontWeight:700, color:"#065F46" }}>Total for this payment</span>
             <span style={{ fontSize:18, fontWeight:800, color:"#065F46" }}>£{total.toFixed(2)}</span>
@@ -3321,6 +3411,80 @@ function RecordPaymentModal({ customer, data, onClose }) {
             ✅ Mark {selectedInvoices.length} Invoice{selectedInvoices.length===1?"":"s"} as Paid
           </Btn>
         </>
+      )}
+    </Modal>
+  );
+}
+
+// Full Account Statement for a chosen date period — shows charges AND payments received
+// in that window with a running balance, unlike the quick "current balance owed" statement.
+function AccountStatementModal({ customer, data, onClose }) {
+  const startOfMonth = (() => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; })();
+  const [fromDate, setFromDate] = useState(startOfMonth);
+  const [toDate, setToDate] = useState(todayISO());
+  const [status, setStatus] = useState(null); // null | "previewing" | "sending" | "sent" | "error"
+  const [showCompose, setShowCompose] = useState(false);
+
+  const { opening, rows, closing } = buildAccountStatementRows(data, customer, fromDate, toDate);
+  const totalCharges = rows.filter(r => r.type === "charge").reduce((s, r) => s + r.amount, 0);
+  const totalPayments = rows.filter(r => r.type === "payment").reduce((s, r) => s - r.amount, 0);
+
+  async function preview() {
+    setStatus("previewing");
+    try { await previewAccountStatementPdf(data, customer, fromDate, toDate); }
+    catch (e) { alert("Couldn't build the preview: " + (e?.message || e)); }
+    setStatus(null);
+  }
+
+  return (
+    <Modal title="Account Statement" onClose={onClose}>
+      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Choose a date range to include both charges and payments received, with a running balance — not just what's currently outstanding.</p>
+      <div style={{ display:"flex", gap:10 }}>
+        <div style={{ flex:1 }}><Field label="From"><Input type="date" value={fromDate} onChange={setFromDate} /></Field></div>
+        <div style={{ flex:1 }}><Field label="To"><Input type="date" value={toDate} onChange={setToDate} /></Field></div>
+      </div>
+
+      <div style={{ background:"#F9FAFB", border:"1px solid #F3F4F6", borderRadius:8, padding:"10px 12px", margin:"6px 0 14px", fontSize:13 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}><span style={{ color:"#6B7280" }}>Opening balance</span><span style={{ fontWeight:700 }}>£{opening.toFixed(2)}</span></div>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}><span style={{ color:"#6B7280" }}>Charges in period</span><span style={{ fontWeight:700, color:"#1E3A5F" }}>£{totalCharges.toFixed(2)}</span></div>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}><span style={{ color:"#6B7280" }}>Payments received</span><span style={{ fontWeight:700, color:"#059669" }}>−£{totalPayments.toFixed(2)}</span></div>
+        <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #E5E7EB", marginTop:6, paddingTop:6 }}><span style={{ fontWeight:700 }}>Closing balance</span><span style={{ fontWeight:800 }}>£{closing.toFixed(2)}</span></div>
+      </div>
+
+      {rows.length === 0 ? (
+        <p style={{ fontSize:13, color:"#9CA3AF", textAlign:"center", margin:"0 0 14px" }}>No charges or payments in this period.</p>
+      ) : (
+        <div style={{ maxHeight:220, overflowY:"auto", border:"1px solid #F3F4F6", borderRadius:8, marginBottom:14 }}>
+          {rows.map((r, i) => (
+            <div key={i} style={{ display:"flex", justifyContent:"space-between", gap:8, padding:"8px 12px", borderBottom: i < rows.length-1 ? "1px solid #F3F4F6" : "none", fontSize:13 }}>
+              <span style={{ color:"#9CA3AF", width:80, flexShrink:0 }}>{fmtDate(r.date)}</span>
+              <span style={{ flex:1, color:"#374151" }}>{r.description}</span>
+              <span style={{ fontWeight:700, color: r.type === "payment" ? "#059669" : "#111827" }}>{r.type === "payment" ? "−" : ""}£{Math.abs(r.amount).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        <Btn variant="ghost" onClick={preview} disabled={status==="previewing"} style={{ flex:1, justifyContent:"center" }}>
+          {status==="previewing" ? "Building…" : "👁️ Preview PDF"}
+        </Btn>
+        {getRecipientEmail(customer, "receivesStatements") && (
+          <Btn onClick={() => setShowCompose(true)} style={{ flex:1, justifyContent:"center" }}>✉️ Email Statement</Btn>
+        )}
+      </div>
+
+      {showCompose && (
+        <ComposeEmailModal
+          to={getRecipientEmail(customer, "receivesStatements")}
+          subject={`Statement of Account — ${customer.company || customer.companyContact || "Windscreen Repairs Bristol"} (${fmtDate(fromDate)} to ${fmtDate(toDate)})`}
+          defaultBody={`Please find our statement attached for ${fmtDate(fromDate)} to ${fmtDate(toDate)}, showing a closing balance of £${closing.toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`}
+          onSend={async (message) => {
+            try { await emailAccountStatementToCustomer(data, customer, fromDate, toDate, message); setShowCompose(false); alert("Statement sent."); }
+            catch (e) { alert("Couldn't send the statement: " + (e?.message || e)); }
+          }}
+          onClose={() => setShowCompose(false)}
+        />
       )}
     </Modal>
   );
@@ -3419,6 +3583,7 @@ function JobDetail({ data, id, from, setView }) {
   const [showComposeInvoice, setShowComposeInvoice] = useState(false);
   const [includeJobCard, setIncludeJobCard] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [payDate, setPayDate] = useState(todayISO());
   if (!job) return <p>Not found</p>;
 
   const customer   = data.customers.find(c => c.id === job.customerId);
@@ -3640,7 +3805,7 @@ function JobDetail({ data, id, from, setView }) {
               <div style={{ fontWeight:700, fontSize:14, color:"#065F46" }}>Invoice · £{invoice.total}</div>
               {invoice.lineItems?.length > 1 && <div style={{ fontSize:12, color:"#065F46", fontWeight:600 }}>Combined — covers {invoice.lineItems.length} vehicles</div>}
               {invoice.sageInvoiceNo && <div style={{ fontSize:12, color:"#065F46", fontWeight:600 }}>Sage: {invoice.sageInvoiceNo}</div>}
-              <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? "✓ Paid" : "Awaiting payment"}</div>
+              <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? `✓ Paid${invoice.paidDate ? " " + fmtDate(invoice.paidDate) : ""}` : "Awaiting payment"}</div>
             </div>
             {!invoice.sageInvoiceNo && (
               <p style={{ fontSize:12, color:"#B45309", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"8px 10px", margin:"8px 0" }}>
@@ -3651,7 +3816,7 @@ function JobDetail({ data, id, from, setView }) {
               <input type="checkbox" checked={includeJobCard} onChange={e => setIncludeJobCard(e.target.checked)} style={{ width:16, height:16 }} />
               Also include Job Card{invoice.lineItems?.length > 1 ? ` (all ${invoice.lineItems.length} vehicles)` : (job.photosBefore?.length || job.photosAfter?.length) ? " (with photos)" : ""}
             </label>
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
               <Btn size="sm" variant="ghost" onClick={previewInvoice} disabled={emailStatus==="previewing"}>
                 {emailStatus==="previewing" ? "Building…" : "👁️ Preview PDF"}
               </Btn>
@@ -3662,12 +3827,15 @@ function JobDetail({ data, id, from, setView }) {
               )}
               <Btn size="sm" variant="ghost" onClick={() => setShowEditInvoice(true)}>Edit</Btn>
               {!invoice.paid && (
-                <Btn size="sm" onClick={async () => {
-                  const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:todayISO()} : i);
-                  const coveredIds = jobIdsForInvoice(invoice);
-                  const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Paid"} : j);
-                  await saveAndReload({ ...data, invoices, jobs });
-                }}>Mark Paid</Btn>
+                <>
+                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} style={{ padding:"7px 8px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:13, color:"#374151" }} />
+                  <Btn size="sm" onClick={async () => {
+                    const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:payDate||todayISO()} : i);
+                    const coveredIds = jobIdsForInvoice(invoice);
+                    const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Paid"} : j);
+                    await saveAndReload({ ...data, invoices, jobs });
+                  }}>Mark Paid</Btn>
+                </>
               )}
               {invoice.paid && (
                 <Btn size="sm" variant="ghost" onClick={async () => {
@@ -3745,17 +3913,25 @@ function InvoiceForm({ data, jobId, editInvoice, returnView, onClose }) {
   const [parts,  setParts]  = useState(editInvoice?.parts ?? "");
   const [vat,    setVat]    = useState(editInvoice?.vat ?? false);
   const [sageInvoiceNo, setSageInvoiceNo] = useState(editInvoice?.sageInvoiceNo ?? "");
+  const [paid, setPaid] = useState(editInvoice?.paid ?? false);
+  // Defaults to today (the day you're entering the payment) but is editable, so a
+  // payment recorded after the fact — e.g. while catching up on old invoices — can be
+  // backdated to when it was actually received rather than always being today's date.
+  const [paidDate, setPaidDate] = useState(editInvoice?.paidDate || todayISO());
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
+    const paidFields = { paid, paidDate: paid ? (paidDate || todayISO()) : "" };
+    const newStatus = paid ? "Paid" : "Invoiced";
     let invoices;
     if (editInvoice) {
-      invoices = data.invoices.map(i => i.id === editInvoice.id ? { ...i, details, labour, parts, vat, sageInvoiceNo, total: total.toFixed(2) } : i);
-      await saveAndReload({ ...data, invoices }, returnView);
+      invoices = data.invoices.map(i => i.id === editInvoice.id ? { ...i, details, labour, parts, vat, sageInvoiceNo, total: total.toFixed(2), ...paidFields } : i);
+      const jobs = data.jobs.map(j => j.id===jobId ? {...j,status:newStatus} : j);
+      await saveAndReload({ ...data, invoices, jobs }, returnView);
     } else {
-      invoices = [...data.invoices, { id:uid(), jobId, details, labour, parts, vat, sageInvoiceNo, total:total.toFixed(2), paid:false, createdAt:todayISO() }];
-      const jobs = data.jobs.map(j => j.id===jobId ? {...j,status:"Invoiced"} : j);
+      invoices = [...data.invoices, { id:uid(), jobId, details, labour, parts, vat, sageInvoiceNo, total:total.toFixed(2), ...paidFields, createdAt:todayISO() }];
+      const jobs = data.jobs.map(j => j.id===jobId ? {...j,status:newStatus} : j);
       await saveAndReload({ ...data, invoices, jobs }, returnView);
     }
   }
@@ -3814,6 +3990,13 @@ function InvoiceForm({ data, jobId, editInvoice, returnView, onClose }) {
         {vat && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>VAT (20%)</span><span>£{(subtotal*0.2).toFixed(2)}</span></div>}
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, fontWeight:800, color:"#111827", borderTop:"1px solid #E5E7EB", paddingTop:8, marginTop:4 }}><span>Total</span><span>£{total.toFixed(2)}</span></div>
       </div>
+      <Field label="Payment">
+        <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151", marginBottom: paid ? 8 : 0 }}>
+          <input type="checkbox" checked={paid} onChange={e => setPaid(e.target.checked)} style={{ width:16, height:16 }} />
+          Paid
+        </label>
+        {paid && <Input type="date" value={paidDate} onChange={setPaidDate} />}
+      </Field>
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>Save Invoice</Btn>
       {editInvoice && (
         <Btn variant="danger" onClick={deleteInvoiceRecord} style={{ width:"100%", justifyContent:"center", marginTop:8 }}><Icon name="trash" size={13}/> Delete Invoice</Btn>
@@ -3857,6 +4040,11 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
   const [parts, setParts] = useState(baseInvoice?.parts ?? "");
   const [vat, setVat] = useState(baseInvoice?.vat ?? false);
   const [sageInvoiceNo, setSageInvoiceNo] = useState(baseInvoice?.sageInvoiceNo ?? "");
+  const [paid, setPaid] = useState(baseInvoice?.paid ?? false);
+  // Defaults to today (the day you're entering the payment) but is editable, so a
+  // payment recorded after the fact — e.g. while catching up on old invoices — can be
+  // backdated to when it was actually received rather than always being today's date.
+  const [paidDate, setPaidDate] = useState(baseInvoice?.paidDate || todayISO());
   const [copied, setCopied] = useState(false);
 
   // Copies the line items as plain text (description, tab, price per line) so they can
@@ -3894,6 +4082,8 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
       setParts(existingCombined.parts ?? "");
       setVat(existingCombined.vat ?? false);
       setSageInvoiceNo(existingCombined.sageInvoiceNo ?? "");
+      setPaid(existingCombined.paid ?? false);
+      setPaidDate(existingCombined.paidDate || todayISO());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [choice]);
@@ -3928,7 +4118,7 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
   const total = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
-    const rec = { lineItems, parts, vat, sageInvoiceNo, total: total.toFixed(2), jobId: lineItems[0]?.jobId };
+    const rec = { lineItems, parts, vat, sageInvoiceNo, total: total.toFixed(2), jobId: lineItems[0]?.jobId, paid, paidDate: paid ? (paidDate || todayISO()) : "" };
     const coveredIds = lineItems.map(li => li.jobId);
     let invoices;
     let resultInvoice;
@@ -3936,7 +4126,7 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
       invoices = data.invoices.map(i => i.id === baseInvoice.id ? { ...i, ...rec } : i);
       resultInvoice = invoices.find(i => i.id === baseInvoice.id);
     } else {
-      resultInvoice = { id: uid(), ...rec, paid: false, createdAt: todayISO() };
+      resultInvoice = { id: uid(), ...rec, createdAt: todayISO() };
       invoices = [...data.invoices, resultInvoice];
     }
     // Derive job status from the invoice's actual paid state, rather than always
@@ -4022,6 +4212,13 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
         {vat && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>VAT (20%)</span><span>£{(subtotal*0.2).toFixed(2)}</span></div>}
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, fontWeight:800, color:"#111827", borderTop:"1px solid #E5E7EB", paddingTop:8, marginTop:4 }}><span>Total</span><span>£{total.toFixed(2)}</span></div>
       </div>
+      <Field label="Payment">
+        <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151", marginBottom: paid ? 8 : 0 }}>
+          <input type="checkbox" checked={paid} onChange={e => setPaid(e.target.checked)} style={{ width:16, height:16 }} />
+          Paid
+        </label>
+        {paid && <Input type="date" value={paidDate} onChange={setPaidDate} />}
+      </Field>
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>Save Invoice</Btn>
       {baseInvoice && (
         <Btn variant="danger" onClick={deleteInvoiceRecord} style={{ width:"100%", justifyContent:"center", marginTop:8 }}><Icon name="trash" size={13}/> Delete Invoice</Btn>
