@@ -12,7 +12,9 @@ export default async function handler(req, res) {
   const redirectUri = `${APP_URL}/api/sage-callback`;
   const state = Math.random().toString(36).slice(2);
 
-  const authUrl = `https://www.sageone.com/oauth2/auth` +
+  // UK Sage Accounting authorization endpoint (per Sage developer support).
+  // NOT www.sageone.com — that returns a generic error before the approval screen.
+  const authUrl = `https://central.uk.sageone.com/oauth2/auth` +
     `?filter=apiv3.1` +
     `&response_type=code` +
     `&client_id=${encodeURIComponent(CLIENT_ID)}` +
