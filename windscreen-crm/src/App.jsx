@@ -3357,6 +3357,8 @@ function RecordPaymentModal({ customer, data, onClose }) {
     const s = {}; unpaid.forEach(inv => { s[inv.id] = true; }); return s;
   });
   const [paidDate, setPaidDate] = useState(todayISO());
+  const [payMethod, setPayMethod] = useState("Bank Transfer");
+  const [payRef, setPayRef] = useState("");
   const toggle = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
   const selectedInvoices = unpaid.filter(inv => selected[inv.id]);
   const total = selectedInvoices.reduce((s, inv) => s + (parseFloat(inv.total)||0), 0);
@@ -3376,7 +3378,7 @@ function RecordPaymentModal({ customer, data, onClose }) {
   async function confirm() {
     if (selectedInvoices.length === 0) return;
     const selectedIds = new Set(selectedInvoices.map(inv => inv.id));
-    const invoices = data.invoices.map(inv => selectedIds.has(inv.id) ? { ...inv, paid: true, paidDate } : inv);
+    const invoices = data.invoices.map(inv => selectedIds.has(inv.id) ? { ...inv, paid: true, paidDate, paymentMethod: payMethod, paymentRef: payRef } : inv);
     const coveredJobIds = new Set(selectedInvoices.flatMap(inv => jobIdsForInvoice(inv)));
     const jobs = data.jobs.map(j => coveredJobIds.has(j.id) ? { ...j, status: "Paid" } : j);
     try {
@@ -3403,6 +3405,12 @@ function RecordPaymentModal({ customer, data, onClose }) {
       {unpaid.length > 0 && (
         <>
           <Field label="Payment Date"><Input type="date" value={paidDate} onChange={setPaidDate} /></Field>
+          <Field label="Payment Method">
+            <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:14, color:"#374151", fontFamily:"inherit" }}>
+              {["Bank Transfer","Card","Cash","Cheque"].map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </Field>
+          <Field label="Reference (optional)"><Input value={payRef} onChange={setPayRef} placeholder="e.g. bank ref, receipt no." /></Field>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:8, padding:"12px 14px", margin:"14px 0" }}>
             <span style={{ fontSize:14, fontWeight:700, color:"#065F46" }}>Total for this payment</span>
             <span style={{ fontSize:18, fontWeight:800, color:"#065F46" }}>£{total.toFixed(2)}</span>
@@ -3584,6 +3592,8 @@ function JobDetail({ data, id, from, setView }) {
   const [includeJobCard, setIncludeJobCard] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [payDate, setPayDate] = useState(todayISO());
+  const [payMethod, setPayMethod] = useState("Bank Transfer");
+  const [payRef, setPayRef] = useState("");
   if (!job) return <p>Not found</p>;
 
   const customer   = data.customers.find(c => c.id === job.customerId);
@@ -3805,7 +3815,7 @@ function JobDetail({ data, id, from, setView }) {
               <div style={{ fontWeight:700, fontSize:14, color:"#065F46" }}>Invoice · £{invoice.total}</div>
               {invoice.lineItems?.length > 1 && <div style={{ fontSize:12, color:"#065F46", fontWeight:600 }}>Combined — covers {invoice.lineItems.length} vehicles</div>}
               {invoice.sageInvoiceNo && <div style={{ fontSize:12, color:"#065F46", fontWeight:600 }}>Sage: {invoice.sageInvoiceNo}</div>}
-              <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? `✓ Paid${invoice.paidDate ? " " + fmtDate(invoice.paidDate) : ""}` : "Awaiting payment"}</div>
+              <div style={{ fontSize:12, color:"#059669" }}>{invoice.paid ? `✓ Paid${invoice.paidDate ? " " + fmtDate(invoice.paidDate) : ""}${invoice.paymentMethod ? " · " + invoice.paymentMethod : ""}${invoice.paymentRef ? " · ref: " + invoice.paymentRef : ""}` : "Awaiting payment"}</div>
             </div>
             {!invoice.sageInvoiceNo && (
               <p style={{ fontSize:12, color:"#B45309", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"8px 10px", margin:"8px 0" }}>
@@ -3827,15 +3837,19 @@ function JobDetail({ data, id, from, setView }) {
               )}
               <Btn size="sm" variant="ghost" onClick={() => setShowEditInvoice(true)}>Edit</Btn>
               {!invoice.paid && (
-                <>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", width:"100%" }}>
                   <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} style={{ padding:"7px 8px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:13, color:"#374151" }} />
+                  <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ padding:"7px 8px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:13, color:"#374151" }}>
+                    {["Bank Transfer","Card","Cash","Cheque"].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="Reference (optional)" style={{ padding:"7px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:13, color:"#374151", flex:1, minWidth:120 }} />
                   <Btn size="sm" onClick={async () => {
-                    const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:payDate||todayISO()} : i);
+                    const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:payDate||todayISO(),paymentMethod:payMethod,paymentRef:payRef} : i);
                     const coveredIds = jobIdsForInvoice(invoice);
                     const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Paid"} : j);
                     await saveAndReload({ ...data, invoices, jobs });
                   }}>Mark Paid</Btn>
-                </>
+                </div>
               )}
               {invoice.paid && (
                 <Btn size="sm" variant="ghost" onClick={async () => {
@@ -3918,11 +3932,13 @@ function InvoiceForm({ data, jobId, editInvoice, returnView, onClose }) {
   // payment recorded after the fact — e.g. while catching up on old invoices — can be
   // backdated to when it was actually received rather than always being today's date.
   const [paidDate, setPaidDate] = useState(editInvoice?.paidDate || todayISO());
+  const [paymentMethod, setPaymentMethod] = useState(editInvoice?.paymentMethod || "Bank Transfer");
+  const [paymentRef, setPaymentRef] = useState(editInvoice?.paymentRef || "");
   const subtotal = (parseFloat(labour)||0) + (parseFloat(parts)||0);
   const total    = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
-    const paidFields = { paid, paidDate: paid ? (paidDate || todayISO()) : "" };
+    const paidFields = { paid, paidDate: paid ? (paidDate || todayISO()) : "", paymentMethod: paid ? paymentMethod : "", paymentRef: paid ? paymentRef : "" };
     const newStatus = paid ? "Paid" : "Invoiced";
     let invoices;
     if (editInvoice) {
@@ -3995,7 +4011,19 @@ function InvoiceForm({ data, jobId, editInvoice, returnView, onClose }) {
           <input type="checkbox" checked={paid} onChange={e => setPaid(e.target.checked)} style={{ width:16, height:16 }} />
           Paid
         </label>
-        {paid && <Input type="date" value={paidDate} onChange={setPaidDate} />}
+        {paid && (
+          <>
+            <Input type="date" value={paidDate} onChange={setPaidDate} />
+            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ flex:1, padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:14, color:"#374151", fontFamily:"inherit" }}>
+                {["Bank Transfer","Card","Cash","Cheque"].map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div style={{ marginTop:8 }}>
+              <Input value={paymentRef} onChange={setPaymentRef} placeholder="Payment reference (optional)" />
+            </div>
+          </>
+        )}
       </Field>
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>Save Invoice</Btn>
       {editInvoice && (
@@ -4045,6 +4073,8 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
   // payment recorded after the fact — e.g. while catching up on old invoices — can be
   // backdated to when it was actually received rather than always being today's date.
   const [paidDate, setPaidDate] = useState(baseInvoice?.paidDate || todayISO());
+  const [paymentMethod, setPaymentMethod] = useState(baseInvoice?.paymentMethod || "Bank Transfer");
+  const [paymentRef, setPaymentRef] = useState(baseInvoice?.paymentRef || "");
   const [copied, setCopied] = useState(false);
 
   // Copies the line items as plain text (description, tab, price per line) so they can
@@ -4118,7 +4148,7 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
   const total = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
-    const rec = { lineItems, parts, vat, sageInvoiceNo, total: total.toFixed(2), jobId: lineItems[0]?.jobId, paid, paidDate: paid ? (paidDate || todayISO()) : "" };
+    const rec = { lineItems, parts, vat, sageInvoiceNo, total: total.toFixed(2), jobId: lineItems[0]?.jobId, paid, paidDate: paid ? (paidDate || todayISO()) : "", paymentMethod: paid ? paymentMethod : "", paymentRef: paid ? paymentRef : "" };
     const coveredIds = lineItems.map(li => li.jobId);
     let invoices;
     let resultInvoice;
@@ -4217,7 +4247,19 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
           <input type="checkbox" checked={paid} onChange={e => setPaid(e.target.checked)} style={{ width:16, height:16 }} />
           Paid
         </label>
-        {paid && <Input type="date" value={paidDate} onChange={setPaidDate} />}
+        {paid && (
+          <>
+            <Input type="date" value={paidDate} onChange={setPaidDate} />
+            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ flex:1, padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:14, color:"#374151", fontFamily:"inherit" }}>
+                {["Bank Transfer","Card","Cash","Cheque"].map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div style={{ marginTop:8 }}>
+              <Input value={paymentRef} onChange={setPaymentRef} placeholder="Payment reference (optional)" />
+            </div>
+          </>
+        )}
       </Field>
       <Btn onClick={save} style={{ width:"100%", justifyContent:"center" }}>Save Invoice</Btn>
       {baseInvoice && (
