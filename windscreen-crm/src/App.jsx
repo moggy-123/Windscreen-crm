@@ -3594,6 +3594,7 @@ function JobDetail({ data, id, from, setView }) {
   const [payDate, setPayDate] = useState(todayISO());
   const [payMethod, setPayMethod] = useState("Bank Transfer");
   const [payRef, setPayRef] = useState("");
+  const [showPayForm, setShowPayForm] = useState(false);
   if (!job) return <p>Not found</p>;
 
   const customer   = data.customers.find(c => c.id === job.customerId);
@@ -3836,31 +3837,47 @@ function JobDetail({ data, id, from, setView }) {
                 </Btn>
               )}
               <Btn size="sm" variant="ghost" onClick={() => setShowEditInvoice(true)}>Edit</Btn>
-              {!invoice.paid && (
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", width:"100%" }}>
-                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} style={{ padding:"7px 8px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:13, color:"#374151" }} />
-                  <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ padding:"7px 8px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:13, color:"#374151" }}>
-                    {["Bank Transfer","Card","Cash","Cheque"].map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="Reference (optional)" style={{ padding:"7px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:13, color:"#374151", flex:1, minWidth:120 }} />
-                  <Btn size="sm" onClick={async () => {
-                    const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:payDate||todayISO(),paymentMethod:payMethod,paymentRef:payRef} : i);
-                    const coveredIds = jobIdsForInvoice(invoice);
-                    const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Paid"} : j);
-                    await saveAndReload({ ...data, invoices, jobs });
-                  }}>Mark Paid</Btn>
-                </div>
+              {!invoice.paid && !showPayForm && (
+                <Btn size="sm" onClick={() => setShowPayForm(true)}>💷 Mark Paid</Btn>
               )}
               {invoice.paid && (
                 <Btn size="sm" variant="ghost" onClick={async () => {
                   if (!window.confirm("Unmark this invoice as paid?")) return;
-                  const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:false,paidDate:""} : i);
+                  const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:false,paidDate:"",paymentMethod:"",paymentRef:""} : i);
                   const coveredIds = jobIdsForInvoice(invoice);
                   const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Invoiced"} : j);
                   await saveAndReload({ ...data, invoices, jobs });
                 }}>Unmark Paid</Btn>
               )}
             </div>
+            {!invoice.paid && showPayForm && (
+              <div style={{ marginTop:12, padding:14, background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:10 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#065F46", marginBottom:10 }}>Record Payment</div>
+                <div style={{ marginBottom:8 }}>
+                  <label style={{ fontSize:12, fontWeight:600, color:"#6B7280", display:"block", marginBottom:4 }}>Date received</label>
+                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:14, color:"#374151", boxSizing:"border-box" }} />
+                </div>
+                <div style={{ marginBottom:8 }}>
+                  <label style={{ fontSize:12, fontWeight:600, color:"#6B7280", display:"block", marginBottom:4 }}>Payment method</label>
+                  <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:14, color:"#374151", fontFamily:"inherit", boxSizing:"border-box" }}>
+                    {["Bank Transfer","Card","Cash","Cheque"].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:12, fontWeight:600, color:"#6B7280", display:"block", marginBottom:4 }}>Reference (optional)</label>
+                  <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="e.g. bank ref, receipt no." style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:14, color:"#374151", boxSizing:"border-box" }} />
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <Btn size="sm" onClick={async () => {
+                    const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:true,paidDate:payDate||todayISO(),paymentMethod:payMethod,paymentRef:payRef} : i);
+                    const coveredIds = jobIdsForInvoice(invoice);
+                    const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Paid"} : j);
+                    await saveAndReload({ ...data, invoices, jobs });
+                  }} style={{ flex:1, justifyContent:"center" }}>✅ Confirm Paid</Btn>
+                  <Btn size="sm" variant="ghost" onClick={() => setShowPayForm(false)}>Cancel</Btn>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       )}
