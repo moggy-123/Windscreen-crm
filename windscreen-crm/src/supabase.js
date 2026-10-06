@@ -42,6 +42,9 @@ const customerToDb = c => ({
   follow_up_date: c.followUpDate || null,
   follow_up_note: c.followUpNote || "",
   contacts: c.contacts || [],
+  // Only sent when set — so an older copy of a customer on another device (without the
+  // Sage ID yet) can never wipe the link out and cause a duplicate push.
+  ...(c.sageId ? { sage_id: c.sageId } : {}),
   updated_at: c.updatedAt || Date.now(),
   created_at: c.createdAt || new Date().toISOString(),
 });
@@ -59,6 +62,7 @@ const customerFromDb = r => ({
   followUpDate: r.follow_up_date || "",
   followUpNote: r.follow_up_note || "",
   contacts: r.contacts || [],
+  sageId: r.sage_id || "",
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
