@@ -103,7 +103,6 @@ export default async function handler(req, res) {
         sales_invoice: {
           contact_id: cust.sage_id,
           date,
-          due_date: due,
           invoice_lines: withTax ? lines.map(l => ({ ...l, tax_rate_id: "GB_NO_TAX" })) : lines,
         },
       }),
