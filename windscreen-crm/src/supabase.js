@@ -107,6 +107,7 @@ const invoiceToDb = i => ({
   line_items: i.lineItems || [],
   // Only sent when set, so a stale copy on another device can never wipe the Sage link
   ...(i.sageInvoiceId ? { sage_invoice_id: i.sageInvoiceId } : {}),
+  ...(i.sagePaymentId ? { sage_payment_id: i.sagePaymentId } : {}),
   updated_at: i.updatedAt || Date.now(),
   created_at: i.createdAt || new Date().toISOString(),
 });
@@ -115,6 +116,7 @@ const invoiceFromDb = r => ({
   total: r.total, paid: r.paid, paidDate: r.paid_date, paymentMethod: r.payment_method || "", paymentRef: r.payment_ref || "", sageInvoiceNo: r.sage_invoice_no || "",
   lineItems: r.line_items || [],
   sageInvoiceId: r.sage_invoice_id || "",
+  sagePaymentId: r.sage_payment_id || "",
   updatedAt: r.updated_at, createdAt: r.created_at,
 });
 
