@@ -20,8 +20,31 @@ const ALREADY_PAID = "PAID_IN_SAGE";
 
 const money = v => Math.round((parseFloat(v) || 0) * 100) / 100;
 
-// App payment method → Sage payment method id
-const METHOD = { "Bank Transfer": "BANK_TRANSFER", "Card": "CREDIT_DEBIT", "Cash": "CASH", "Cheque": "CHEQUE" };
+// App payment method → which of YOUR Sage payment methods to use. Sage's list (and the
+// codes behind it) differs between plans, so we look at the list and also try the known
+// codes, best match first. A rejected attempt creates nothing in Sage, so trying the next
+// code is safe.
+const METHOD_PREFS = {
+  "Bank Transfer": { words: [/electronic/i, /bank|transfer|bacs|faster/i], codes: ["ELECTRONIC", "BANK_TRANSFER", "BACS"] },
+  "Card":          { words: [/card|credit|debit/i],                        codes: ["CREDIT_DEBIT", "CREDIT_CARD", "CARD"] },
+  "Cash":          { words: [/cash/i],                                     codes: ["CASH"] },
+  "Cheque":        { words: [/cheque|check/i],                             codes: ["CHEQUE", "CHECK"] },
+};
+
+async function paymentMethodCandidates(appMethod) {
+  const pref = METHOD_PREFS[appMethod];
+  if (!pref) return [];
+  const out = [];
+  try {
+    const r = await sageFetch(`/payment_methods?items_per_page=100`);
+    const items = r?.$items || [];
+    for (const re of pref.words) {
+      items.filter(m => re.test(m.displayed_as || m.name || "")).forEach(m => out.push(m.id));
+    }
+  } catch { /* can't read the list — fall back to the known codes */ }
+  pref.codes.forEach(c => out.push(c));
+  return [...new Set(out.filter(Boolean))];
+}
 
 async function findBankAccountId() {
   const r = await sageFetch(`/bank_accounts?items_per_page=200&attributes=nominal_code,ledger_account`);
@@ -80,7 +103,7 @@ export default async function pushPayment(req, res) {
     const date = String(inv.paid_date || new Date().toISOString()).slice(0, 10);
     const reference = (inv.payment_ref || `${inv.payment_method || "Payment"} ${sageInv?.invoice_number || ""}`).trim().slice(0, 25);
 
-    const build = (withMethod) => ({
+    const build = (methodId) => ({
       contact_payment: {
         transaction_type_id: "CUSTOMER_RECEIPT",
         contact_id: contactId,
@@ -88,19 +111,25 @@ export default async function pushPayment(req, res) {
         date,
         total_amount: amount,
         reference,
-        ...(withMethod && METHOD[inv.payment_method] ? { payment_method_id: METHOD[inv.payment_method] } : {}),
+        ...(methodId ? { payment_method_id: methodId } : {}),
         allocated_artefacts: [{ artefact_id: inv.sage_invoice_id, amount }],
       },
     });
 
-    let payment;
-    try {
-      payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(true)) });
-    } catch (e) {
-      // If Sage doesn't like the payment method, record it without one rather than failing
-      if (/payment.?method/i.test(e?.message || "")) payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(false)) });
-      else throw e;
+    // Try each payment-method code until Sage accepts one; if none are accepted, record
+    // the payment without a method (Sage then uses its default). Only a rejection that
+    // mentions the payment method moves on to the next code — anything else stops here.
+    let payment = null, lastErr = null;
+    for (const methodId of await paymentMethodCandidates(inv.payment_method)) {
+      try {
+        payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(methodId)) });
+        break;
+      } catch (e) {
+        lastErr = e;
+        if (!/payment_method|invalid for business/i.test(e?.message || "")) throw e;
+      }
     }
+    if (!payment) payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(null)) });
     if (!payment?.id) throw new Error("Sage didn't return a payment ID.");
 
     await supabaseRest(`invoices?id=eq.${iid}`, { method: "PATCH", body: JSON.stringify({ sage_payment_id: payment.id, updated_at: Date.now() }) });
@@ -109,4 +138,3 @@ export default async function pushPayment(req, res) {
     return res.status(500).json({ error: e?.message || "Unknown error" });
   }
 }
-
