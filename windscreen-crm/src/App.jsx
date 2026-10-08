@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B149 · 7 Oct 2026";
+const BUILD_NUMBER = "B152 · 8 Oct 2026";
 // Embedded directly (not a URL) so nothing in any emailed/printed report ever
 // reveals or links back to the actual live app address.
 const LOGO_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAACHCAYAAABTVhYnAAAdS0lEQVR42u2de7QcVZ3vP79dVV3nleQkkMhLIYEkJCcRvaDik2SJMzij3uvoOSKOLtQ14Hj1DqjDCJL06QTEx6hXx3sVGMd7UUc9Z66j4mN8TQIqzmBkEHPyBE1AwiOQ13l1d1Xtff/Yu09X93kkQQIZen/XqtV9uutUVVf9vvv33L8NHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHk8fxN8C/0BaF8YIfYOK5fPtfe9ZZRjqN5RKetJzKRqhB2Foo913y17DQK9GxPgb6fFMYYQwYAKKG0IwckQEOhyKRUVxQ0jvQHBEx/TwGuS4Q+9AQG8v9EnW8Pl1j56MGV1KVlmG6DMxPBujnwXShTExQgCkoMoYDqLkYUR2Y2QnYbiVINzJ1afvbyTMhhBWaUqi/Y33BDnOtQWKPtGANYNufLCDh8dfjDKvIktejjbLCaNuwhhEwGjQKWht3xtjPxcFKrCbKPt5Mg4624uoe1DBbSh+xJLFv5wgYdEotgwKg32ZfxaeIMcXBkzQoC0+vPPFpOZSdPZ6OufNJ2qDtALVMSvoWWpANBiFCoUgBBXWSZMldn9DFdBAAIQEkRDGEIT2WLCZIPgGYr7Oh5ZsmTDB6MdrFE+Qpx9FoyYEsXcg4LnPexua99PW1UMyDkllJ5i7QW0hULsw5hEIDqCTCoU4JcsCFDGZzMHokzB6IaKXYlgGnEWhvRMVQFKGpKIRyTC1Z2YCojYhaoPqWBUVfAfkf7HmrH+duB7v1HuCPG3mVBGZIMf6ey8H3ofR8zD6xxB8A63+ndKZ9z/hU3zkgdNIy+eS6VdhsgsJoqUEBaiOQpZmTt0AaERC4i5rrsH3QX2YNWf+bErt5uEJcmy5YWRiVF6/448wXImKqqBvIVHfpbSw3EikoQg6FfMSw9AhzcnnZpPMn2JR8dBrA+LZirOAfQ9mlFanOU1VQN37UtCXgPkzCu3zqI5BWs0QUSBgjDXZ2mYJWQKoL6L0Gq5d+qDXJp4gT+X9MhTvXUCg3w5mAciXWbvkPyb2uNFElHcqTl6cTjtyF3/XBh0hHUrormbsOaVKSdLJ+xUV+94SMe8ryUSu5KO7T6FavRSd/SWFjtMoD4POMkQCR+AMULTPEdLKI4j8NWsWf2mSSejhCXJMzKrCriWIPhfDb/jQmfdMmDFDQwH0pA0C+LFHTmL84ErIzsHIMtBnYMx8DLNQErrjphjGQfYBexC1EyW/oVD4NYvO2NFAsvfuiPm7JRUbCNhyAmn4Hoy5kiiew/ghSwwRcURJCaKQQgcklVvQ+95L6fxD3uTyBDmGTvl/dEN0IqUV99q/N4ScMku4/Lyk7jvs7qFaeQ1aXwTmeYRRN0GhHp3STjZVYCNXKoSg9t6FdXUG5UOQVHYj6icE4TdI1E8mzLeiKVCSqouYnUXGDajwjS5CltcmBtB0dAck5XuoVi7mupVbKW4IG0w4D0+QYxDBCifMouLv2giz12P0OzHZBRQ6Q7LERp90loAxqLBA1GYJYD/fj6g9iDyE1gcIZBhRCVoXwMwGWYAxCwmjU4lnwfjBg4h8FdRnWbt4aJJGWbfzbWA+hQrmURlNkZqGArRJaesM0fpxTLmX4soNniSeIMeKGIqeQaGvL+PGTRGPdL8do68gKixDaxtlMiSgDSoo2OhSBknlQZT8DC23E6m7SNRv4czHZvQJiiYk2j2fbPxsUBcg5iIkOAPkZ0j2Ma5deqf1ezZFXH5eQnHLEoLwFqL4RYwdbCSJMRlhIUCCCkn1Tazv+ZYniSfIk4vegWAiU71u+59g1HUUCs8nqUBSrtn1hiAKiTuhOnoI1LcJwq+RZD+ltOTQlI74lh6htxeGNgo9qwyDg0wbdbpu+6lI9EYwf0yWbifTn6a0bNeEsF95RzvdJ/w9hY5LGDuQIuQ0idaEkSKIUtLKGyit+LYniSfIk6Q5nCAVN89DxR8nUO/AaKiOZaAEjEEkoH02VMuPIOpGJPgH1iza3UCw5fMlV5lrCTVjYKBf6OkRhubLpJqr0rZXI+plEPyCbNG/0E82Qap12z9B1P4+xg+lYPKaRBOEQhBVSdOLKC3b6B13T5AnixwvIyz8A2HbYsYOWEEVURiTEneGZEkFFXyGNPwkpYUPT0S4APrQ8CTkIYwRBlENx7vud+eTldvRB38FLxqhB6FPMvq3XU/ccY01t5o0SRQrkP2IfjFrl233IWBPkCd2fwaMcsL2TpT6HBCRlK19b7RBlKF9jiKpbkRlV3Lt0rsnSNW/KjumybmiUZQwIIb37ojpLHfwkefuxxihf2NAaXVK/9ZP0dZ1BaP7J/skcWdAmgxx4tzz2btgjH6MTyY2IvS3YCbzZmNAn6Ss27aGsG0d5RGDyTQShOhMExZssWFaLrJ28XoQkyNGSukYX2JtxLejfwWoOK1mwGT2WpZdSf/WU2if08d4znEXCSiPpnR297D3sc9Tetafw4YQ8P6I1yBHYVb1b7metlnWTDE6QJRgdEbUFgAHgLeydsl37Kidq896+p6naQgA0A+zH4gZHvs5Yfh8KmP1PIn1gFI6ZoeUx99K6ewvMzAQ0OdL5j1BjsjnGLqW9tnrGT2QIiYAEYzJKHQEGH0/mNexdumvXU4km9nhfpojb8X7lhBkm9BpJ1kq9Yw7mjAEZD9B20qSLz5itVPJ+yOA8regCQMmcA75pcRd662DmydHe4DWu8nklTlypMclOQBLjg0hpTN3kCVXUOhU2DkmtSFSkSaaQvsJVEc+Rqmk6enxA6fXIDONtttfSKh+SpoE6NTWNxljfQ5Rj1LNXsF1y7YfZQ5BmrYGh2cagsk0z8k0bUehFTd/j0LnqykPN5paSEZYUBh5KcXFv/CmltcgTSJnhOW9huKO2Sj9FQwFdIojh0GFBhVUyapvOEJyCLWZgPY+GzdyZ84Rzm+Z+655yw6zv3HnCA7/A1dpQIjj/0FWHUMCm7uZ+P0aglDIKtcDMNTro1leg+RNKzdiFoduon32XzCyP52ouDWktM8OqY5eRv/ymxvqsKa+p8oJcR4F4GTgOW47BZgPnAjMAdrdPjUyJUAZGAYOum0v8CjwAHA/8PvcedRhNUo98PBR4q6rJuVHjNHEHQpjVrNmsU8g4sO8ddOqry9j/c5ViPoLxg5kdXKYjPY5IZWRr1LquZnLNkWUJDlMFClzwv8i4ALghUAPcMIRXI1uMsmmDVIBu4ANwJfc65Q71bFRY4zwiT0fZ+TQOwmCeejUdYpwQ4EEkIx9ANjIEC2vRbwGqc3zAAVDdxK2PZ9kPAMCDJooAm0epTBrBZWb988Q4akJ5rOADwN/7jQCwONOmH8L7HYa4GH3+QFgBBjH5jESdxwBIiAm6pxNMtrtSLcIWAycA6wAutw5vga8y2ma6UmSD1/HXZOz7GBQUYqSc1i7dGurZ9i9Bim6jPO6HZcQzXo+YwdzzqsxhO0BldG/4ZrTHp/B76iN9gXgVuAFwE+B64FfOyIkRz98CXZEH7XvwxjSKsRdUBkB03kCDL8IWANc7Mh5EfVkn5naFzFC8ODnqQz/FUp1YLK6FjFkxB0RleG3AVfDxsaol9cgLeic30TIg1vuJiosozpu7DxvbL6jOnYnpRXn0zeoZug5FTiz6nLg88AvgZcB1Sl8E2mKRk31ChSFy04JOOHcMylECxg+8DtmzX8DRs9i9PEv84kLfpc7TjvwI+ClwH8H/nfumqaP1q0d+iptnRczPlzXIsZoojZFWt2JsILSimR6svko1jNce2wIETHs2f6nxB3LqY5rR466TAdRPyKG3l4O43d0A2vd6P0eR45CTruYKSJSWVMEKxe6LWluujzhhvO2oeKIead9iCBaC/IuTnzO6RQ3v5D3373AnWPcaRGAa4G5OTNtCoL0WtMyCG5Ba8ConNZSJGVDWFhMGJ8HGAYGWlZOWjzMu8qaDia7vGmEzIjaA6rjm9BLf0CxqOgT40zS/Ba4e6iB97nI1NeBO933VY4mVzEliY3iUPnf0EmCqDJK/TtJ2g3RY3SFY+4cCrgd2OQiZe9316Soh5rrW1+/LXDUs26jOvZ7m//Im1GS2WZ3yZ8A2FJ7T5AW0x7O+SxuX4SS1VRHJTeXG4IIwuhz1kFdVSPBVPkIA5wBXOn2+WyTk9ycIFRTbMEUm+KCC0JKInQVlpJVBklH30aq17P3e9+ntPS3lFaM0BhW/ow753uB06fRWimUtK0YOHUMpX5M1A6N2XXbOki4AID+VS0b6m1hJ905n6JfS9wVT0RzjDEEYUBl5HGY9U1A6F+VUWIR8BagZtZo4DvAd4HrXDTpHuCunFaZynY/cm1y220aFcLSZQ9ziexBBZClEdKT2L5xhhwJAuCbLlK2CCgBlwJ/CrzGBQkqLmr2FRdJE4z8CMyltlP8RLRX2daneiXX75iPyN6GfmCeIK1kXplX246ENQGRjEJHSGX8h5Ses49iMUQkBf4eWN10kLcDHwTe6AT1/ibHHGqhWkuq/BbnzB6V0wSQz6brNOUSGadQWEy1WkakArMyzHDFnauaI8kwsA1YCPQCdwMfc9fQ8ON5U/AqZ03eaVuXqoLrgiIgQpZqCu1zSM1y4Db6BtW0Tr8nyDMwciWiuWH3XMYOvYCkYov27Jd2GBVzq32/0Q3GnOz+e5x61joGPpU78quAH+Sc9nagE+jIESPKEePIg43Vauq0QArDNWKMA2Pu9YC7rpc5snXkrq2c017twGkYbQ/8UHk3J7XtIiwsISmbiSpfRBMUFOloD3DbxKI/niAtgNpomJZXUmibV49eGYNSAeWRMlHHHSCGjRfU/mu98y/mTmEy1YQnBv7oiVB2hghZ7evwCTyvmqPelvtsj4t4CedeFnLTeQn9W7YRRJYgDWcXEFncymGc1iRIbTTM9DnE7VAtW0EyGKJYSKo7SBc+AEa4TVInqP+ILed4MXCaG8HfgU0K6px5lE0W8CnDrTLN+6MhkJnifdBEji3OeW/HZvNvB/YBwmvebPjVTQA7UAGNc+aN2CZ35gzALgHnCdJyptayRhmrmRXJb2yEa0NIidpcDwU8BHwj9w9/kyOFyUWknmzIUXxucj6MAmYBN04Rvcxnx3dNPrJbqwSzAHBtiFpPRFo0zLuqJhxnuESZNJkVW6cxVyTnXL8RG941zq8I3Pe1cPBTNcMwH8qtmXuBuyYDPBtbfhJST1za39+zyrgjPOS0hTT4aToDbebmIljiCdIKKDlTwuhnuV65MmFWWOd11xEI4yr3dxn4J2y491F3T8MpCPNk1jNluWPm552I03K3Av+PWhMHeHlu/8mkLbTvb7wPtbcGRNr4TK3osvWsrBY0sYyAGG7cFPGQzMZkebkQdAqBeqRhhJ0snADPc/+4BviE+2wucB5woRPK57oolprCoT8awpic6WaazLhHsbmX24CfY4sjax0crwI+Cpw75TkHB+1rOl52h5QmE9TKSPpAyyaUW9cH2XNyBAfi/KQ6QMhS0HqkQYAmDat0OvMK57hH7rv92KLBH7nvnu2IdD7wSuz8kBpJnojQ1f73F9hw8s8cOfY36wT3+kNHkEXuGhOmKoXXOkOpKQwoAdPac0JalyBde4XhUDU5puKmnlrTZPmkaac14ZrrnF9cROsuJ4BRbhTOsNnqB5zJc60zxf7Mff9/sJW/BaZPwIn7bjZ2UtQCYAB40xTPUTU56Sk2YQg2JzMHeGxqQ1sFjgyTY2tCQtezU0+QVsOJ52SMbE2n9Duz9HDOaJwbpW/A5hY2zbB/bfTeljN1ljtHP5zB3Kr5MO3Ucxlbc8esOeZTCfBFwMfd+063PdagQXp7YRAIoza0NJmAprYE9QiX12ZQ+lKTFoB7/ruoYvQ4EtblwhiDCgSjYgC2DMoRBDiWA//mTK0NwG+wc8UPAKPUiwRfgM2b1ITshW47WhPrMmc63eOuocNpiPnYue7nAH/szpd/ztM/61R3ExYavXARO/1WqccB24SuBXtltaIGMROlJmuH9tlVnaQ+YUmFQqZnN4ywk1FxQl8zjwLnmF/YtE8Zm1DMgJNq4uju+6ewMw5jpm/3WTOxup0DvgBb8vJzp7Uq2CLJ2e44zWSqrbFuptRSQxvtAKCzkyclCg0GFdgQMEBPv3DMe6l6ghwfGHTl4cpVyJra6uOiUYEiTU9qEKBGoasJf8WN3vmWPrVkoXICG88QjXqLi3QpZi41qeVZTmhy1E+ZhhD5a6hpuYTJRZR5nDH12QUkuG+ae+EJ8ozFxMOWe5GmYJIoEL3wMEcoUy8ArAlyMA2ZphJ4sOUev82N8DOZVTGwlHpuxTSRZbprqGEM2xii8brq5SNL6onCiZL3Wk5om49itSqUDLlyirpgGA2Z7mkSoGZUqSfhpsswTzfi1sye252ZFR9BFGsO8BK3bzMpDuezCLbTyeikYw/2ZRRNiGxZatdWJ19RoKiOaYyy6yHWqw88QZ75qD1s82uqYzrXxUSRVgGzMtccbqoWOtUpBO5IURvlL3PbE4wyHLFTD7bhXONvKRqxFQU7noNmEaZKY0PrSJFlDzBn304Auw5JC46hLcmP2sPOsu1ovYuwYLt5iAhpBUQtgt8umhCkySOymdJkObyJ1fz9kW76CIkw3ecPTn7eG9377IW0dRbQOldSYIxdkVd+yftfMk7vQNCKId7WJQhi7JzsFVWUup2wzYDYuiZDSltnBMkr3IQpNc0IfjgNIk3Oc77X7tFueoq/83VVh9MqD07ar1ZGI7zKZQRNw/2xRZu2ImC5b9rQupDg2xgt9UpWI7bCN3udFZpJtndNWA7NcNRaMWFt/6maM4RHuTU2dGjssVVl5umwY02Kxa5h+In729HZhSTlvCwYlIRURsvEbT9w2sZ3Vmw59DmzRctPqIw9TBCdRJZqBEV1DERWU9x9CiXZ05QkqwnlwSnMm1pO5CfAu7H5iwI2Cx5jM+K18G/UJPRTz0mva43aNNsy9TalZfd6EDvn48LcNUyPARR9RjOy7RUUOp5DZTTfD0xT6FAk43dw9cJdvvVo66oOu55gackh+rf+E3Hnexg7qEFCtE7pmNNFdeRi4JO27c+kLPKhw4zY9z3FP2hkhu+arn0Q6DPoLW8lCnDmpaq5H0ggqPBLOV+lZQnS2iZWLYxrzI1Ux9xKUi6alZQh05dT3FywfaGMTGO25Dsk5ictKac9gj/QtJrJ1AqoL5lQ0zjN1wP5nE3RKPp6NdfdfyrCf6UyaiZ+dy16VR5+lML8f7YBjVUtvfxBaxNksC+jdyCgtHwzOr2VttnWSbftNzPaZi2BsA8RQ3Fj0GRS/at7bcsJa+zI8d0ZnPL0D9yyaRz2H1PP4Neup1bg+NP6tW9UIIZk+HLiri4bvZJ6EqjQKYh8kQ/OO0hxQ9iq0StvYjUjKKwnqbzO5gJcf6i0YiC7lk+bQfaRuIRibUT9ITZ5d5YT1JqG2YWtlYKnpo9UTUt8HrgXW/NVI08Bm63/OSAUi4b+VRrun4eMvIvKqAETuMi1IQgVldERiD7rNGbLL+Tpu7tDfXWptVu+QHvXOxg7YNcTNyajozugMnwV/T0fb1r+YIaFao7L52wmVozq33w98exrGDuQ5dqtpnR0h4wf+lvWrfhrv7qUJ0gdxaIzNXsXIMFmROaSJtgO6KFB1BgqeR5rVt7XFNUJmHqBzadLsKa/nqJRlDAUdyxEmXswWTs6s10Ure8BRj+OUcvpX2pL3EVafoUpnwcBJpY+Lq14GKOvoNDh+vaKkKWGsNBFFtxsZW+jyjns0y2w+XRhhutxvgfp/yRq6yTLLZqDsaFdI9dSOvsxBlGeHJ4gjeirrSfe82XGR75MR3eINimiAsojKXHXaoqb11FanXLZr/5z+W4103Dt0FuJO1/L+KG8aZXRNiukfOg2+s++2a7X6E0rb2JNBWOEfgSGOpDwDsJoJZWRDFEBSEqhI6Q6ejHrVn6dyzZF3HRecvyTw5mE63eciTa/Aj2LNLW9iA2aIAAVjBGq53PN4ntbPTHoNciMw4UzK0orRgjU69Hpo0TtAVprjA5Iy5qw7f9S3LqKm85LuGxTdNwTHuDTO2Ky7KsE4RzSxNQbdaMpdCp0+m6uWXyvrU/z5PAEmdEfEU3vQMCaJfeRpK9D1CGi2PokWQo6jQnDb1EaevnxTRIj9G+0An8g/QJx5wuojKZ104qEzrkhlZG/o7/nSxQ3hN608ibW0dvta4ZeTqHwbYzptstDixBGCglGydKLKS3/DgMmoBd9/Di2RiZW7+3f+lHirqts6Lq2UCcJHXMiKqPfw5z9WnoQW5vmHXOvQY5Yk6xOKW4IWd/zU0x6IfAAbbMDQJMkGp12Eobfon/7e+mTDHEl9MeDWTWAsuTYViTuvKphLXRtUtpnRyTjv8DMexP9GIbcmoUeXoM8YU3yoV+dTjzrKxTaX8rofg3GIErRNlvIKrcQxldw9en76R0IWN5rnhZbvpbrQAz922+g0P5BygczaqXxhoT22RFp5U6i+CKuPn2/d8o9Qf5w9JqAQckobi4QRB9FBVegNVTHU0SgfU5IUr4PUR9g7eJv2v95iolSI3JxcwFVuJFC26WTNEfX3JDK6O2MV/8bH3muJ4cnyJM9OjthKm17NRL8LVHbcirDkCUVwjgmiEBn/4yS67h28V0N/gCr9DERxmJR0dNvJ0Ct37YQo24hantZblFSDQKd3YrK+Nc48Ng7+NRLxj05PEGOjfM7gKJPMt5/dyfd7Vdi5K+I2k6kPAw6S4g7I7IkQQWDoD7HmjN/NmmkB2CVpn+iH9cUPYANFPsF+p1P1CzMOUccYN32i4HPoKL5VEZqtWQpYRyiAtC6SHHJuglStWCXRE+Qp8zkGggY7LMh0eu2n4oJ/hKtLyWKTyWtQlaBqB3SCiA/h2AQFf4Laxdtn9G57u8XStM4zEWj2Pf9iM+8umrDt44Yxa1nEIbXo4JLSCqQJfXK4o5uRVLZhcneTfHs71M0ypLSO+SeIE+lNgEo3j+PMHk9JnszOnsJUdwOAsopjPLBChLeheg7MOqXRNFWqskeWLpvkna4bFPEyd1zKchJhPF8siSmMnKAaryTG5bsBeAj982hqt8N+gOE8TzKw9nEUg5xR4AxYPgC48NXc8N/2dtUiezhCfJU8cQIgzmiAKy7dzGK1aTpatDnoPXpFNo7iGdBFIPWkIzB+CHQ+gBwCGEUpIxIAjKKBA8RyA4INwF3ce0Ztkfuxx9awNjI28C8m0K8kPIIZGkVCIk7FEEEafUXBGoNHzrrJwC+dN0T5PghSnPC8EYTsWfrQpQsxMhpIAsw6QnYptMF21FejQD7UOEDBNxHNdtJadmehuOX7n0pot+MTvsodM6nOmqDAyIxsVuqJKvehcgnWbP4H0EMvQOBXXzTm1SeIMdNtGtzAfRpUCgQd+3lmtMef0LHuf6+Z5FlLwDzSrR5JZiVhDFUR22Tu0K7cn9XIfgxEt3Mb35564RvlPeTPDxBjivfpLhzFlHhLJReSaZPB6MwZj9aP4xhLzoZJgptI4WMGBXOwiQnYTgdWIKYZWiWEBXmEcagU9AZbokCqI5VkOAuVHArhN9k7cL6qrzenPIE+U+FD//+BLLyOWDOR2fngizB6FPBdBO1CUEMYQQqAqXsdPgsgaQMyTik1QTU4yizCxXejVZ30FG4g6tOv68hwtWD0CdTr2Lr4Qly/JlaM4RUr98xH2NOJctORXMCmG6UKoAojMlAxkAOELAXJXsITnyQD847OOnZFTccuwSkhyfIU2dyYXv89qwyT9z8qWXkwZPCE+QZzhk3c7EHmXHlpp5VhiGMT+55eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHgcPf4/03zU3+ouaP4AAAAASUVORK5CYII=";
@@ -1651,6 +1651,7 @@ function CustomerDetail({ data, id, setView }) {
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [pushingSage, setPushingSage] = useState(false);
+  const [showAllInvoices, setShowAllInvoices] = useState(false);
   // Sends this customer to Sage as a new contact (manual button, never automatic).
   // The server does the real work — it refreshes the Sage login if needed, creates the
   // contact, and saves the returned Sage ID onto this customer in the database.
@@ -1659,7 +1660,7 @@ function CustomerDetail({ data, id, setView }) {
     setPushingSage(true);
     try {
       const session = await getSession();
-      const res = await fetch("/api/sage-push-customer", {
+      const res = await fetch("/api/sage?action=push-customer", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
         body: JSON.stringify({ customerId: customer.id, force }),
@@ -1963,6 +1964,67 @@ function CustomerDetail({ data, id, setView }) {
             ))}
             {vehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No vehicles added</p>}
             {vehicles.length > 0 && unrepairedVehicles.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No outstanding vehicles — everything's been repaired</p>}
+          </>
+        );
+      })()}
+
+      {/* ── Invoices for this customer ── */}
+      {(() => {
+        const myJobIds = new Set(data.jobs.filter(j => j.customerId === id).map(j => j.id));
+        const custInvoices = data.invoices
+          .filter(inv => jobIdsForInvoice(inv).some(jid => myJobIds.has(jid)))
+          .map(inv => {
+            const ids = jobIdsForInvoice(inv);
+            const firstJob = data.jobs.find(j => j.id === (inv.jobId || ids[0]));
+            return { inv, ids, firstJob, date: firstJob?.date || inv.createdAt || "" };
+          })
+          .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+        // A vehicle/job on more than one invoice = a leftover or duplicate to sort out
+        const seen = {};
+        custInvoices.forEach(r => r.ids.forEach(jid => { seen[jid] = (seen[jid] || 0) + 1; }));
+        const unpaid = custInvoices.filter(r => !r.inv.paid);
+        const owed = unpaid.reduce((t, r) => t + (parseFloat(r.inv.total) || 0), 0);
+        const shown = showAllInvoices ? custInvoices : custInvoices.slice(0, 10);
+        return (
+          <>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", margin:"16px 0 8px" }}>
+              <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em", margin:0 }}>Invoices ({custInvoices.length})</h3>
+              {unpaid.length > 0 && <span style={{ fontSize:12, fontWeight:700, color:"#DC2626" }}>{unpaid.length} unpaid · £{owed.toFixed(2)}</span>}
+            </div>
+            {shown.map(({ inv, ids, firstJob, date }) => {
+              const doubled = ids.some(jid => seen[jid] > 1);
+              const regs = ids.map(jid => {
+                const j2 = data.jobs.find(x => x.id === jid);
+                return j2?.vehicleId ? data.vehicles.find(v => v.id === j2.vehicleId)?.reg : null;
+              }).filter(Boolean);
+              return (
+                <Card key={inv.id} onClick={() => firstJob && setView({ screen:"jobDetail", id:firstJob.id, from:{ screen:"customerDetail", id } })}>
+                  <div style={{ display:"flex", justifyContent:"space-between", gap:8 }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:14, color: inv.sageInvoiceNo ? "#1E3A5F" : "#B45309" }}>
+                        {inv.sageInvoiceNo || "No Sage number"}
+                        {inv.sageInvoiceId && <span title="Linked to Sage" style={{ marginLeft:6 }}>🔗</span>}
+                        {inv.sagePaymentId && <span title="Payment in Sage" style={{ marginLeft:4 }}>💷</span>}
+                      </div>
+                      <div style={{ fontSize:12, color:"#6B7280" }}>
+                        {fmtDate(date)} · {ids.length} vehicle{ids.length === 1 ? "" : "s"}{regs.length ? ` · ${regs.slice(0, 3).join(", ")}${regs.length > 3 ? "…" : ""}` : ""}
+                      </div>
+                      {doubled && <div style={{ fontSize:11, color:"#DC2626", fontWeight:700, marginTop:2 }}>⚠️ A vehicle on this is also on another invoice</div>}
+                    </div>
+                    <div style={{ textAlign:"right", flexShrink:0 }}>
+                      <div style={{ fontWeight:800, fontSize:15, color:"#111827" }}>£{(parseFloat(inv.total) || 0).toFixed(2)}</div>
+                      <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, color: inv.paid ? "#059669" : "#DC2626", background: inv.paid ? "#ECFDF5" : "#FEF2F2" }}>{inv.paid ? "PAID" : "UNPAID"}</span>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+            {custInvoices.length > 10 && (
+              <button onClick={() => setShowAllInvoices(v => !v)} style={{ background:"none", border:"none", color:"#1E3A5F", fontSize:13, fontWeight:700, cursor:"pointer", padding:"4px 0", fontFamily:"inherit" }}>
+                {showAllInvoices ? "▲ Show fewer" : `▼ Show all ${custInvoices.length} invoices`}
+              </button>
+            )}
+            {custInvoices.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No invoices yet</p>}
           </>
         );
       })()}
@@ -3666,6 +3728,7 @@ function JobDetail({ data, id, from, setView }) {
   const [payRef, setPayRef] = useState("");
   const [showPayForm, setShowPayForm] = useState(false);
   const [pushingInvoice, setPushingInvoice] = useState(false);
+  const [pushingPayment, setPushingPayment] = useState(false);
   if (!job) return <p>Not found</p>;
 
   const customer   = data.customers.find(c => c.id === job.customerId);
@@ -3676,6 +3739,24 @@ function JobDetail({ data, id, from, setView }) {
   // Creates this invoice in Sage (manual button). The server builds the Sage invoice from
   // the saved invoice, posts it to sales account 4000 with no VAT, and saves the Sage
   // invoice number straight back onto the invoice.
+  // Records this invoice's payment in Sage (bank 1200), against the linked Sage invoice.
+  // The server checks Sage first — if it's already paid there, nothing is added.
+  async function pushPaymentToSage() {
+    if (!invoice) return;
+    if (!window.confirm(`Record the £${parseFloat(invoice.total).toFixed(2)} payment in Sage against ${invoice.sageInvoiceNo}?`)) return;
+    setPushingPayment(true);
+    try {
+      const j = await sageApi("/api/sage?action=push-payment", { invoiceId: invoice.id });
+      const marker = j.alreadyPaid ? "PAID_IN_SAGE" : j.sagePaymentId;
+      const invoices = data.invoices.map(i => i.id === invoice.id ? { ...i, sagePaymentId: marker } : i);
+      alert(j.alreadyPaid ? `☑️ ${j.sageInvoiceNo} is already paid in Sage — nothing added.` : `✅ Payment recorded in Sage against ${j.sageInvoiceNo}.`);
+      await saveAndReload({ ...data, invoices }, { screen:"jobDetail", id, from });
+    } catch (e) {
+      setPushingPayment(false);
+      alert("Couldn't push payment to Sage: " + (e?.message || e));
+    }
+  }
+
   async function pushInvoiceToSage(force = false) {
     if (!invoice || !customer) return;
     if (!force) {
@@ -3685,7 +3766,7 @@ function JobDetail({ data, id, from, setView }) {
     setPushingInvoice(true);
     try {
       const session = await getSession();
-      const res = await fetch("/api/sage-push-invoice", {
+      const res = await fetch("/api/sage?action=push-invoice", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
         body: JSON.stringify({ invoiceId: invoice.id, force }),
@@ -3918,11 +3999,19 @@ function JobDetail({ data, id, from, setView }) {
               <button onClick={async () => {
                 if (!window.confirm("Unlink this invoice from Sage? Nothing is changed or deleted in Sage — it just stops the app treating them as the same invoice.")) return;
                 try {
-                  await sageApi("/api/sage-link-invoice", { invoiceId: invoice.id, unlink: true });
+                  await sageApi("/api/sage?action=link-invoice", { invoiceId: invoice.id, unlink: true });
                   const invoices = data.invoices.map(i => i.id === invoice.id ? { ...i, sageInvoiceId: "" } : i);
                   await saveAndReload({ ...data, invoices }, { screen:"jobDetail", id, from });
                 } catch (e) { alert("Couldn't unlink: " + (e?.message || e)); }
               }} style={{ marginLeft:8, background:"none", border:"none", color:"#9CA3AF", fontSize:12, textDecoration:"underline", cursor:"pointer", padding:0, fontFamily:"inherit" }}>Unlink</button>
+              {invoice.paid && invoice.sagePaymentId && (
+                <div style={{ marginTop:4 }}>{invoice.sagePaymentId === "PAID_IN_SAGE" ? "☑️ Already paid in Sage" : "💷 Payment recorded in Sage"}</div>
+              )}
+              {invoice.paid && !invoice.sagePaymentId && (
+                <Btn size="sm" onClick={pushPaymentToSage} disabled={pushingPayment} style={{ width:"100%", justifyContent:"center", marginTop:8 }}>
+                  {pushingPayment ? "Sending to Sage…" : "💷 Push Payment to Sage"}
+                </Btn>
+              )}
             </div>
           ) : (
             <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 12px", margin:"0 0 12px" }}>
@@ -3945,8 +4034,13 @@ function JobDetail({ data, id, from, setView }) {
           )}
           {invoice.paid && (
             <Btn variant="ghost" onClick={async () => {
-              if (!window.confirm("Unmark this invoice as paid?")) return;
-              const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:false,paidDate:"",paymentMethod:"",paymentRef:""} : i);
+              if (invoice.sagePaymentId && invoice.sagePaymentId !== "PAID_IN_SAGE") {
+                if (!window.confirm("This payment has already been recorded in Sage.\n\nUnmarking it here does NOT remove it from Sage — you'll need to delete the payment in Sage yourself.\n\nUnmark it as paid in the app?")) return;
+              } else if (!window.confirm("Unmark this invoice as paid?")) return;
+              if (invoice.sagePaymentId) {
+                try { await sageApi("/api/sage?action=push-payment", { invoiceId: invoice.id, clear: true }); } catch {}
+              }
+              const invoices = data.invoices.map(i => i.id===invoice.id ? {...i,paid:false,paidDate:"",paymentMethod:"",paymentRef:"",sagePaymentId:""} : i);
               const coveredIds = jobIdsForInvoice(invoice);
               const jobs = data.jobs.map(j => coveredIds.includes(j.id) ? {...j,status:"Invoiced"} : j);
               await saveAndReload({ ...data, invoices, jobs });
@@ -4263,7 +4357,8 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
   // Other jobs for this same customer + date, not yet on the invoice — offered as an
   // easy way to pull in a sibling job that wasn't auto-detected (e.g. added afterwards).
   const otherSameDayJobs = job
-    ? data.jobs.filter(j2 => j2.customerId === customer.id && j2.date === job.date && j2.id !== job.id && !j2.noCharge && !lineItems.some(li => li.jobId === j2.id))
+    ? data.jobs.filter(j2 => j2.customerId === customer.id && j2.date === job.date && j2.id !== job.id && !j2.noCharge && !lineItems.some(li => li.jobId === j2.id)
+        && !data.invoices.some(inv => inv.id !== baseInvoice?.id && jobIdsForInvoice(inv).includes(j2.id)))
     : [];
 
   const updateLine = (id, field, value) => setLineItems(items => items.map(li => li.id === id ? { ...li, [field]: value } : li));
@@ -4275,6 +4370,17 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
   const total = vat ? subtotal * 1.2 : subtotal;
 
   async function save() {
+    // Safety lock: a job can only ever be on ONE invoice. Stops copies of the same
+    // invoice being made (which older versions of the app could do).
+    const clash = lineItems.map(li => li.jobId).filter(Boolean).find(jid =>
+      data.invoices.some(inv => inv.id !== baseInvoice?.id && jobIdsForInvoice(inv).includes(jid)));
+    if (clash) {
+      const other = data.invoices.find(inv => inv.id !== baseInvoice?.id && jobIdsForInvoice(inv).includes(clash));
+      const cj = data.jobs.find(x => x.id === clash);
+      const reg = cj?.vehicleId ? data.vehicles.find(v => v.id === cj.vehicleId)?.reg : "";
+      alert(`${reg || "One of these vehicles"} is already on another invoice${other?.sageInvoiceNo ? ` (${other.sageInvoiceNo})` : ""}. A vehicle can only be on one invoice — open that invoice to change it instead.`);
+      return;
+    }
     const rec = { lineItems, parts, vat, sageInvoiceNo, total: total.toFixed(2), jobId: lineItems[0]?.jobId, paid, paidDate: paid ? (paidDate || todayISO()) : "", paymentMethod: paid ? paymentMethod : "", paymentRef: paid ? paymentRef : "" };
     const coveredIds = lineItems.map(li => li.jobId);
     let invoices;
@@ -4836,6 +4942,7 @@ function SettingsView({ data, setView }) {
       <a href="/api/sage-connect" style={{ display:"flex", justifyContent:"center", alignItems:"center", width:"100%", padding:"10px 16px", borderRadius:10, border:"1.5px solid #E5E7EB", background:"#fff", color:"#374151", fontSize:14, fontWeight:600, cursor:"pointer", boxSizing:"border-box", textDecoration:"none", marginBottom:10 }}>🔗 Connect to Sage</a>
       <Btn onClick={() => setView({ screen:"sageLink" })} variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>🧩 Link Customers to Sage</Btn>
       <Btn onClick={() => setView({ screen:"sageInvoiceMatch" })} variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>🧾 Match Invoices to Sage</Btn>
+      <Btn onClick={() => setView({ screen:"sagePayments" })} variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>💷 Payments to Sage</Btn>
 
       <div style={{ marginTop:20 }}>
         <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Data Tools</h3>
@@ -5400,7 +5507,7 @@ function SageLinkView({ data, setView }) {
   const [showLinked, setShowLinked] = useState(false);
 
   useEffect(() => {
-    sageApi("/api/sage-contacts").then(j => setContacts(j.contacts || [])).catch(e => setLoadError(e.message));
+    sageApi("/api/sage?action=contacts").then(j => setContacts(j.contacts || [])).catch(e => setLoadError(e.message));
   }, []);
 
   const sageById = {};
@@ -5423,7 +5530,7 @@ function SageLinkView({ data, setView }) {
   if (contacts) unlinked.forEach(c => { suggestions[c.id] = bestMatch(c); });
 
   async function doLink(customer, sageId) {
-    await sageApi("/api/sage-link-customer", { customerId: customer.id, sageId });
+    await sageApi("/api/sage?action=link-customer", { customerId: customer.id, sageId });
     setLinks(l => ({ ...l, [customer.id]: sageId }));
     silentSave(current => ({ customers: current.customers.map(x => x.id === customer.id ? { ...x, sageId } : x) }));
   }
@@ -5438,7 +5545,7 @@ function SageLinkView({ data, setView }) {
     if (!window.confirm(`Unlink "${nameOf(customer)}" from Sage? Nothing is deleted in Sage.`)) return;
     setBusy(customer.id);
     try {
-      await sageApi("/api/sage-link-customer", { customerId: customer.id, sageId: null });
+      await sageApi("/api/sage?action=link-customer", { customerId: customer.id, sageId: null });
       setLinks(l => { const n = { ...l }; delete n[customer.id]; return n; });
       silentSave(current => ({ customers: current.customers.map(x => x.id === customer.id ? { ...x, sageId: "" } : x) }));
     } catch (e) { alert("Couldn't unlink: " + (e?.message || e)); }
@@ -5575,14 +5682,14 @@ function SageInvoiceMatchView({ data, setView }) {
   const [open, setOpen] = useState({ group:true, check:true, suggested:true });
 
   useEffect(() => {
-    sageApi("/api/sage-match-invoices").then(j => setResults(j.results || [])).catch(e => setLoadError(e.message));
+    sageApi("/api/sage?action=match-invoices").then(j => setResults(j.results || [])).catch(e => setLoadError(e.message));
   }, []);
 
   const keyOf = r => r.members.map(m => m.invoiceId).join("+");
 
   async function doLink(r) {
     const ids = r.members.map(m => m.invoiceId);
-    const j = await sageApi("/api/sage-link-invoice", { invoiceIds: ids, sageInvoiceId: r.sage.id });
+    const j = await sageApi("/api/sage?action=link-invoice", { invoiceIds: ids, sageInvoiceId: r.sage.id });
     setDone(d => ({ ...d, [keyOf(r)]: true }));
     const idSet = new Set(ids);
     silentSave(current => ({ invoices: current.invoices.map(i => idSet.has(i.id) ? { ...i, sageInvoiceId: j.sageInvoiceId, sageInvoiceNo: j.sageInvoiceNo } : i) }));
@@ -5714,6 +5821,92 @@ function SageInvoiceMatchView({ data, setView }) {
             render={r => <Row key={keyOf(r)} r={r} />} />
         </>
       )}
+    </div>
+  );
+}
+
+// ── Settings → Payments to Sage ─────────────────────────────────────────────
+// Every invoice that's marked Paid in the app and linked to Sage, but whose payment
+// hasn't been sent to Sage yet. Each push checks Sage first, so anything already
+// recorded as paid in Sage is just ticked off — never paid twice.
+function SagePaymentsView({ data, setView }) {
+  const [done, setDone] = useState({});   // invoiceId -> "pushed" | "already"
+  const [busy, setBusy] = useState("");
+  const [errors, setErrors] = useState({});
+
+  const custOf = inv => { const j = data.jobs.find(x => x.id === inv.jobId); return j ? data.customers.find(c => c.id === j.customerId) : null; };
+  const pending = data.invoices
+    .filter(i => i.paid && i.sageInvoiceId && !i.sagePaymentId)
+    .sort((a, b) => (b.paidDate || "").localeCompare(a.paidDate || ""));
+  const live = pending.filter(i => !done[i.id]);
+
+  async function pushOneInvoice(inv) {
+    const j = await sageApi("/api/sage?action=push-payment", { invoiceId: inv.id });
+    const marker = j.alreadyPaid ? "PAID_IN_SAGE" : j.sagePaymentId;
+    setDone(d => ({ ...d, [inv.id]: j.alreadyPaid ? "already" : "pushed" }));
+    silentSave(current => ({ invoices: current.invoices.map(i => i.id === inv.id ? { ...i, sagePaymentId: marker } : i) }));
+  }
+  async function pushOne(inv) {
+    setBusy(inv.id);
+    try { await pushOneInvoice(inv); setErrors(e => { const n = { ...e }; delete n[inv.id]; return n; }); }
+    catch (e) { setErrors(er => ({ ...er, [inv.id]: e?.message || String(e) })); }
+    setBusy("");
+  }
+  async function pushAll() {
+    if (!window.confirm(`Send ${live.length} payment(s) to Sage?\n\nEach one is checked first — any invoice Sage already shows as paid is just ticked off, not paid again.`)) return;
+    setBusy("bulk");
+    let ok = 0, already = 0;
+    const errs = {};
+    for (const inv of live) {
+      try {
+        const j = await sageApi("/api/sage?action=push-payment", { invoiceId: inv.id });
+        const marker = j.alreadyPaid ? "PAID_IN_SAGE" : j.sagePaymentId;
+        j.alreadyPaid ? already++ : ok++;
+        setDone(d => ({ ...d, [inv.id]: j.alreadyPaid ? "already" : "pushed" }));
+        silentSave(current => ({ invoices: current.invoices.map(i => i.id === inv.id ? { ...i, sagePaymentId: marker } : i) }));
+      } catch (e) { errs[inv.id] = e?.message || String(e); }
+    }
+    setErrors(errs);
+    setBusy("");
+    const failed = Object.keys(errs).length;
+    alert(`✅ ${ok} payment(s) recorded in Sage.\n☑️ ${already} were already paid in Sage (nothing added).` + (failed ? `\n⚠️ ${failed} need a look — see the red notes.` : ""));
+  }
+
+  const gbp = n => `£${(parseFloat(n) || 0).toFixed(2)}`;
+  const doneCount = Object.keys(done).length;
+
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"settings" })}><Icon name="back" size={14} /> Back</Btn>
+      </div>
+      <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:"0 0 4px" }}>Payments to Sage</h2>
+      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Paid invoices whose payment isn't in Sage yet. Payments go into bank account 1200 and are put against that exact invoice. Anything Sage already shows as paid is just ticked off — never paid twice.</p>
+
+      {doneCount > 0 && <p style={{ fontSize:13, color:"#059669", fontWeight:600, margin:"0 0 10px" }}>✅ {doneCount} done this visit</p>}
+      {live.length === 0 && <Card><p style={{ margin:0, color:"#059669", fontSize:14, textAlign:"center", fontWeight:600 }}>✅ All paid invoices are up to date in Sage</p></Card>}
+
+      {live.length > 0 && (
+        <Btn onClick={pushAll} disabled={busy==="bulk"} style={{ width:"100%", justifyContent:"center", marginBottom:12 }}>
+          {busy==="bulk" ? "Sending to Sage…" : `💷 Send all ${live.length} to Sage`}
+        </Btn>
+      )}
+
+      {live.map(inv => {
+        const c = custOf(inv);
+        return (
+          <Card key={inv.id}>
+            <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{c ? (c.company || c.companyContact) : "Unknown customer"}</div>
+                <div style={{ fontSize:12, color:"#6B7280" }}>{inv.sageInvoiceNo} · {gbp(inv.total)} · paid {inv.paidDate ? fmtDate(inv.paidDate) : "—"}{inv.paymentMethod ? ` · ${inv.paymentMethod}` : ""}</div>
+              </div>
+              <Btn size="sm" onClick={() => pushOne(inv)} disabled={busy===inv.id || busy==="bulk"}>{busy===inv.id ? "…" : "Send"}</Btn>
+            </div>
+            {errors[inv.id] && <div style={{ fontSize:12, color:"#DC2626", marginTop:6 }}>⚠️ {errors[inv.id]}</div>}
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -7095,6 +7288,7 @@ function AuthenticatedApp() {
         {view.screen==="emailIssues"      && <EmailIssuesView      data={data} setView={setView} />}
         {view.screen==="sageLink"         && <SageLinkView         data={data} setView={setView} />}
         {view.screen==="sageInvoiceMatch" && <SageInvoiceMatchView data={data} setView={setView} />}
+        {view.screen==="sagePayments"     && <SagePaymentsView     data={data} setView={setView} />}
         {view.screen==="leads"            && <LeadsView            data={data} setView={setView} />}
         {view.screen==="mileage"        && <MileageView    data={data} setView={setView} />}
         {view.screen==="photoShowcase"  && <PhotoShowcaseView data={data} setView={setView} />}
