@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B156 · 8 Oct 2026";
+const BUILD_NUMBER = "B157 · 9 Oct 2026";
 // Embedded directly (not a URL) so nothing in any emailed/printed report ever
 // reveals or links back to the actual live app address.
 const LOGO_DATA_URI = "data:image/png;base64,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";
@@ -1652,6 +1652,7 @@ function CustomerDetail({ data, id, setView }) {
   const [showReminder, setShowReminder] = useState(false);
   const [pushingSage, setPushingSage] = useState(false);
   const [showAllInvoices, setShowAllInvoices] = useState(false);
+  const [tab, setTab] = useState("jobs");
   // Sends this customer to Sage as a new contact (manual button, never automatic).
   // The server does the real work — it refreshes the Sage login if needed, creates the
   // contact, and saves the returned Sage ID onto this customer in the database.
@@ -1908,8 +1909,26 @@ function CustomerDetail({ data, id, setView }) {
         </div>
       )}
 
-      {comms.length > 0 && (
-        <div style={{ marginTop:16, background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 14px 4px" }}>
+      {/* ── Tabs: Jobs · Invoices · Vehicles · Comms · Inspections ── */}
+      {(() => {
+        const myJobIds = new Set(data.jobs.filter(j => j.customerId === id).map(j => j.id));
+        const invCount = data.invoices.filter(inv => jobIdsForInvoice(inv).some(jid => myJobIds.has(jid))).length;
+        const inspCount = (data.inspections || []).filter(i => i.customerId === id).length;
+        const tabs = [["jobs", "Jobs", jobs.length], ["invoices", "Invoices", invCount], ["vehicles", "Vehicles", vehicles.length], ["comms", "Comms", comms.length], ["inspections", "Inspections", inspCount]];
+        return (
+          <div style={{ display:"flex", gap:6, overflowX:"auto", margin:"18px 0 10px", paddingBottom:2, WebkitOverflowScrolling:"touch" }}>
+            {tabs.map(([k, label, n]) => (
+              <button key={k} onClick={() => setTab(k)} style={{ flexShrink:0, padding:"9px 14px", borderRadius:99, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:14, fontWeight:700, whiteSpace:"nowrap", background: tab === k ? "#1E3A5F" : "#F1F3F5", color: tab === k ? "#fff" : "#6B7280" }}>
+                {label} <span style={{ fontWeight:600, opacity:.75 }}>{n}</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
+      {tab==="comms" && comms.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No communications logged yet</p>}
+      {tab==="comms" && comms.length > 0 && (
+        <div style={{ background:"#F8FAFC", border:"1px solid #E5E7EB", borderRadius:12, padding:"14px 14px 4px" }}>
           <h3 style={{ margin:"0 0 10px", fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Communications Log ({comms.length})</h3>
           {comms.map(c => (
             <Card key={c.id}>
@@ -1942,7 +1961,8 @@ function CustomerDetail({ data, id, setView }) {
         </div>
       )}
 
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", margin:"16px 0 8px" }}>
+      {tab==="vehicles" && (<>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", margin:"0 0 8px" }}>
         <h3 style={{ margin:0, fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em" }}>Vehicles</h3>
         <Btn size="sm" onClick={() => setShowVehicle(true)}><Icon name="plus" size={13} /> Add</Btn>
       </div>
@@ -1968,8 +1988,10 @@ function CustomerDetail({ data, id, setView }) {
         );
       })()}
 
+      </>)}
+
       {/* ── Invoices for this customer ── */}
-      {(() => {
+      {tab==="invoices" && (() => {
         const myJobIds = new Set(data.jobs.filter(j => j.customerId === id).map(j => j.id));
         const custInvoices = data.invoices
           .filter(inv => jobIdsForInvoice(inv).some(jid => myJobIds.has(jid)))
@@ -1987,7 +2009,7 @@ function CustomerDetail({ data, id, setView }) {
         const shown = showAllInvoices ? custInvoices : custInvoices.slice(0, 10);
         return (
           <>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", margin:"16px 0 8px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", margin:"0 0 8px" }}>
               <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em", margin:0 }}>Invoices ({custInvoices.length})</h3>
               {unpaid.length > 0 && <span style={{ fontSize:12, fontWeight:700, color:"#DC2626" }}>{unpaid.length} unpaid · £{owed.toFixed(2)}</span>}
             </div>
@@ -2029,7 +2051,8 @@ function CustomerDetail({ data, id, setView }) {
         );
       })()}
 
-      <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em", margin:"16px 0 8px" }}>Job History</h3>
+      {tab==="jobs" && (<>
+      <h3 style={{ fontSize:14, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.05em", margin:"0 0 8px" }}>Job History</h3>
       {jobs.map(j => {
         const jVeh = data.vehicles.find(v => v.id === j.vehicleId);
         return (
@@ -2049,6 +2072,24 @@ function CustomerDetail({ data, id, setView }) {
         );
       })}
       {jobs.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No jobs yet</p>}
+      </>)}
+
+      {/* ── Site inspections for this customer — open ones first, archived (all repaired) below ── */}
+      {tab==="inspections" && (() => {
+        const mine = (data.inspections || []).filter(i => i.customerId === id).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+        const open = mine.filter(i => !inspectionProgress(data, i).archived);
+        const done = mine.filter(i => inspectionProgress(data, i).archived);
+        const name = customer.company || customer.companyContact || "Inspection";
+        const from = { screen:"customerDetail", id };
+        return (
+          <>
+            {mine.length === 0 && <p style={{ fontSize:13, color:"#9CA3AF" }}>No site inspections for this customer</p>}
+            {open.map(i => <InspectionCard key={i.id} data={data} insp={i} name={name} setView={setView} from={from} />)}
+            {done.length > 0 && <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", margin:"14px 0 8px" }}>Archived — all repaired ({done.length})</h3>}
+            {done.map(i => <InspectionCard key={i.id} data={data} insp={i} name={name} setView={setView} from={from} />)}
+          </>
+        );
+      })()}
 
       {showEdit    && <CustomerForm data={data} onClose={() => setShowEdit(false)}    setView={setView} editCustomer={customer} />}
       {showVehicle && <VehicleForm  data={data} onClose={() => setShowVehicle(false)} customerId={id} />}
@@ -2363,8 +2404,33 @@ function InspectionForm({ data, setView, prefillCustomerId }) {
 }
 
 // List of saved inspections
+// How far through an inspection we are. A vehicle counts as "done" once its booked job is
+// Complete/Invoiced/Paid — or if every bit of damage on it was marked unrepairable (nothing
+// to do). When every vehicle is done, the inspection is archived automatically.
+const DONE_STATUSES = ["Complete","Invoiced","Paid"];
+function inspectionVehicleStatus(data, v) {
+  const job = v.bookedJobId ? data.jobs.find(j => j.id === v.bookedJobId) : null;
+  if (job && DONE_STATUSES.includes(job.status)) return { state: "repaired", date: job.date };
+  const reps = v.repairs || [];
+  if (reps.length > 0 && reps.every(r => r.unrepairable)) return { state: "unrepairable" };
+  if (job) return { state: "booked", date: job.date };
+  return { state: "todo" };
+}
+function inspectionProgress(data, insp) {
+  const vehicles = insp.vehicles || [];
+  const st = vehicles.map(v => inspectionVehicleStatus(data, v).state);
+  const repaired = st.filter(x => x === "repaired").length;
+  const unrepairable = st.filter(x => x === "unrepairable").length;
+  const booked = st.filter(x => x === "booked").length;
+  const todo = st.filter(x => x === "todo").length;
+  return { total: vehicles.length, repaired, unrepairable, booked, todo, archived: vehicles.length > 0 && repaired + unrepairable === vehicles.length };
+}
+
 function InspectionsList({ data, setView }) {
-  const inspections = [...(data.inspections||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+  const [showArchived, setShowArchived] = useState(false);
+  const all = [...(data.inspections||[])].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+  const inspections = all.filter(i => !inspectionProgress(data, i).archived);
+  const archived = all.filter(i => inspectionProgress(data, i).archived);
   const nameFor = (insp) => {
     if (insp.customerId) {
       const c = data.customers.find(c => c.id === insp.customerId);
@@ -2378,30 +2444,47 @@ function InspectionsList({ data, setView }) {
         <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:0 }}>Site Inspections</h2>
         <Btn size="sm" onClick={() => setView({ screen:"newInspection" })}><Icon name="plus" size={13} /> New</Btn>
       </div>
-      {inspections.length === 0 && <Card><p style={{ margin:0, color:"#9CA3AF", fontSize:14, textAlign:"center" }}>No inspections yet</p></Card>}
-      {inspections.map(insp => {
-        const vehicles = insp.vehicles || [];
-        const bookedCount = vehicles.filter(v => v.bookedJobId).length;
-        const repairedCount = vehicles.filter(v => v.bookedJobId && ["Complete","Invoiced","Paid"].includes(data.jobs.find(j => j.id === v.bookedJobId)?.status)).length;
-        return (
-          <Card key={insp.id} onClick={() => setView({ screen:"inspectionDetail", id:insp.id })}>
-            <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{nameFor(insp)}</div>
-            <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{fmtDate(insp.date)} · {vehicles.length} vehicle(s)</div>
-            {vehicles.length > 0 && (
-              <div style={{ fontSize:12, fontWeight:600, marginTop:4, color: repairedCount===vehicles.length ? "#059669" : bookedCount>0 ? "#D97706" : "#9CA3AF" }}>
-                {repairedCount===vehicles.length ? "✅ All repaired" : `${repairedCount} repaired · ${bookedCount-repairedCount} booked · ${vehicles.length-bookedCount} not yet booked`}
-              </div>
-            )}
-          </Card>
-        );
-      })}
+      {inspections.length === 0 && <Card><p style={{ margin:0, color:"#9CA3AF", fontSize:14, textAlign:"center" }}>{archived.length ? "No open inspections — all done ✅" : "No inspections yet"}</p></Card>}
+      {inspections.map(insp => <InspectionCard key={insp.id} data={data} insp={insp} name={nameFor(insp)} setView={setView} />)}
+      {archived.length > 0 && (
+        <div style={{ marginTop:18 }}>
+          <button onClick={() => setShowArchived(v => !v)} style={{ background:"none", border:"none", padding:0, cursor:"pointer", fontFamily:"inherit", fontSize:14, fontWeight:700, color:"#6B7280" }}>
+            {showArchived ? "▲" : "▼"} Archived — all repaired ({archived.length})
+          </button>
+          {showArchived && archived.map(insp => <InspectionCard key={insp.id} data={data} insp={insp} name={nameFor(insp)} setView={setView} />)}
+        </div>
+      )}
     </div>
+  );
+}
+
+// One inspection in a list — shows progress, or "All repaired" once archived
+function InspectionCard({ data, insp, name, setView, from }) {
+  const p = inspectionProgress(data, insp);
+  return (
+    <Card onClick={() => setView({ screen:"inspectionDetail", id:insp.id, ...(from ? { from } : {}) })}>
+      <div style={{ display:"flex", justifyContent:"space-between", gap:8 }}>
+        <div style={{ fontWeight:700, fontSize:15, color:"#111827" }}>{name}</div>
+        {p.archived && <span style={{ fontSize:10, fontWeight:700, color:"#6B7280", background:"#F3F4F6", padding:"2px 7px", borderRadius:5, alignSelf:"flex-start" }}>ARCHIVED</span>}
+      </div>
+      <div style={{ fontSize:13, color:"#6B7280", marginTop:2 }}>{fmtDate(insp.date)} · {p.total} vehicle(s)</div>
+      {p.total > 0 && (
+        <div style={{ fontSize:12, fontWeight:600, marginTop:4, color: p.archived ? "#059669" : p.booked + p.repaired > 0 ? "#D97706" : "#9CA3AF" }}>
+          {p.archived
+            ? `✅ All repaired${p.unrepairable ? ` (${p.unrepairable} not repairable)` : ""}`
+            : `${p.repaired} repaired · ${p.booked} booked · ${p.todo} not yet booked${p.unrepairable ? ` · ${p.unrepairable} not repairable` : ""}`}
+        </div>
+      )}
+    </Card>
   );
 }
 
 // Report modal — pure report generation, no booking. Send this whenever, as many times as you like.
 function SendReportModal({ data, inspection, onClose }) {
   const [note, setNote] = useState("The following vehicles were found to have windscreen damage during our site inspection. Please let us know which you would like us to repair.");
+  // Which vehicles go on the report: "both" sections, only those still to repair, or only repaired
+  const [show, setShow] = useState("both");
+  const prog = inspectionProgress(data, inspection);
 
   // Pure, synchronous — mirrors the existing (working) Damage Report/Job Card pattern.
   // Never combined with a save or reload, so mobile browsers never block the popup.
@@ -2414,23 +2497,49 @@ function SendReportModal({ data, inspection, onClose }) {
     const bodyText = encodeURIComponent(`Please find our site inspection report attached.\n\nWindscreen Repairs (Bristol)\n07946 222246\nwww.windscreenrepairsbristol.co.uk`);
     const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${bodyText}`;
 
-    const rows = [];
-    (inspection.vehicles||[]).forEach(v => {
-      const reps = v.repairs?.length ? v.repairs : [{ type: "—" }];
-      reps.forEach((r, idx) => {
-        const isNewVehicle = idx === 0;
-        const carCell = isNewVehicle ? `<b>${v.reg || "—"}</b> · ${[v.make, v.model].filter(Boolean).join(" ") || "—"}${v.colour ? " · " + v.colour : ""}` : "";
-        const sep = isNewVehicle && rows.length > 0 ? "border-top:2px solid #9CA3AF;" : "";
-        rows.push(`
+    const vehicles = inspection.vehicles || [];
+    const repairedVs = vehicles.filter(v => inspectionVehicleStatus(data, v).state === "repaired");
+    const outstandingVs = vehicles.filter(v => inspectionVehicleStatus(data, v).state !== "repaired");
+    const buildRows = (list, repairedSection) => {
+      const rows = [];
+      list.forEach(v => {
+        const vs = inspectionVehicleStatus(data, v);
+        const reps = v.repairs?.length ? v.repairs : [{ type: "—" }];
+        reps.forEach((r, idx) => {
+          const isNewVehicle = idx === 0;
+          const carCell = isNewVehicle ? `<b>${v.reg || "—"}</b> · ${[v.make, v.model].filter(Boolean).join(" ") || "—"}${v.colour ? " · " + v.colour : ""}` : "";
+          const sep = isNewVehicle && rows.length > 0 ? "border-top:2px solid #9CA3AF;" : "";
+          let last;
+          if (repairedSection) last = isNewVehicle ? `<span style="font-size:11px;font-weight:700;color:#059669;">✓ Repaired${vs.date ? "<br>" + fmtDate(vs.date) : ""}</span>` : "";
+          else if (r.unrepairable) last = '<span style="font-size:11px;font-weight:700;color:#DC2626;">Not repairable</span>';
+          else if (vs.state === "booked") last = isNewVehicle ? `<span style="font-size:11px;font-weight:700;color:#D97706;">Booked${vs.date ? "<br>" + fmtDate(vs.date) : ""}</span>` : "";
+          else last = '<span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span>';
+          rows.push(`
       <tr>
         <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#6B7280;">${rows.length+1}</td>
         <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;">${carCell}</td>
         <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;font-size:12px;color:#6B7280;">${describeRepair(r) || r.type || "—"}${r.notes ? `<br><span style="color:#9CA3AF;font-style:italic;">${r.notes}</span>` : ""}</td>
-        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;text-align:center;">${r.unrepairable ? '<span style="font-size:11px;font-weight:700;color:#DC2626;">Not repairable</span>' : '<span style="display:inline-block;width:16px;height:16px;border:2px solid #374151;border-radius:3px;"></span>'}</td>
+        <td style="padding:10px 12px;${sep}border-bottom:1px solid #E5E7EB;text-align:center;">${last}</td>
       </tr>`);
+        });
       });
-    });
-    const rowsHtml = rows.join("");
+      return rows.join("");
+    };
+    const table = (title, colour, list, repairedSection, emptyText) => `
+  <div style="font-size:14px;font-weight:800;color:${colour};margin:18px 0 8px;">${title} (${list.length} vehicle${list.length === 1 ? "" : "s"})</div>
+  <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;">
+    <thead><tr style="background:#F9FAFB;">
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">#</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Car</th>
+      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Damage</th>
+      <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;">${repairedSection ? "Status" : "Please Repair"}</th>
+    </tr></thead>
+    <tbody>${list.length ? buildRows(list, repairedSection) : `<tr><td colspan="4" style="padding:14px;color:#9CA3AF;font-size:13px;">${emptyText}</td></tr>`}</tbody>
+  </table>`;
+    const tablesHtml =
+      (show !== "repaired" ? table("Still to be repaired", "#B45309", outstandingVs, false, "Nothing outstanding — every vehicle has been repaired.") : "") +
+      (show !== "outstanding" ? table("Repaired", "#059669", repairedVs, true, "No vehicles repaired yet.") : "");
+    const showSignOff = show !== "repaired" && outstandingVs.length > 0;
 
     const html = `<!DOCTYPE html>
 <html><head><script>try{window.opener=null;}catch(e){}</script><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Site Inspection Report</title>
@@ -2458,17 +2567,10 @@ function SendReportModal({ data, inspection, onClose }) {
   <div style="font-size:13px;color:#6B7280;margin-bottom:2px;">Site: <b style="color:#111827;">${cust?.company || inspection.siteName || ""}</b></div>
   <div style="font-size:13px;color:#6B7280;margin-bottom:14px;">Inspection date: ${fmtDate(inspection.date)} · Report date: ${fmtD}</div>
   <div style="font-size:13px;color:#374151;line-height:1.5;margin-bottom:16px;">${note.replace(/</g,"&lt;")}</div>
-  <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;">
-    <thead><tr style="background:#F9FAFB;">
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">#</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Car</th>
-      <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6B7280;text-transform:uppercase;">Damage</th>
-      <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6B7280;text-transform:uppercase;">Please Repair</th>
-    </tr></thead>
-    <tbody>${rowsHtml || '<tr><td colspan="4" style="padding:14px;color:#9CA3AF;font-size:13px;">No vehicles</td></tr>'}</tbody>
-  </table>
-  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${(inspection.vehicles||[]).length} vehicle(s), ${rows.length} damage item(s) inspected · Windscreen Repairs (Bristol)</div>
-  <div style="border-top:1px solid #E5E7EB;padding-top:16px;">
+  <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:4px;">${repairedVs.length} of ${vehicles.length} vehicle(s) repaired · ${outstandingVs.length} still to repair</div>
+  ${tablesHtml}
+  <div style="font-size:12px;color:#9CA3AF;margin:20px 0 24px;">${vehicles.length} vehicle(s) inspected · Windscreen Repairs (Bristol)</div>
+  ${showSignOff ? `<div style="border-top:1px solid #E5E7EB;padding-top:16px;">
     <div style="font-size:12px;color:#6B7280;margin-bottom:14px;">Please tick above the damage you'd like us to repair, then complete below to authorise the work.</div>
     <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:4px;">
       <div style="flex:1;min-width:180px;">
@@ -2484,7 +2586,7 @@ function SendReportModal({ data, inspection, onClose }) {
         <div style="border-bottom:1px solid #9CA3AF;height:6px;"></div>
       </div>
     </div>
-  </div>
+  </div>` : ""}
 </div>
 </body></html>`;
     // Opens a blank tab and writes the content directly in, rather than navigating
@@ -2501,7 +2603,14 @@ function SendReportModal({ data, inspection, onClose }) {
         <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
           style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"1.5px solid #E5E7EB", fontFamily:"inherit", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
       </Field>
-      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Every piece of damage found in this inspection is listed on its own line with a blank tick box for the customer to mark up and sign — nothing gets booked in yet.</p>
+      <Field label="Show on report">
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {[["both", `Both (${prog.total})`], ["outstanding", `Still to repair (${prog.total - prog.repaired})`], ["repaired", `Repaired (${prog.repaired})`]].map(([k, label]) => (
+            <button key={k} onClick={() => setShow(k)} style={{ padding:"8px 12px", borderRadius:99, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:600, background: show === k ? "#1E3A5F" : "#F3F4F6", color: show === k ? "#fff" : "#374151" }}>{label}</button>
+          ))}
+        </div>
+      </Field>
+      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 14px" }}>Vehicles still to repair get a blank tick box (or "Booked" if a job's already in), and repaired ones show the date they were done. Nothing gets booked from here.</p>
       <Btn onClick={openReportWindow} style={{ width:"100%", justifyContent:"center" }}>
         📄 View / Email Report
       </Btn>
@@ -2616,7 +2725,7 @@ function BookVehiclesModal({ data, inspection, onClose }) {
 }
 
 // Detail screen for one inspection — add more vehicles later, generate the report, book vehicles in
-function InspectionDetail({ data, id, setView }) {
+function InspectionDetail({ data, id, setView, from }) {
   const inspection = (data.inspections||[]).find(i => i.id === id);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [editingVehicle, setEditingVehicle]   = useState(null);
@@ -2655,7 +2764,7 @@ function InspectionDetail({ data, id, setView }) {
   return (
     <div>
       <div style={{ marginBottom:16 }}>
-        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"inspections" })}><Icon name="back" size={14} /> Back</Btn>
+        <Btn variant="ghost" size="sm" onClick={() => setView(from || { screen:"inspections" })}><Icon name="back" size={14} /> Back</Btn>
       </div>
       <Card>
         <div style={{ fontWeight:800, fontSize:20, color:"#1E3A5F" }}>{displayName || "Site Inspection"}</div>
@@ -7435,7 +7544,7 @@ function AuthenticatedApp() {
         {view.screen==="invoices"       && <InvoicesList   data={data} setView={setView} initialFilter={view.filter} />}
         {view.screen==="inspections"       && <InspectionsList data={data} setView={setView} />}
         {view.screen==="newInspection"     && <InspectionForm  data={data} setView={setView} prefillCustomerId={view.prefillCustomerId} />}
-        {view.screen==="inspectionDetail"  && <InspectionDetail data={data} id={view.id} setView={setView} />}
+        {view.screen==="inspectionDetail"  && <InspectionDetail data={data} id={view.id} setView={setView} from={view.from} />}
       </div>
 
       {view.screen==="newJob" && <JobForm data={data} prefill={view.prefill} onClose={() => setView({ screen:"jobs" })} />}
