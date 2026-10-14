@@ -25,7 +25,9 @@ const q = encodeURIComponent;
 async function run(handler, req, body) {
   let status = 200, json = null;
   const res = { status(s) { status = s; return res; }, json(j) { json = j; return res; } };
-  await handler({ ...req, method: "POST", body }, res);
+  // Copy the login header across by hand — on Vercel the request's headers can't be
+  // copied with {...req}, which is what broke the first version.
+  await handler({ headers: { authorization: req.headers?.authorization || "" }, query: req.query || {}, method: "POST", body }, res);
   return { status, json: json || {} };
 }
 
