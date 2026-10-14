@@ -13,7 +13,7 @@ import { verifyAppUser, supabaseRest, sageFetch } from "./_sage.js";
 
 const SALES_NOMINAL_CODE = "4000";
 
-async function findSalesLedgerId() {
+export async function findSalesLedgerId() {
   for (let page = 1; page <= 10; page++) {
     const r = await sageFetch(`/ledger_accounts?items_per_page=200&page=${page}&attributes=nominal_code,name`);
     const items = r?.$items || [];
@@ -25,6 +25,23 @@ async function findSalesLedgerId() {
 }
 
 const money = v => Math.round((parseFloat(v) || 0) * 100) / 100;
+
+// The Sage invoice lines for one app invoice (also used when updating a Sage invoice).
+export function buildLines(inv, ledgerId) {
+  const lines = [];
+  const addLine = (description, amount) => {
+    const a = money(amount);
+    if (a > 0) lines.push({ description: String(description || "Windscreen repair").slice(0, 250), quantity: 1, unit_price: a, ledger_account_id: ledgerId });
+  };
+  const items = Array.isArray(inv.line_items) ? inv.line_items : [];
+  if (items.length > 0) {
+    items.forEach(li => addLine(li.description, li.price));
+  } else {
+    addLine(inv.details || "Windscreen repair", inv.labour);
+  }
+  addLine("Parts", inv.parts);
+  return lines;
+}
 const dateOnly = v => (v ? String(v).slice(0, 10) : new Date().toISOString().slice(0, 10));
 function addDays(iso, days) {
   const d = new Date(iso + "T12:00:00Z");
@@ -75,18 +92,7 @@ export default async function handler(req, res) {
 
     // Build the invoice lines from the app's invoice
     const ledgerId = await findSalesLedgerId();
-    const lines = [];
-    const addLine = (description, amount) => {
-      const a = money(amount);
-      if (a > 0) lines.push({ description: String(description || "Windscreen repair").slice(0, 250), quantity: 1, unit_price: a, ledger_account_id: ledgerId });
-    };
-    const items = Array.isArray(inv.line_items) ? inv.line_items : [];
-    if (items.length > 0) {
-      items.forEach(li => addLine(li.description, li.price));
-    } else {
-      addLine(inv.details || "Windscreen repair", inv.labour);
-    }
-    addLine("Parts", inv.parts);
+    const lines = buildLines(inv, ledgerId);
 
     if (lines.length === 0) return res.status(400).json({ error: "This invoice comes to £0 — nothing to send to Sage." });
     const linesTotal = money(lines.reduce((s, l) => s + l.unit_price, 0));
@@ -103,6 +109,8 @@ export default async function handler(req, res) {
         sales_invoice: {
           contact_id: cust.sage_id,
           date,
+          // No due_date: Sage Accounting Start doesn't allow it to be set from outside —
+          // Sage fills it in from the customer's / business's payment terms instead.
           invoice_lines: withTax ? lines.map(l => ({ ...l, tax_rate_id: "GB_NO_TAX" })) : lines,
         },
       }),
