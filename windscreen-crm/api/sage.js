@@ -1,4 +1,8 @@
 // ONE web address for every Sage feature: /api/sage?action=...
+// Keeping them together means Sage only counts as one serverless function on Vercel
+// (the free plan allows 12 in total). The real work lives in the _underscore files,
+// which Vercel treats as shared code rather than separate functions.
+//
 // Each file is only loaded when its action is used, so if one file is missing or broken
 // it only stops THAT feature — every other Sage feature keeps working.
 
@@ -11,8 +15,10 @@ const ACTIONS = {
   "link-invoice":   () => import("./_link-invoice.js"),
   "push-payment":   () => import("./_push-payment.js"),
   "check-dates":    () => import("./_check-dates.js"),
+  "sync-invoice":   () => import("./_sync-invoice.js"),
 };
 
+// Allow longer than the default time limit where the Vercel plan permits it
 export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
