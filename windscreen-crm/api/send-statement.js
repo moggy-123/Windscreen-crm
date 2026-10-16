@@ -1,4 +1,4 @@
- // Serverless function — builds a Statement of Account as a real, multi-page-safe PDF
+// Serverless function — builds a Statement of Account as a real, multi-page-safe PDF
 // and either returns it for preview or emails it via Resend. The list of unpaid
 // invoices is sent by the app itself (not recomputed here), so there's only ever one
 // source of truth for what's actually outstanding.
@@ -14,7 +14,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerId, customerName, rows, totalOwed, previewOnly, message } = req.body || {};
+    const { to, customerId, customerName, rows, totalOwed, previewOnly, message, mode, periodFrom, periodTo, opening, closing } = req.body || {};
+    // Two kinds of statement:
+    //   • "outstanding" (default) — just the unpaid invoices, totalled
+    //   • "account" — every charge and payment in a date period, with opening balance,
+    //     running balance and closing balance (sent as opening / rows / closing)
+    const isAccount = mode === "account";
+    const gbp = n => { const v = parseFloat(n) || 0; return `${v < 0 ? "-" : ""}£${Math.abs(v).toFixed(2)}`; };
+    const dueAmount = isAccount ? (parseFloat(closing) || 0) : (parseFloat(totalOwed) || 0);
     if (!Array.isArray(rows)) return res.status(400).json({ error: "No statement rows were provided." });
     if (!previewOnly && !to) return res.status(400).json({ error: "No recipient email address was provided." });
 
@@ -37,7 +44,7 @@ export default async function handler(req, res) {
     flow.page.drawText("Statement of Account", { x: LEFT, y: flow.y, size: 15, font: bold, color: NAVY });
     flow.setY(flow.y - 18);
     if (customerName) { flow.page.drawText(customerName, { x: LEFT, y: flow.y, size: 11, font, color: BLACK }); flow.setY(flow.y - 14); }
-    flow.page.drawText(`Statement date: ${dateStr}`, { x: LEFT, y: flow.y, size: 9, font, color: GREY });
+    flow.page.drawText(`Statement date: ${dateStr}${isAccount && (periodFrom || periodTo) ? `   ·   Period: ${periodFrom || ""} to ${periodTo || ""}` : ""}`, { x: LEFT, y: flow.y, size: 9, font, color: GREY });
     flow.setY(flow.y - 22);
 
     // Table header — repeated automatically at the top of any new page via drawTableHeader()
@@ -46,36 +53,50 @@ export default async function handler(req, res) {
       flow.page.drawRectangle({ x: LEFT, y: flow.y - 4, width: RIGHT - LEFT, height: 22, color: headerBg });
       flow.page.drawText("DATE", { x: LEFT + 8, y: flow.y + 4, size: 9, font: bold, color: GREY });
       flow.page.drawText("DESCRIPTION", { x: LEFT + 90, y: flow.y + 4, size: 9, font: bold, color: GREY });
-      flow.page.drawText("AMOUNT", { x: RIGHT - 70, y: flow.y + 4, size: 9, font: bold, color: GREY });
+      flow.page.drawText("AMOUNT", { x: isAccount ? RIGHT - 150 : RIGHT - 70, y: flow.y + 4, size: 9, font: bold, color: GREY });
+      if (isAccount) flow.page.drawText("BALANCE", { x: RIGHT - 70, y: flow.y + 4, size: 9, font: bold, color: GREY });
       flow.setY(flow.y - 6);
       flow.page.drawLine({ start: { x: LEFT, y: flow.y }, end: { x: RIGHT, y: flow.y }, thickness: 1, color: lineGrey });
       flow.setY(flow.y - 18);
     }
     drawTableHeader();
 
+    if (isAccount) {
+      flow.page.drawText("Opening balance", { x: LEFT + 90, y: flow.y, size: 10, font: bold, color: BLACK });
+      flow.page.drawText(gbp(opening), { x: RIGHT - 70, y: flow.y, size: 10, font: bold, color: BLACK });
+      flow.setY(flow.y - 18);
+    }
+
     if (rows.length === 0) {
-      flow.page.drawText("Nothing outstanding", { x: LEFT + 90, y: flow.y, size: 10, font, color: GREY });
+      flow.page.drawText(isAccount ? "No charges or payments in this period" : "Nothing outstanding", { x: LEFT + 90, y: flow.y, size: 10, font, color: GREY });
       flow.setY(flow.y - 18);
     }
 
     for (const row of rows) {
       const startedNewPage = flow.ensureSpace(18);
       if (startedNewPage) drawTableHeader();
-      flow.page.drawText(row.date || "", { x: LEFT + 8, y: flow.y, size: 10, font, color: GREY });
+      // Account rows arrive with ISO dates (2026-10-16) — show them as 16/10/2026
+      const shownDate = /^\d{4}-\d{2}-\d{2}$/.test(row.date || "") ? row.date.split("-").reverse().join("/") : (row.date || "");
+      flow.page.drawText(shownDate, { x: LEFT + 8, y: flow.y, size: 10, font, color: GREY });
       flow.page.drawText((row.description || "—").slice(0, 55), { x: LEFT + 90, y: flow.y, size: 10, font, color: BLACK });
       if (row.overdue) {
         const descWidth = font.widthOfTextAtSize((row.description || "—").slice(0, 55), 10);
         flow.page.drawText("(overdue)", { x: LEFT + 90 + descWidth + 6, y: flow.y, size: 9, font: bold, color: red });
       }
-      flow.page.drawText(`£${(parseFloat(row.amount) || 0).toFixed(2)}`, { x: RIGHT - 70, y: flow.y, size: 10, font: bold, color: BLACK });
+      if (isAccount) {
+        flow.page.drawText(gbp(row.amount), { x: RIGHT - 150, y: flow.y, size: 10, font: bold, color: row.type === "payment" ? rgb(0.02, 0.59, 0.41) : BLACK });
+        flow.page.drawText(gbp(row.balance), { x: RIGHT - 70, y: flow.y, size: 10, font, color: BLACK });
+      } else {
+        flow.page.drawText(`£${(parseFloat(row.amount) || 0).toFixed(2)}`, { x: RIGHT - 70, y: flow.y, size: 10, font: bold, color: BLACK });
+      }
       flow.setY(flow.y - 18);
     }
 
     flow.setY(flow.y - 6);
     flow.ensureSpace(40);
     flow.page.drawRectangle({ x: LEFT, y: flow.y - 22, width: RIGHT - LEFT, height: 36, color: amberBg, borderColor: amberBorder, borderWidth: 1 });
-    flow.page.drawText("Total Outstanding", { x: LEFT + 14, y: flow.y - 8, size: 13, font: bold, color: amber });
-    flow.page.drawText(`£${parseFloat(totalOwed || 0).toFixed(2)}`, { x: RIGHT - 90, y: flow.y - 8, size: 15, font: bold, color: amber });
+    flow.page.drawText(isAccount ? "Balance Due" : "Total Outstanding", { x: LEFT + 14, y: flow.y - 8, size: 13, font: bold, color: amber });
+    flow.page.drawText(gbp(dueAmount), { x: RIGHT - 90, y: flow.y - 8, size: 15, font: bold, color: amber });
     flow.setY(flow.y - 44);
 
     flow.ensureSpace(80);
@@ -116,7 +137,7 @@ export default async function handler(req, res) {
         to: [to],
         bcc: ["info@windscreenrepairsbristol.co.uk"],
         subject: `Statement of Account — ${customerName || "Windscreen Repairs Bristol"}`,
-        text: message || `Please find our statement attached, showing a total outstanding balance of £${parseFloat(totalOwed || 0).toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
+        text: message || `Please find our statement attached, showing a balance due of ${gbp(dueAmount)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
         attachments: [{ filename: "statement.pdf", content: pdfBase64 }],
         tags: [
           ...(customerId ? [{ name: "customer_id", value: customerId }] : []),
