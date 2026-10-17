@@ -16,6 +16,8 @@ const ACTIONS = {
   "push-payment":   () => import("./_push-payment.js"),
   "check-dates":    () => import("./_check-dates.js"),
   "sync-invoice":   () => import("./_sync-invoice.js"),
+  "vehicle-lookup": () => import("./_vehicle-lookup.js"),
+  "plate-read":     () => import("./_plate-read.js"),
 };
 
 // Allow longer than the default time limit where the Vercel plan permits it
