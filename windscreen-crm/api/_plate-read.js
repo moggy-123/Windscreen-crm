@@ -5,7 +5,8 @@
 //
 // Needs in Vercel → Settings → Environment Variables:
 //   ANTHROPIC_API_KEY  — from console.anthropic.com
-//   ANTHROPIC_MODEL    — optional, defaults to claude-haiku-4-5-20251001 (cheap and quick)
+//   ANTHROPIC_MODEL    — optional, defaults to claude-sonnet-5-5 (better at telling
+//                        similar-looking models apart; set claude-haiku-4-5-20251001 for cheapest)
 // If the DVSA MOT keys are also set, the make/model are double-checked against the reg.
 
 import { verifyAppUser } from "./_sage.js";
@@ -18,6 +19,10 @@ Rules:
 - "reg": the plate exactly as shown, capitals, no spaces. If no plate is readable use "".
 - "plateClear": false if any character of the plate is uncertain.
 - "make" / "model": your best identification from the vehicle's appearance, or "" if unsure.
+  Use the name the vehicle is sold under in the UK (e.g. "BYD Atto 3", never the Chinese-market
+  name "Yuan Plus"). Look closely at badges, model lettering on the tailgate, light shapes and
+  grille before deciding — many models from the same maker look alike (e.g. BYD Dolphin vs Atto 3,
+  Ford Transit vs Transit Custom). If you can't tell between two, give the make only.
 - "colour": the main body colour in one or two plain words.`;
 
 export default async function plateRead(req, res) {
@@ -36,7 +41,7 @@ export default async function plateRead(req, res) {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5",
         max_tokens: 300,
         messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mediaType || "image/jpeg", data: image } },
