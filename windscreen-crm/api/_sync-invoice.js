@@ -73,7 +73,7 @@ export default async function syncInvoice(req, res) {
     const user = await verifyAppUser(req);
     if (!user) return res.status(401).json({ error: "Not logged in — please sign in to the app again." });
 
-    const { invoiceId, update, confirmCustomer, confirmInvoice } = req.body || {};
+    const { invoiceId, update, confirmCustomer, confirmInvoice, skipPayment } = req.body || {};
     if (!invoiceId) return res.status(400).json({ error: "No invoice given." });
     const load = async () => (await supabaseRest(`invoices?id=eq.${q(invoiceId)}&select=*`))?.[0];
 
@@ -117,7 +117,7 @@ export default async function syncInvoice(req, res) {
 
     // 3. Paid in the app → record the payment in Sage
     inv = await load();
-    if (inv?.paid && inv.sage_invoice_id && !inv.sage_payment_id) {
+    if (!skipPayment && inv?.paid && inv.sage_invoice_id && !inv.sage_payment_id) {
       const r = await run(pushPayment, req, { invoiceId });
       if (r.status >= 400) {
         out.warnings.push(`Payment not recorded in Sage: ${r.json.error || r.status}`);
