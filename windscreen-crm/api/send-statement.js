@@ -14,6 +14,28 @@ export default async function handler(req, res) {
   }
 
   try {
+    // "bundle": email several ready-made PDFs (e.g. copy invoices) in one message
+    if (req.body?.mode === "bundle") {
+      const { to, customerId, customerName, subject, message, attachments } = req.body;
+      if (!to) return res.status(400).json({ error: "No recipient email address was provided." });
+      if (!Array.isArray(attachments) || !attachments.length) return res.status(400).json({ error: "No invoices to attach." });
+      const RESEND_API_KEY = process.env.RESEND_API_KEY;
+      if (!RESEND_API_KEY) return res.status(500).json({ error: "Email sending isn't set up yet — RESEND_API_KEY is missing from Vercel's environment variables." });
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: RESEND_FROM, to: [to], bcc: ["info@windscreenrepairsbristol.co.uk"],
+          subject: subject || `Invoice copies — ${customerName || "Windscreen Repairs Bristol"}`,
+          text: message || `Please find copies of your invoices attached.\n\nWindscreen Repairs (Bristol)\n07946 222246`,
+          attachments: attachments.map(a => ({ filename: String(a.filename || "invoice.pdf").replace(/[^\w.\- ]/g, ""), content: a.content })),
+          tags: [ ...(customerId ? [{ name: "customer_id", value: customerId }] : []), { name: "doc_type", value: "invoice_copies" } ],
+        }),
+      });
+      if (!r.ok) return res.status(502).json({ error: `Resend rejected the email: ${await r.text()}` });
+      return res.status(200).json({ success: true });
+    }
+
     const { to, customerId, customerName, rows, totalOwed, previewOnly, message, mode, periodFrom, periodTo, opening, closing } = req.body || {};
     // Two kinds of statement:
     //   • "outstanding" (default) — just the unpaid invoices, totalled
