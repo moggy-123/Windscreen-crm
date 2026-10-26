@@ -62,6 +62,65 @@ async function findBankAccountId() {
   throw new Error(`Couldn't find bank account ${BANK_NOMINAL_CODE} in Sage. Bank accounts found: ${items.map(b => b.displayed_as).join(", ") || "none"}.`);
 }
 
+// ONE customer receipt in Sage covering several invoices — matches a single bank payment
+// that clears more than one invoice. Each Sage invoice gets its share allocated to it.
+// App invoices that share a Sage invoice (several jobs on one invoice) are added together.
+async function payMany(ids) {
+  const list = (await supabaseRest(`invoices?id=in.(${ids.map(encodeURIComponent).join(",")})&select=*`)) || [];
+  const todo = list.filter(i => i.paid && i.sage_invoice_id && !i.sage_payment_id);
+  const skipped = list.filter(i => !todo.includes(i)).map(i =>
+    i.sage_payment_id ? `${i.sage_invoice_no || "invoice"} already recorded` : !i.sage_invoice_id ? `${i.sage_invoice_no || "an invoice"} isn't in Sage yet` : `${i.sage_invoice_no || "an invoice"} isn't marked Paid`);
+  if (!todo.length) return { error: skipped.length ? `Nothing to record: ${skipped.join("; ")}.` : "Nothing to record." };
+
+  // Amount per Sage invoice
+  const bySage = new Map();
+  todo.forEach(i => { const g = bySage.get(i.sage_invoice_id) || { amount: 0, rows: [] }; g.amount = money(g.amount + money(i.total)); g.rows.push(i); bySage.set(i.sage_invoice_id, g); });
+
+  const alloc = [], alreadyPaid = [], problems = [];
+  let contactId = null;
+  for (const [sid, g] of bySage) {
+    const si = await sageFetch(`/sales_invoices/${encodeURIComponent(sid)}`);
+    const no = si?.invoice_number || g.rows[0].sage_invoice_no || "invoice";
+    const outstanding = money(si?.outstanding_amount);
+    if (outstanding <= 0.01) { alreadyPaid.push({ no, rows: g.rows }); continue; }
+    if (g.amount > outstanding + 0.01) { problems.push(`${no}: app says £${g.amount.toFixed(2)} but Sage only has £${outstanding.toFixed(2)} left to pay`); continue; }
+    const cid = si?.contact?.id;
+    if (contactId && cid !== contactId) { problems.push(`${no} belongs to a different customer in Sage`); continue; }
+    contactId = cid;
+    alloc.push({ sid, no, amount: g.amount, rows: g.rows, paidDate: g.rows[0].paid_date, method: g.rows[0].payment_method, ref: g.rows[0].payment_ref });
+  }
+  if (problems.length) return { error: `Nothing was recorded — please check in Sage first: ${problems.join("; ")}.` };
+
+  for (const a of alreadyPaid) for (const r of a.rows)
+    await supabaseRest(`invoices?id=eq.${encodeURIComponent(r.id)}`, { method: "PATCH", body: JSON.stringify({ sage_payment_id: ALREADY_PAID, updated_at: Date.now() }) });
+  if (!alloc.length) return { alreadyPaid: alreadyPaid.map(a => a.no), skipped, paidIds: [], alreadyPaidIds: alreadyPaid.flatMap(a => a.rows.map(r => r.id)) };
+
+  const total = money(alloc.reduce((t, a) => t + a.amount, 0));
+  const bankAccountId = await findBankAccountId();
+  const date = String(alloc[0].paidDate || new Date().toISOString()).slice(0, 10);
+  const reference = (alloc[0].ref || `${alloc[0].method || "Payment"} ${alloc.map(a => a.no).join(" ")}`).trim().slice(0, 25);
+  const build = (methodId) => ({
+    contact_payment: {
+      transaction_type_id: "CUSTOMER_RECEIPT", contact_id: contactId, bank_account_id: bankAccountId,
+      date, total_amount: total, reference,
+      ...(methodId ? { payment_method_id: methodId } : {}),
+      allocated_artefacts: alloc.map(a => ({ artefact_id: a.sid, amount: a.amount })),
+    },
+  });
+  let payment = null;
+  for (const methodId of await paymentMethodCandidates(alloc[0].method)) {
+    try { payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(methodId)) }); break; }
+    catch (e) { if (!/payment_method|invalid for business/i.test(e?.message || "")) throw e; }
+  }
+  if (!payment) payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(null)) });
+  if (!payment?.id) throw new Error("Sage didn't return a payment ID.");
+
+  for (const a of alloc) for (const r of a.rows)
+    await supabaseRest(`invoices?id=eq.${encodeURIComponent(r.id)}`, { method: "PATCH", body: JSON.stringify({ sage_payment_id: payment.id, updated_at: Date.now() }) });
+  return { sagePaymentId: payment.id, amount: total, invoices: alloc.map(a => a.no), alreadyPaid: alreadyPaid.map(a => a.no), skipped,
+           paidIds: alloc.flatMap(a => a.rows.map(r => r.id)), alreadyPaidIds: alreadyPaid.flatMap(a => a.rows.map(r => r.id)) };
+}
+
 export default async function pushPayment(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
@@ -69,7 +128,8 @@ export default async function pushPayment(req, res) {
     const user = await verifyAppUser(req);
     if (!user) return res.status(401).json({ error: "Not logged in — please sign in to the app again." });
 
-    const { invoiceId, clear } = req.body || {};
+    const { invoiceId, invoiceIds, clear } = req.body || {};
+    if (Array.isArray(invoiceIds) && invoiceIds.length) return res.status(200).json(await payMany(invoiceIds));
     if (!invoiceId) return res.status(400).json({ error: "No invoice given." });
     const iid = encodeURIComponent(invoiceId);
 
