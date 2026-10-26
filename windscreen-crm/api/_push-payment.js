@@ -107,18 +107,56 @@ async function payMany(ids) {
       allocated_artefacts: alloc.map(a => ({ artefact_id: a.sid, amount: a.amount })),
     },
   });
-  let payment = null;
-  for (const methodId of await paymentMethodCandidates(alloc[0].method)) {
-    try { payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(methodId)) }); break; }
-    catch (e) { if (!/payment_method|invalid for business/i.test(e?.message || "")) throw e; }
-  }
-  if (!payment) payment = await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(build(null)) });
-  if (!payment?.id) throw new Error("Sage didn't return a payment ID.");
+  // Posts one receipt for the given allocations (trying payment-method codes as usual)
+  const post = async (list) => {
+    const body = (methodId) => {
+      const b = build(methodId);
+      b.contact_payment.total_amount = money(list.reduce((t, a) => t + a.amount, 0));
+      b.contact_payment.allocated_artefacts = list.map(a => ({ artefact_id: a.sid, amount: a.amount }));
+      if (list.length === 1 && !alloc[0].ref) b.contact_payment.reference = `${list[0].method || "Payment"} ${list[0].no}`.slice(0, 25);
+      return b;
+    };
+    for (const methodId of await paymentMethodCandidates(list[0].method)) {
+      try { return await sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(body(methodId)) }); }
+      catch (e) { if (!/payment_method|invalid for business/i.test(e?.message || "")) throw e; }
+    }
+    return sageFetch("/contact_payments", { method: "POST", body: JSON.stringify(body(null)) });
+  };
+  const markRows = async (rows, pid) => { for (const r of rows)
+    await supabaseRest(`invoices?id=eq.${encodeURIComponent(r.id)}`, { method: "PATCH", body: JSON.stringify({ sage_payment_id: pid, updated_at: Date.now() }) }); };
 
-  for (const a of alloc) for (const r of a.rows)
-    await supabaseRest(`invoices?id=eq.${encodeURIComponent(r.id)}`, { method: "PATCH", body: JSON.stringify({ sage_payment_id: payment.id, updated_at: Date.now() }) });
-  return { sagePaymentId: payment.id, amount: total, invoices: alloc.map(a => a.no), alreadyPaid: alreadyPaid.map(a => a.no), skipped,
-           paidIds: alloc.flatMap(a => a.rows.map(r => r.id)), alreadyPaidIds: alreadyPaid.flatMap(a => a.rows.map(r => r.id)) };
+  let payment = null, separate = false;
+  try {
+    payment = await post(alloc);
+  } catch (e) {
+    // Some Sage plans (e.g. Start) won't split one payment across several invoices.
+    // Nothing was created, so record one payment per invoice instead (same date and ref).
+    if (alloc.length > 1 && /allocation of multiple|multiple items|allocated_artefacts/i.test(e?.message || "")) separate = true;
+    else throw e;
+  }
+  if (!separate) {
+    if (!payment?.id) throw new Error("Sage didn't return a payment ID.");
+    await markRows(alloc.flatMap(a => a.rows), payment.id);
+    return { sagePaymentId: payment.id, amount: total, invoices: alloc.map(a => a.no), alreadyPaid: alreadyPaid.map(a => a.no), skipped,
+             paidIds: alloc.flatMap(a => a.rows.map(r => r.id)), alreadyPaidIds: alreadyPaid.flatMap(a => a.rows.map(r => r.id)) };
+  }
+  const done = [], failed = [], paymentIdByInvoice = {};
+  for (const a of alloc) {
+    try {
+      const p = await post([a]);
+      if (!p?.id) throw new Error("no payment ID returned");
+      await markRows(a.rows, p.id);
+      a.rows.forEach(r => { paymentIdByInvoice[r.id] = p.id; });
+      done.push(a);
+    } catch (e) { failed.push(`${a.no}: ${e?.message || e}`); }
+  }
+  return {
+    separate: true, amount: money(done.reduce((t, a) => t + a.amount, 0)), invoices: done.map(a => a.no),
+    alreadyPaid: alreadyPaid.map(a => a.no), skipped: [...skipped, ...failed.map(f => `Not recorded — ${f}`)],
+    paidIds: done.flatMap(a => a.rows.map(r => r.id)), alreadyPaidIds: alreadyPaid.flatMap(a => a.rows.map(r => r.id)),
+    paymentIdByInvoice,
+    ...(done.length ? {} : { error: `No payments recorded: ${failed.join("; ")}` }),
+  };
 }
 
 export default async function pushPayment(req, res) {
