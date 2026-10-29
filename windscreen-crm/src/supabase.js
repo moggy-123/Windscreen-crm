@@ -364,9 +364,20 @@ export async function upsertRecord(table, record) {
   if (error) throw error;
 }
 
+// Deletes one row and then CHECKS it has really gone. Supabase's row-level security can
+// silently skip a delete (no error, nothing removed) if there's no DELETE policy for the
+// logged-in user — without this check the app would carry on as if it had worked and the
+// record would come back on the next sync.
 export async function deleteRecord(table, id) {
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) throw error;
+  const { data: still, error: checkErr } = await supabase.from(table).select("id").eq("id", id).maybeSingle();
+  if (checkErr) throw new Error(`Couldn't confirm the delete from ${table}: ${checkErr.message || checkErr}`);
+  if (still) {
+    const e = new Error(`The database refused to delete this from "${table}" — it is still there, so nothing has been removed. Supabase is probably missing a delete permission for that table.`);
+    e.blocked = true;
+    throw e;
+  }
 }
 
 export async function isOnline() {
