@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B189 · 28 Oct 2026";
+const BUILD_NUMBER = "B190 · 29 Oct 2026";
 // Your business address on printed / emailed documents — can be switched off in Settings
 const MY_ADDRESS = "3 Goosander Grove, Cheddar, BS27 3FY";
 const SHOW_ADDRESS_KEY = "wscrm_show_address";
@@ -345,14 +345,69 @@ function wasUploaded(id) {
 }
 
 // Tombstones: remember deleted IDs so they can never be re-added by a merge
-function addTombstone(id) {
+// `inferred` = the app guessed it was deleted elsewhere (not deleted by you on this device).
+// Those are hidden here but never re-deleted from the cloud by the background retry.
+function addTombstone(id, inferred = false) {
   try {
     const t = JSON.parse(localStorage.getItem("wscrm_deleted") || "[]");
     if (!t.includes(id)) { t.push(id); localStorage.setItem("wscrm_deleted", JSON.stringify(t)); }
+    if (inferred) {
+      const inf = JSON.parse(localStorage.getItem("wscrm_deleted_inferred") || "[]");
+      if (!inf.includes(id)) { inf.push(id); localStorage.setItem("wscrm_deleted_inferred", JSON.stringify(inf)); }
+    }
   } catch {}
 }
+function getInferredTombstones() {
+  try { return new Set(JSON.parse(localStorage.getItem("wscrm_deleted_inferred") || "[]")); } catch { return new Set(); }
+}
+// Deleted-list entries from before B190 don't say whether YOU deleted them or the app
+// guessed, so the background retry leaves them alone — Settings → Clean Up Deleted Items
+// lets you review any that are still in the cloud and remove them yourself.
+function getLegacyTombstones() {
+  try {
+    if (!localStorage.getItem("wscrm_tomb_migrated")) {
+      localStorage.setItem("wscrm_deleted_legacy", localStorage.getItem("wscrm_deleted") || "[]");
+      localStorage.setItem("wscrm_tomb_migrated", "1");
+    }
+    return new Set(JSON.parse(localStorage.getItem("wscrm_deleted_legacy") || "[]"));
+  } catch { return new Set(); }
+}
+getLegacyTombstones();   // snapshot the old list once, as soon as this version first loads
 function getTombstones() {
   try { return JSON.parse(localStorage.getItem("wscrm_deleted") || "[]"); } catch { return []; }
+}
+
+// Anything this device deleted (tombstoned) that is STILL in the cloud gets deleted again,
+// quietly, after each sync — e.g. a delete that failed offline, or one the database
+// blocked. Children go before parents (invoices → jobs → vehicles → … → customers) so a
+// customer is never refused because its jobs still exist. At most 25 per sync, and an id
+// that keeps failing is only retried every 10 minutes, so it never floods the connection.
+const TOMBSTONE_DELETE_ORDER = [
+  ["invoices", "invoices"], ["jobs", "jobs"], ["vehicles", "vehicles"], ["communications", "communications"],
+  ["inspections", "inspections"], ["reminders", "reminders"], ["mileage", "mileage"], ["timeOff", "time_off"],
+  ["leads", "leads"], ["emailEvents", "email_events"], ["customers", "customers"],
+];
+let RETRYING_DELETES = false;
+const deleteRetryAt = {};
+async function retryTombstonedDeletes(cloud) {
+  if (RETRYING_DELETES || !cloud || !navigator.onLine) return;
+  const inferred = getInferredTombstones(), legacy = getLegacyTombstones();
+  const dead = new Set(getTombstones().filter(id => !inferred.has(id) && !legacy.has(id)));   // only things YOU deleted (since B190)
+  if (!dead.size) return;
+  RETRYING_DELETES = true;
+  let tries = 0, done = 0, failed = 0;
+  try {
+    for (const [key, table] of TOMBSTONE_DELETE_ORDER) {
+      for (const rec of cloud[key] || []) {
+        if (!dead.has(rec.id) || tries >= 25) continue;
+        if (deleteRetryAt[rec.id] && Date.now() < deleteRetryAt[rec.id]) continue;
+        tries++;
+        try { await deleteRecord(table, rec.id); done++; delete deleteRetryAt[rec.id]; }
+        catch (e) { failed++; deleteRetryAt[rec.id] = Date.now() + 10 * 60 * 1000; console.warn(`Retry delete failed: ${table} ${rec.id}`, e?.message || e); }
+      }
+    }
+    if (done || failed) console.info(`Background delete retry: ${done} removed from the cloud, ${failed} still blocked`);
+  } finally { RETRYING_DELETES = false; }
 }
 
 // Merge a cloud array with a local array for one table.
@@ -375,7 +430,7 @@ function mergeRecords(cloudArr, localArr) {
       const cloudTime = byId[x.id].updatedAt || 0;
       byId[x.id] = localTime >= cloudTime ? x : byId[x.id];
     } else if (wasUploaded(x.id) && !suspiciousEmpty) {
-      addTombstone(x.id);
+      addTombstone(x.id, true);
       removeSig(x.id);
     } else {
       byId[x.id] = x;
@@ -510,6 +565,8 @@ async function restoreBackup(file) {
     }
     localStorage.setItem(DB_KEY, JSON.stringify(backup));
     localStorage.removeItem("wscrm_deleted");
+    localStorage.removeItem("wscrm_deleted_inferred");
+    localStorage.removeItem("wscrm_deleted_legacy");
     localStorage.removeItem("wscrm_sigs");
     hideSavingOverlay();
     if (failCount > 0) {
@@ -1845,12 +1902,15 @@ function CustomerDetail({ data, id, setView }) {
     const theirInvoices = data.invoices.filter(inv => theirJobs.includes(inv.jobId)).map(inv => inv.id);
     const theirComms = (data.communications||[]).filter(c => c.customerId === id).map(c => c.id);
     const theirInspections = (data.inspections||[]).filter(i => i.customerId === id).map(i => i.id);
-    const allIds = [{ table:"customers", id }, ...theirVehicles.map(vid => ({table:"vehicles",id:vid})), ...theirJobs.map(jid => ({table:"jobs",id:jid})), ...theirInvoices.map(iid => ({table:"invoices",id:iid})), ...theirComms.map(cid => ({table:"communications",id:cid})), ...theirInspections.map(iid => ({table:"inspections",id:iid}))];
+    // Children first, customer last — the database won't delete a customer that still has jobs
+    const allIds = [...theirInvoices.map(iid => ({table:"invoices",id:iid})), ...theirJobs.map(jid => ({table:"jobs",id:jid})), ...theirVehicles.map(vid => ({table:"vehicles",id:vid})), ...theirComms.map(cid => ({table:"communications",id:cid})), ...theirInspections.map(iid => ({table:"inspections",id:iid})), { table:"customers", id }];
+    let notDeleted = 0;
     for (const { table, id: recId } of allIds) {
-      try { await deleteRecord(table, recId); } catch (e) { /* keep going — cleaned up locally + tombstoned regardless */ }
-      addTombstone(recId);
+      try { await deleteRecord(table, recId); } catch (e) { notDeleted++; console.warn("Delete didn't go through yet:", table, recId, e?.message || e); }
+      addTombstone(recId);   // tombstoned either way — anything left in the cloud is retried on each sync
       removeSig(recId);
     }
+    if (notDeleted) alert(`Removed from the app. ${notDeleted} record${notDeleted === 1 ? "" : "s"} couldn't be deleted from the cloud just now — the app will keep retrying in the background.`);
     // Remove locally and save WITHOUT re-pushing everything
     const d = loadData();
     const updated = {
@@ -6149,6 +6209,36 @@ function ResponsiveStyles({ device }) {
 // ── Reports ───────────────────────────────────────────────────────────────────
 // ── Settings ─────────────────────────────────────────────────────────────────
 // ── Settings (landing) — clean navigation buttons, like Home ────────────────
+// Finds records you deleted on this phone that are still sitting in the cloud (from before
+// deletes were double-checked) and lets you remove them — after showing you what they are.
+function CleanupDeletedButton() {
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    if (!navigator.onLine) { alert("You're offline — try again with signal."); return; }
+    setBusy(true);
+    try {
+      const cloud = await pullFromCloud();
+      const dead = new Set(getTombstones());
+      const inferred = getInferredTombstones();
+      const label = (key, r) => key === "customers" ? (r.company || r.companyContact) : key === "vehicles" ? r.reg : key === "jobs" ? `job ${r.date || ""}` : key === "invoices" ? `invoice ${r.sageInvoiceNo || ""} £${r.total || ""}` : (r.note || r.reason || r.contactName || r.id);
+      const found = [];
+      for (const [key, table] of TOMBSTONE_DELETE_ORDER) for (const r of cloud[key] || []) if (dead.has(r.id) && !inferred.has(r.id)) found.push({ key, table, r });
+      if (!found.length) { alert("✅ Nothing to clean up — everything you've deleted is gone from the cloud."); setBusy(false); return; }
+      const list = found.slice(0, 15).map(f => `• ${f.table}: ${label(f.key, f.r) || f.r.id}`).join("\n") + (found.length > 15 ? `\n…and ${found.length - 15} more` : "");
+      if (!window.confirm(`These ${found.length} record(s) were deleted on this phone but are still in the cloud:\n\n${list}\n\nDelete them from the cloud now?`)) { setBusy(false); return; }
+      let ok = 0, bad = 0, firstErr = "";
+      for (const f of found) { try { await deleteRecord(f.table, f.r.id); ok++; } catch (e) { bad++; if (!firstErr) firstErr = e?.message || String(e); } }
+      alert(bad ? `Deleted ${ok}. ${bad} couldn't be deleted:\n\n${firstErr}` : `✅ Deleted ${ok} record(s) from the cloud.`);
+    } catch (e) { alert("Couldn't check: " + (e?.message || e)); }
+    setBusy(false);
+  }
+  return (
+    <button onClick={run} disabled={busy} style={{ width:"100%", padding:"10px 16px", borderRadius:10, border:"1.5px solid #E5E7EB", background:"#fff", color:"#374151", fontSize:14, fontWeight:600, cursor:"pointer", boxSizing:"border-box", fontFamily:"inherit" }}>
+      {busy ? "Checking…" : "🧹 Clean Up Deleted Items"}
+    </button>
+  );
+}
+
 function AddressToggle() {
   const [on, setOn] = useState(showMyAddress());
   const flip = () => { const v = !on; try { localStorage.setItem(SHOW_ADDRESS_KEY, v ? "on" : "off"); } catch {} setOn(v); };
@@ -6210,6 +6300,7 @@ function SettingsView({ data, setView }) {
       <div style={{ marginTop:20 }}>
         <h3 style={{ fontSize:13, fontWeight:700, color:"#6B7280", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Data Tools</h3>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <CleanupDeletedButton />
           <label style={{ width:"100%", display:"flex", justifyContent:"center", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:10, border:"1.5px solid #E5E7EB", background:"#fff", color:"#374151", fontSize:14, fontWeight:600, cursor:"pointer", boxSizing:"border-box" }}>
             🖼️ Restore Missing Photos From Backup
             <input type="file" accept="application/json,.json" style={{ display:"none" }} onChange={e => { const f = e.target.files?.[0]; if (f) restorePhotosOnly(f); e.target.value = ""; }} />
@@ -8435,6 +8526,7 @@ function AuthenticatedApp() {
     (async () => {
       try {
         const cloud = await pullFromCloud();
+        retryTombstonedDeletes(cloud).catch(() => {});   // background: re-delete anything that didn't stick
         if (cancelled) return;
         const local = loadData();
         // Merge by id: whichever copy (cloud or local) has the newer updatedAt wins,
@@ -8482,9 +8574,10 @@ function AuthenticatedApp() {
         try {
           // If this is a DELETE event, tombstone that exact id so it's removed everywhere
           if (payload?.eventType === "DELETE" && payload?.old?.id) {
-            addTombstone(payload.old.id);
+            addTombstone(payload.old.id, true);
           }
           const cloud = await pullFromCloud();
+          retryTombstonedDeletes(cloud).catch(() => {});   // background: re-delete anything that didn't stick
           const local = loadData();
           // Cloud is authoritative for anything it has. Local-only records are kept only
           // if genuinely new (never uploaded) — see mergeRecords for the full logic.
@@ -8585,6 +8678,7 @@ function AuthenticatedApp() {
       if (SAVING_IN_PROGRESS) return;
       try {
         const cloud = await pullFromCloud();
+        retryTombstonedDeletes(cloud).catch(() => {});   // background: re-delete anything that didn't stick
         const local = loadData();
         const merge = mergeRecords;
         const merged = {
