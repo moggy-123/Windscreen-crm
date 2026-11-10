@@ -8,6 +8,22 @@ import { drawHeader, makeFlow, NAVY, GREY, BLACK, LEFT, RIGHT, PAGE_W, PAGE_H } 
 
 const RESEND_FROM = "Windscreen Repairs Bristol <info@windscreenrepairsbristol.co.uk>";
 
+// Turns a plain-text message into a simple, clean HTML email (same words, nicer layout)
+function messageToHtml(text) {
+  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const paras = String(text).trim().split(/\n\s*\n/).map(p =>
+    `<p style="margin:0 0 14px;line-height:1.5">${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f5f7">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7"><tr><td align="center" style="padding:20px 10px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#222">
+<tr><td style="padding:18px 24px;border-bottom:3px solid #1e5aa8;font-size:18px;font-weight:bold;color:#1e5aa8">Windscreen Repairs Bristol</td></tr>
+<tr><td style="padding:22px 24px">${paras}</td></tr>
+<tr><td style="padding:14px 24px;border-top:1px solid #e3e5e8;font-size:12px;color:#777;line-height:1.5">
+Windscreen Repairs (Bristol) · 07946 222246 · <a href="https://www.windscreenrepairsbristol.co.uk" style="color:#1e5aa8">windscreenrepairsbristol.co.uk</a><br>
+You're receiving this as a trade customer. Reply to this email if you'd prefer not to receive updates.
+</td></tr></table></td></tr></table></body></html>`;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -26,7 +42,9 @@ export default async function handler(req, res) {
         headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: RESEND_FROM, to: [to], bcc: ["info@windscreenrepairsbristol.co.uk"],
-          subject, text: message,
+          reply_to: "info@windscreenrepairsbristol.co.uk",
+          subject, text: message, html: messageToHtml(message),
+          headers: { "List-Unsubscribe": "<mailto:info@windscreenrepairsbristol.co.uk?subject=Unsubscribe>" },
           tags: [ ...(customerId ? [{ name: "customer_id", value: customerId }] : []), { name: "doc_type", value: "notice" } ],
         }),
       });
