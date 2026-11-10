@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B190 · 29 Oct 2026";
+const BUILD_NUMBER = "B192 · 10 Nov 2026";
 // Your business address on printed / emailed documents — can be switched off in Settings
 const MY_ADDRESS = "3 Goosander Grove, Cheddar, BS27 3FY";
 const SHOW_ADDRESS_KEY = "wscrm_show_address";
@@ -5749,9 +5749,17 @@ function InvoicesList({ data, setView, initialFilter }) {
     if (filter==="Unpaid") return !inv.paid;
     if (filter==="Paid")   return  inv.paid && (!paidFrom || paidOn(inv) >= paidFrom) && (!paidTo || paidOn(inv) <= paidTo);
     return true;
-  }).sort((a,b) => filter==="Paid"
-    ? (b.paidDate||b.job?.date||b.createdAt||"").localeCompare(a.paidDate||a.job?.date||a.createdAt||"")
-    : (b.job?.date||b.createdAt||"").localeCompare(a.job?.date||a.createdAt||""));
+  }).sort((a,b) => {
+    const byDate = (b.job?.date||b.createdAt||"").localeCompare(a.job?.date||a.createdAt||"");
+    if (filter==="Paid") return (b.paidDate||b.job?.date||b.createdAt||"").localeCompare(a.paidDate||a.job?.date||a.createdAt||"");
+    if (filter==="All") {
+      // Highest invoice number first (SI-170, SI-169 …). Invoices with no number yet are
+      // the newest, so they go at the very top, newest date first.
+      const num = i => parseInt(String(i.sageInvoiceNo || "").replace(/\D/g, ""), 10) || 0;
+      return (num(b) === 0) - (num(a) === 0) || num(b) - num(a) || byDate;
+    }
+    return byDate;
+  });
 
   const total = enriched.reduce((s,i) => s+(parseFloat(i.total)||0), 0);
   const pill  = (active, red) => ({ padding:"12px 22px", borderRadius:99, fontSize:15, fontWeight:600, cursor:"pointer", border: red && !active ? "2px solid #DC2626" : "none", background:active?(red?"#DC2626":"#1E3A5F"):"#F3F4F6", color:active?"#fff":(red?"#DC2626":"#6B7280"), fontFamily:"inherit", whiteSpace:"nowrap" });
@@ -6261,6 +6269,115 @@ function SageAutoToggle() {
   );
 }
 
+// ── Email all trade customers ───────────────────────────────────────────────────
+// One message (e.g. a price change) sent to every ticked trade customer — each gets their
+// own email with their name filled in where the message says [Name]. A note is added to
+// each customer's Communication tab.
+const TRADE_PRICE_EMAIL = {
+  subject: "Simplified trade pricing from 1 December",
+  body: `Hi [Name],
+
+Thank you for your continued business. From 1 December 2026 I'm moving all of my trade accounts onto one simple price, so everyone pays the same and invoices are easy to check:
+
+• £35 per chip repair
+• Capped at £105 per vehicle – however many chips I repair on the same vehicle in one visit, you'll never pay more than three
+
+So 1 chip is £35, 2 chips are £70, and 3 or more chips are £105 in total.
+
+Nothing else changes – I'll still come to you, and you'll still get before and after photos for every vehicle, clear invoices and statements. Payment terms stay at 30 days from the invoice date.
+
+This rate will be fixed for at least 12 months.
+
+If you have any questions, just give me a call on 07946 222246.
+
+Many thanks,
+Dave
+Windscreen Repairs (Bristol)`,
+};
+function tradeGreetingName(c) {
+  const ct = (c.contacts || []).find(x => x.receivesInvoices && x.name) || (c.contacts || []).find(x => x.name);
+  const n = (ct?.name || c.companyContact || "").trim();
+  return n ? n.split(/\s+/)[0] : "there";
+}
+function TradeEmailView({ data, setView }) {
+  const trade = data.customers
+    .filter(c => c.custType === "Trade")
+    .map(c => ({ c, to: getRecipientEmail(c, "receivesInvoices") || getRecipientEmail(c, "receivesStatements") }))
+    .sort((a, b) => (a.c.company || "").localeCompare(b.c.company || ""));
+  const [selected, setSelected] = useState(() => Object.fromEntries(trade.map(({ c, to }) => [c.id, !!to && !/\bsmc\b/i.test(c.company || "")])));
+  const [subject, setSubject] = useState(TRADE_PRICE_EMAIL.subject);
+  const [body, setBody] = useState(TRADE_PRICE_EMAIL.body);
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState(null);   // { done, total, failed: [] }
+  const chosen = trade.filter(t => selected[t.c.id] && t.to);
+
+  async function sendAll() {
+    if (!chosen.length) return;
+    if (!window.confirm(`Send this email to ${chosen.length} trade customer${chosen.length === 1 ? "" : "s"}?\n\nEach gets their own copy with their name filled in. You'll get a blind copy of each.`)) return;
+    setSending(true);
+    const failed = [], sentTo = [];
+    for (let i = 0; i < chosen.length; i++) {
+      const { c, to } = chosen[i];
+      setProgress({ done: i, total: chosen.length, failed });
+      try {
+        const res = await fetch("/api/send-statement", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "message", to, customerId: c.id, subject, message: body.replace(/\[Name\]/g, tradeGreetingName(c)) }) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || `Send failed (${res.status})`);
+        sentTo.push(c);
+      } catch (e) { failed.push(`${c.company || c.companyContact}: ${e?.message || e}`); }
+      await new Promise(r => setTimeout(r, 600));   // gentle pace for the email service
+    }
+    if (sentTo.length) {
+      await silentSave(cur => ({ communications: [...(cur.communications || []), ...sentTo.map(c => ({
+        id: uid(), customerId: c.id, contactId: "", contactName: "", type: "Email", direction: "out",
+        note: `Emailed: ${subject}`, timestamp: Date.now(), createdAt: todayISO() }))] }));
+    }
+    setProgress({ done: chosen.length, total: chosen.length, failed });
+    setSending(false);
+    alert(failed.length ? `Sent to ${sentTo.length}. ${failed.length} failed:\n\n${failed.join("\n")}` : `✅ Sent to all ${sentTo.length} customers.`);
+  }
+
+  const lbl = { fontSize:12, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", margin:"16px 0 6px" };
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"settings" })}><Icon name="back" size={14} /> Back</Btn>
+      </div>
+      <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:"0 0 4px" }}>📣 Email All Trade Customers</h2>
+      <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 8px" }}>Each customer gets their own email. <b>[Name]</b> is replaced with their contact's first name. SMC is unticked as you've already told them.</p>
+
+      <div style={lbl}>Send to ({chosen.length})</div>
+      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+        <Btn size="sm" variant="ghost" onClick={() => setSelected(Object.fromEntries(trade.map(({ c, to }) => [c.id, !!to])))}>Tick all</Btn>
+        <Btn size="sm" variant="ghost" onClick={() => setSelected({})}>Untick all</Btn>
+      </div>
+      <div style={{ maxHeight:280, overflowY:"auto", border:"1px solid #F3F4F6", borderRadius:10 }}>
+        {trade.map(({ c, to }) => (
+          <label key={c.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", borderBottom:"1px solid #F3F4F6", cursor: to ? "pointer" : "default", opacity: to ? 1 : 0.5, background: selected[c.id] && to ? "#EFF6FF" : "#fff" }}>
+            <input type="checkbox" disabled={!to} checked={!!selected[c.id] && !!to} onChange={() => setSelected(s => ({ ...s, [c.id]: !s[c.id] }))} style={{ width:18, height:18 }} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:700, fontSize:14, color:"#111827" }}>{c.company || c.companyContact}</div>
+              <div style={{ fontSize:12, color:"#9CA3AF", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{to ? `Hi ${tradeGreetingName(c)} · ${to}` : "No email address"}</div>
+            </div>
+          </label>
+        ))}
+      </div>
+
+      <div style={lbl}>Subject</div>
+      <Input value={subject} onChange={setSubject} />
+      <div style={lbl}>Message</div>
+      <textarea value={body} onChange={e => setBody(e.target.value)} rows={18}
+        style={{ width:"100%", boxSizing:"border-box", padding:"10px 12px", borderRadius:10, border:"1.5px solid #E5E7EB", fontSize:14, fontFamily:"inherit", lineHeight:1.45 }} />
+
+      {progress && sending && <p style={{ fontSize:13, color:"#1E3A5F", fontWeight:700 }}>Sending {progress.done + 1} of {progress.total}…</p>}
+      <Btn onClick={sendAll} disabled={sending || !chosen.length || !subject.trim() || !body.trim()} style={{ width:"100%", justifyContent:"center", marginTop:12 }}>
+        {sending ? "Sending…" : `✉️ Send to ${chosen.length} customer${chosen.length === 1 ? "" : "s"}`}
+      </Btn>
+    </div>
+  );
+}
+
 function SettingsView({ data, setView }) {
   const tradeCustomers = (data.customers || []).filter(c => c.custType === "Trade");
   const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
@@ -6284,6 +6401,7 @@ function SettingsView({ data, setView }) {
         {overdueCount > 0 && <span style={{ fontSize:11, fontWeight:700, color:"#DC2626", background:"#FEF2F2", padding:"3px 8px", borderRadius:6 }}>{overdueCount} overdue</span>}
       </Btn>
       <Btn onClick={() => setView({ screen:"settingsPricing" })} variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>💰 Pricing</Btn>
+      <Btn onClick={() => setView({ screen:"tradeEmail" })} variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>📣 Email All Trade Customers</Btn>
       <Btn onClick={() => setView({ screen:"settingsTimeOff" })} variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:10 }}>🏖️ Time Off</Btn>
       <Btn onClick={() => setView({ screen:"emailIssues" })} variant="ghost" style={{ width:"100%", justifyContent:"center", marginBottom:10, gap:8 }}>
         <span>📧 Email Delivery Issues</span>
@@ -8803,6 +8921,7 @@ function AuthenticatedApp() {
         {view.screen==="sagePayments"     && <SagePaymentsView     data={data} setView={setView} />}
         {view.screen==="reminders"        && <RemindersView        data={data} setView={setView} />}
         {view.screen==="sageDates"        && <SageDatesView        data={data} setView={setView} />}
+        {view.screen==="tradeEmail"       && <TradeEmailView       data={data} setView={setView} />}
         {view.screen==="leads"            && <LeadsView            data={data} setView={setView} />}
         {view.screen==="mileage"        && <MileageView    data={data} setView={setView} />}
         {view.screen==="photoShowcase"  && <PhotoShowcaseView data={data} setView={setView} />}
