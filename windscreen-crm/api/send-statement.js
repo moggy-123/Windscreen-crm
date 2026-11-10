@@ -14,6 +14,26 @@ export default async function handler(req, res) {
   }
 
   try {
+    // "message": a plain email with no attachment (e.g. a price-change notice to trade customers)
+    if (req.body?.mode === "message") {
+      const { to, customerId, subject, message } = req.body;
+      if (!to) return res.status(400).json({ error: "No recipient email address was provided." });
+      if (!subject || !message) return res.status(400).json({ error: "The email needs a subject and a message." });
+      const RESEND_API_KEY = process.env.RESEND_API_KEY;
+      if (!RESEND_API_KEY) return res.status(500).json({ error: "Email sending isn't set up yet — RESEND_API_KEY is missing from Vercel's environment variables." });
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: RESEND_FROM, to: [to], bcc: ["info@windscreenrepairsbristol.co.uk"],
+          subject, text: message,
+          tags: [ ...(customerId ? [{ name: "customer_id", value: customerId }] : []), { name: "doc_type", value: "notice" } ],
+        }),
+      });
+      if (!r.ok) return res.status(502).json({ error: `Resend rejected the email: ${await r.text()}` });
+      return res.status(200).json({ success: true });
+    }
+
     // "bundle": email several ready-made PDFs (e.g. copy invoices) in one message
     if (req.body?.mode === "bundle") {
       const { to, customerId, customerName, subject, message, attachments } = req.body;
