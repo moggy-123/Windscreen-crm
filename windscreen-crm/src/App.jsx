@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B192 · 10 Nov 2026";
+const BUILD_NUMBER = "B193 · 14 Nov 2026";
 // Your business address on printed / emailed documents — can be switched off in Settings
 const MY_ADDRESS = "3 Goosander Grove, Cheddar, BS27 3FY";
 const SHOW_ADDRESS_KEY = "wscrm_show_address";
@@ -7867,6 +7867,15 @@ function ReportsView({ data }) {
     reps.forEach(r => { const t = r.type || "Chip"; repairsByType[t] = (repairsByType[t] || 0) + 1; });
   });
   const repairsTotal = months.reduce((s,m) => s + repairCount[m.key], 0);
+  // Jobs grouped by how many repairs were done on the vehicle (1, 2, 3, 4+)
+  const jobsBySize = { one:0, two:0, three:0, fourPlus:0 };
+  (data.jobs || []).forEach(j => {
+    if (!j.date || !(j.date.slice(0,7) in jobCount)) return;
+    const n = repairsInJob(j);
+    if (n === 1) jobsBySize.one++; else if (n === 2) jobsBySize.two++;
+    else if (n === 3) jobsBySize.three++; else if (n >= 4) jobsBySize.fourPlus++;
+  });
+  const jobsThreePlus = jobsBySize.three + jobsBySize.fourPlus;
 
   const outstanding = (data.invoices || []).filter(i => !i.paid).reduce((s,i) => s+(parseFloat(i.total)||0), 0);
   const receivedTotal = months.reduce((s,m) => s + received[m.key], 0);
@@ -8043,6 +8052,21 @@ function ReportsView({ data }) {
               <div style={{ fontSize:10, color:"#92400E", fontWeight:600 }}>{type}</div>
             </div>
           ))}
+        </div>
+        <div style={{ borderTop:"1px solid #F3F4F6", marginTop:14, paddingTop:14 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <span style={{ fontSize:13, fontWeight:700, color:"#374151" }}>Repairs per vehicle</span>
+            <span style={{ fontSize:13, fontWeight:800, color:"#B91C1C" }}>{jobsThreePlus} job{jobsThreePlus===1?"":"s"} with 3+</span>
+          </div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {[["1 repair", jobsBySize.one], ["2 repairs", jobsBySize.two], ["3 repairs", jobsBySize.three], ["4+ repairs", jobsBySize.fourPlus]].map(([label, n], i) => (
+              <div key={label} style={{ flex:"1 1 70px", background: i>=2 ? "#FEF2F2" : "#F9FAFB", borderRadius:10, padding:"10px 8px", border: i>=2 ? "1px solid #FECACA" : "1px solid #E5E7EB", textAlign:"center" }}>
+                <div style={{ fontSize:16, fontWeight:800, color: i>=2 ? "#B91C1C" : "#374151" }}>{n}</div>
+                <div style={{ fontSize:10, color:"#6B7280", fontWeight:600 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize:11, color:"#9CA3AF", margin:"8px 0 0" }}>Number of jobs (vehicles) by how many repairs were done on each.</p>
         </div>
       </div>
     </div>
