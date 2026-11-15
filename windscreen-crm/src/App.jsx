@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B193 · 14 Nov 2026";
+const BUILD_NUMBER = "B194 · 15 Nov 2026";
 // Your business address on printed / emailed documents — can be switched off in Settings
 const MY_ADDRESS = "3 Goosander Grove, Cheddar, BS27 3FY";
 const SHOW_ADDRESS_KEY = "wscrm_show_address";
@@ -152,6 +152,14 @@ function getRepairPricing(data, customer) {
   DAMAGE_TYPES.forEach(t => { out[t] = { ...def[t], ...(custom[t] || {}) }; });
   return out;
 }
+// Simplified trade pricing from 1 Dec 2026: every Trade customer pays a flat price per
+// repair, charged for at most 3 of each type per vehicle (any more on that vehicle are free).
+// Overrides individual customer prices for these types. Other types (e.g. Crack) unchanged.
+const TRADE_FLAT_PRICING = { from: "2026-12-01", cap: 3, prices: { "Chip": 35, "Pit Fill": 15 } };
+function tradeFlatPricingFor(customer, date) {
+  if (customer?.custType !== "Trade") return null;
+  return (date || todayISO()) >= TRADE_FLAT_PRICING.from ? TRADE_FLAT_PRICING : null;
+}
 // Price for the Nth repair of a given type (1-indexed within that type, for that job/vehicle).
 // 3rd-or-later repairs all use the "3" tier.
 function priceForRepair(pricingTable, type, countForType) {
@@ -162,12 +170,16 @@ function priceForRepair(pricingTable, type, countForType) {
 }
 // Given a job's repairs array, work out the price for each repair (in order, counting
 // per-type) and the total. Returns { lines: [{repair, count, price}], total }.
-function calcRepairPricing(data, customer, repairs) {
+function calcRepairPricing(data, customer, repairs, jobDate) {
   const table = getRepairPricing(data, customer);
+  const flat = tradeFlatPricingFor(customer, jobDate);
   const counts = {};
   const lines = (repairs || []).map(r => {
     const type = r.type || "Chip";
     counts[type] = (counts[type] || 0) + 1;
+    if (flat && flat.prices[type] != null) {
+      return { repair: r, count: counts[type], price: counts[type] <= flat.cap ? flat.prices[type] : 0, capped: counts[type] > flat.cap };
+    }
     return { repair: r, count: counts[type], price: priceForRepair(table, type, counts[type]) };
   });
   const total = lines.reduce((s, l) => s + l.price, 0);
@@ -1724,7 +1736,7 @@ function ComposeEmailModal({ to, subject, defaultBody, sending, onSend, onClose,
 }
 
 function RepairTermsModal({ customer, data, onClose }) {
-  const [price, setPrice] = useState(String(priceForRepair(getRepairPricing(data, customer), "Chip", 1) || ""));
+  const [price, setPrice] = useState(String(tradeFlatPricingFor(customer)?.prices["Chip"] ?? (priceForRepair(getRepairPricing(data, customer), "Chip", 1) || "")));
 
   const message =
 `The cost of the repair is £${price}. Please bear in mind it's not a cosmetic repair, the main purpose is to restore strength and integrity to the screen. There is also a slight chance during the repair that the screen can crack due to various conditions, we can NOT be held liable if a crack developed during or after the repair.
@@ -5302,7 +5314,7 @@ function InvoiceForm({ data, jobId, editInvoice, returnView, onClose }) {
   // ── Private customers: unchanged simple single-job invoice ──
   const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
   const autoDetails = (reps.length > 1 ? `${reps.length} repairs:\n` : "") + reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
-  const pricing = calcRepairPricing(data, customer, reps);
+  const pricing = calcRepairPricing(data, customer, reps, job?.date);
   const [details, setDetails] = useState(editInvoice?.details ?? autoDetails);
   const [labour, setLabour] = useState(editInvoice?.labour ?? (pricing.total ? pricing.total.toFixed(2) : ""));
   const [parts,  setParts]  = useState(editInvoice?.parts ?? "");
@@ -5426,8 +5438,11 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
     const vehicle = j.vehicleId ? data.vehicles.find(v => v.id === j.vehicleId) : null;
     const reps = j.repairs?.length ? j.repairs : (j.damageType ? [{ type: j.damageType, side: j.damageSide, position: j.damagePosition }] : []);
     const repCountText = reps.length > 1 ? `${reps.length} repairs: ` : "";
-    const desc = [vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : "", repCountText + reps.map(r => `${r.type||"Repair"}${r.side?" – "+r.side:""}${r.position?" "+r.position:""}`).join(", ")].filter(Boolean).join(" — ");
-    const price = calcRepairPricing(data, customer, reps).total;
+    const calc = calcRepairPricing(data, customer, reps, j.date);
+    const freeCount = calc.lines.filter(l => l.capped).length;
+    const capNote = freeCount ? ` (max ${TRADE_FLAT_PRICING.cap} charged per type — ${freeCount} free)` : "";
+    const desc = [vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.reg}` : "", repCountText + reps.map(r => `${r.type||"Repair"}${r.side?" – "+r.side:""}${r.position?" "+r.position:""}`).join(", ") + capNote].filter(Boolean).join(" — ");
+    const price = calc.total;
     return { id: uid(), jobId: j.id, description: desc, price: price ? price.toFixed(2) : "0.00" };
   };
 
