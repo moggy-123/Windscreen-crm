@@ -81,7 +81,10 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B194 · 15 Nov 2026";
+const BUILD_NUMBER = "B195 · 15 Nov 2026";
+// Not VAT registered, so the "Apply 20% VAT" tickbox is hidden on invoices.
+// If you become VAT registered, change false to true and the tickbox comes back.
+const VAT_REGISTERED = false;
 // Your business address on printed / emailed documents — can be switched off in Settings
 const MY_ADDRESS = "3 Goosander Grove, Cheddar, BS27 3FY";
 const SHOW_ADDRESS_KEY = "wscrm_show_address";
@@ -224,9 +227,21 @@ function clearStorageBloat() {
     localStorage.removeItem("wscrm_lastsync");
   } catch {}
 }
+// Writes the app's data to the phone. Safari only allows about 5MB, and photos taken
+// with no signal are held here until they upload — so if it's full, warn clearly
+// instead of failing silently. Returns true if saved, false if storage is full.
+function writeLocalData(stamped) {
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+    return true;
+  } catch (e) {
+    alert("⚠️ Phone storage for the app is full — this change has NOT been saved.\n\nThis is usually photos waiting to upload. Get on wifi or good signal, give the photos a minute to upload, then try saving again.");
+    return false;
+  }
+}
 function saveData(data) {
   const stamped = stampData(data);
-  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  if (!writeLocalData(stamped)) return Promise.resolve();
   return pushChangedOnly(stamped).catch(() => {/* offline — will sync later */});
 }
 
@@ -303,7 +318,12 @@ async function saveAndReload(data, returnView) {
   showSavingOverlay();
   SAVING_IN_PROGRESS = true;
   const stamped = stampData(data);
-  localStorage.setItem(DB_KEY, JSON.stringify(stamped));
+  if (!writeLocalData(stamped)) {
+    // Storage full: don't reload, so whatever's on screen stays put and can be saved again.
+    hideSavingOverlay();
+    SAVING_IN_PROGRESS = false;
+    return;
+  }
   if (returnView) { try { localStorage.setItem(RETURN_VIEW_KEY, JSON.stringify(returnView)); } catch {} }
   // Push only changed records, with a safety timeout so it never hangs forever
   try {
@@ -5310,8 +5330,12 @@ function InvoiceForm({ data, jobId, editInvoice, returnView, onClose }) {
   const isTrade = customer?.custType === "Trade";
 
   if (isTrade) return <TradeInvoiceForm data={data} job={job} customer={customer} editInvoice={editInvoice} returnView={returnView} onClose={onClose} />;
+  return <PrivateInvoiceForm data={data} job={job} jobId={jobId} customer={customer} editInvoice={editInvoice} returnView={returnView} onClose={onClose} />;
+}
 
-  // ── Private customers: unchanged simple single-job invoice ──
+// ── Private customers: simple single-job invoice ──
+// Kept as its own component so React's hooks always run in the same order (B195 fix).
+function PrivateInvoiceForm({ data, job, jobId, customer, editInvoice, returnView, onClose }) {
   const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
   const autoDetails = (reps.length > 1 ? `${reps.length} repairs:\n` : "") + reps.map(r => `${r.type || "Repair"}${r.side ? " – " + r.side : ""}${r.position ? " " + r.position : ""}`).join("\n");
   const pricing = calcRepairPricing(data, customer, reps, job?.date);
@@ -5391,12 +5415,14 @@ function InvoiceForm({ data, jobId, editInvoice, returnView, onClose }) {
       </Field>
       <Field label="Labour (£)"><Input type="number" value={labour} onChange={setLabour} placeholder="0.00" /></Field>
       <Field label="Parts (£)"><Input type="number" value={parts} onChange={setParts} placeholder="0.00" /></Field>
+      {VAT_REGISTERED && (
       <Field label="VAT">
         <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151" }}>
           <input type="checkbox" checked={vat} onChange={e => setVat(e.target.checked)} style={{ width:16, height:16 }} />
           Apply 20% VAT
         </label>
       </Field>
+      )}
       <div style={{ background:"#F9FAFB", borderRadius:8, padding:"12px 14px", marginBottom:16 }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>Subtotal</span><span>£{subtotal.toFixed(2)}</span></div>
         {vat && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>VAT (20%)</span><span>£{(subtotal*0.2).toFixed(2)}</span></div>}
@@ -5643,12 +5669,14 @@ function TradeInvoiceForm({ data, job, customer, editInvoice, returnView, onClos
         <Input value={sageInvoiceNo} onChange={setSageInvoiceNo} placeholder="e.g. INV-00123" />
       </Field>
       <Field label="Parts (£)"><Input type="number" value={parts} onChange={setParts} placeholder="0.00" /></Field>
+      {VAT_REGISTERED && (
       <Field label="VAT">
         <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:14, color:"#374151" }}>
           <input type="checkbox" checked={vat} onChange={e => setVat(e.target.checked)} style={{ width:16, height:16 }} />
           Apply 20% VAT
         </label>
       </Field>
+      )}
       <div style={{ background:"#F9FAFB", borderRadius:8, padding:"12px 14px", marginBottom:16 }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>Subtotal</span><span>£{subtotal.toFixed(2)}</span></div>
         {vat && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#6B7280", marginBottom:4 }}><span>VAT (20%)</span><span>£{(subtotal*0.2).toFixed(2)}</span></div>}
