@@ -96,7 +96,10 @@ async function addJobCardPages(pdfDoc, font, bold, jobCard, cardIndex, cardTotal
         const bytes = new Uint8Array(await res.arrayBuffer());
         let img;
         try { img = await pdfDoc.embedJpg(bytes); } catch { img = await pdfDoc.embedPng(bytes); }
-        page.drawImage(img, { x, y: y - imgH, width: imgW, height: imgH });
+        // Fit the whole photo in the box (keeps its shape) so nothing — like the reg/date label — is cut off
+        const fit = Math.min(imgW / img.width, imgH / img.height);
+        const dw = img.width * fit, dh = img.height * fit;
+        page.drawImage(img, { x: x + (imgW - dw) / 2, y: y - imgH + (imgH - dh) / 2, width: dw, height: dh });
       } catch (e) {
         page.drawRectangle({ x, y: y - imgH, width: imgW, height: imgH, borderColor: GREY, borderWidth: 1 });
         page.drawText("Photo unavailable", { x: x + 10, y: y - imgH / 2, size: 9, font, color: GREY });
