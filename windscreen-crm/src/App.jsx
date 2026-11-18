@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B199 · 18 Nov 2026";
+const BUILD_NUMBER = "B200 · 18 Nov 2026";
 // Not VAT registered, so the "Apply 20% VAT" tickbox is hidden on invoices.
 // If you become VAT registered, change false to true and the tickbox comes back.
 const VAT_REGISTERED = false;
@@ -3131,7 +3131,7 @@ function SendReportModal({ data, inspection, onClose }) {
 <div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
   <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
   <div style="font-size:11px;color:#FCA5A5;font-weight:700;width:100%;text-align:center;margin-top:2px;">⚠️ On a computer: in the print dialog, turn OFF "Headers and Footers" first, or your private app address gets printed at the bottom</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${PDF_SAVE_SCRIPT}<button onclick="wsSavePdf(this)" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
   <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">✕ Close</button>
   <a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>
 </div>
@@ -4089,7 +4089,7 @@ function sendJobCard(job, customer, vehicle, invoice) {
 <div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
   <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF first, then attach to email</div>
   <div style="font-size:11px;color:#FCA5A5;font-weight:700;width:100%;text-align:center;margin-top:2px;">⚠️ On a computer: in the print dialog, turn OFF "Headers and Footers" first, or your private app address gets printed at the bottom</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+  ${PDF_SAVE_SCRIPT}<button onclick="wsSavePdf(this)" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
     💾 Save as PDF
   </button>
   <a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:6px;">
@@ -4153,11 +4153,9 @@ function sendJobCard(job, customer, vehicle, invoice) {
 <div class="no-print" style="max-width:600px;margin:0 auto 32px;padding:16px;background:#FFF7ED;border-radius:12px;border:1px solid #FED7AA;">
   <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:8px;">📎 How to attach to email on iPhone:</div>
   <ol style="margin:0;padding-left:18px;font-size:12px;color:#B45309;line-height:1.8;">
-    <li>Tap <strong>💾 Save as PDF</strong> above</li>
-    <li>In the print preview, <strong>pinch outward</strong> on the page to convert to PDF</li>
-    <li>Tap the <strong>Share icon</strong> → <strong>Save to Files</strong></li>
-    <li>Tap <strong>✉️ Open Mail App</strong> above</li>
-    <li>In Mail, tap the <strong>paperclip icon</strong> → find your saved PDF in Files</li>
+    <li>Tap <strong>💾 Save as PDF</strong> above and wait a few seconds</li>
+    <li>If the share menu doesn't open by itself, tap <strong>📤 Share / Save PDF</strong></li>
+    <li>Pick <strong>Mail</strong> to email it straight away, or <strong>Save to Files</strong> to keep a copy</li>
   </ol>
 </div>
 
@@ -4174,6 +4172,60 @@ function sendJobCard(job, customer, vehicle, invoice) {
 // Combines every job for one customer on one date into a single printable/emailable
 // document — one section per vehicle/job, useful when several vehicles were done on
 // the same visit and you want one sheet to hand over rather than several.
+// "Save as PDF" for the printable report pages (day sheet, job report, etc).
+// The iPhone print screen doesn't work from the home-screen app, so instead the page
+// makes a real PDF file itself (html2pdf, loaded when first needed) and then opens the
+// share menu — Mail, WhatsApp, Save to Files. On a computer it just downloads the PDF.
+const PDF_SAVE_SCRIPT = String.raw`<script>
+function wsSavePdf(btn){
+  if (btn.dataset.ready) { wsSharePdf(); return; }
+  if (btn.dataset.busy) return;
+  btn.dataset.busy = "1"; btn.dataset.label = btn.innerHTML; btn.innerHTML = "⏳ Making PDF…";
+  var fail = function(msg){ btn.dataset.busy = ""; btn.innerHTML = btn.dataset.label; alert("Couldn't make the PDF" + (msg ? " (" + msg + ")" : "") + ".\n\nCheck you have signal and try again."); };
+  var go = function(){
+    var imgs = Array.prototype.slice.call(document.images).filter(function(i){ return i.src && i.src.indexOf("data:") !== 0; });
+    Promise.all(imgs.map(function(img){
+      return fetch(img.src, { mode:"cors", cache:"no-store" })
+        .then(function(r){ if (!r.ok) throw new Error("photo"); return r.blob(); })
+        .then(function(b){ return new Promise(function(res){ var fr = new FileReader(); fr.onload = function(){ img.onload = res; img.onerror = res; img.src = fr.result; }; fr.onerror = res; fr.readAsDataURL(b); }); })
+        .catch(function(){});
+    })).then(function(){
+      var hidden = Array.prototype.slice.call(document.querySelectorAll(".no-print"));
+      hidden.forEach(function(el){ el.setAttribute("data-disp", el.style.display || ""); el.style.display = "none"; });
+      var bg = document.body.style.background; document.body.style.background = "#fff";
+      var restore = function(){ hidden.forEach(function(el){ el.style.display = el.getAttribute("data-disp"); }); document.body.style.background = bg; };
+      var name = ((document.title || "Document").replace(/[^A-Za-z0-9 \-]/g, "").trim().replace(/\s+/g, "-") || "Document") + ".pdf";
+      return html2pdf().set({
+        margin: [8, 8, 8, 8], filename: name,
+        image: { type: "jpeg", quality: 0.92 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"], avoid: ["tr", "img"] }
+      }).from(document.body).outputPdf("blob").then(function(blob){
+        restore();
+        window.__wsPdf = { blob: blob, name: name };
+        btn.dataset.busy = ""; btn.dataset.ready = "1"; btn.innerHTML = "📤 Share / Save PDF";
+        wsSharePdf(true);
+      }, function(e){ restore(); throw e; });
+    }).catch(function(e){ fail(e && e.message); });
+  };
+  if (window.html2pdf) go();
+  else { var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"; s.onload = go; s.onerror = function(){ fail("no internet connection"); }; document.head.appendChild(s); }
+}
+function wsSharePdf(auto){
+  var p = window.__wsPdf; if (!p) return;
+  var file = null; try { file = new File([p.blob], p.name, { type:"application/pdf" }); } catch (e) {}
+  if (file && navigator.canShare && navigator.canShare({ files:[file] })) {
+    // On iPhone the share menu may need a second tap (the button now says Share / Save PDF)
+    navigator.share({ files:[file], title:p.name }).catch(function(){});
+    return;
+  }
+  var url = URL.createObjectURL(p.blob);
+  var a = document.createElement("a"); a.href = url; a.download = p.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+}
+</script>`;
+
 // Day sheet. The window is opened straight away (so phones don't block it as a pop-up),
 // then — if photos are wanted — the latest photos for that day's jobs are fetched from the
 // cloud, because this device's copy of a job may not have them yet (e.g. they were taken on
@@ -4261,7 +4313,7 @@ function buildDaySheetHtml(data, customer, dateISO, includePhotos, jobs) {
 <div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
   <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
   <div style="font-size:11px;color:#FCA5A5;font-weight:700;width:100%;text-align:center;margin-top:2px;">⚠️ On a computer: in the print dialog, turn OFF "Headers and Footers" first, or your private app address gets printed at the bottom</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${PDF_SAVE_SCRIPT}<button onclick="wsSavePdf(this)" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
   <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">✕ Close</button>
   ${toEmail ? `<a href="${mailtoLink}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>` : ""}
 </div>
@@ -8240,7 +8292,7 @@ function openFinancialYearReport(data, fy) {
 </style></head><body>
 <div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
   <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${PDF_SAVE_SCRIPT}<button onclick="wsSavePdf(this)" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
   <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">✕ Close</button>
 </div>
 <div style="max-width:700px;margin:0 auto;padding:24px;background:#fff;">
@@ -8284,7 +8336,7 @@ function openMileageReport(entries, yearLabel) {
 </style></head><body>
 <div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
   <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${PDF_SAVE_SCRIPT}<button onclick="wsSavePdf(this)" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
   <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">✕ Close</button>
 </div>
 <div style="max-width:700px;margin:0 auto;padding:24px;background:#fff;">
@@ -8344,7 +8396,7 @@ function openDemoDamageReport() {
 </style></head><body>
 <div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
   <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${PDF_SAVE_SCRIPT}<button onclick="wsSavePdf(this)" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
   <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">✕ Close</button>
 </div>
 <div style="max-width:700px;margin:0 auto;padding:24px;background:#fff;">
@@ -8425,7 +8477,7 @@ function openShowcaseWindow(jobs) {
 </style></head><body>
 <div class="no-print" style="position:sticky;top:0;z-index:100;background:#1E3A5F;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
   <div style="font-size:13px;color:#93C5FD;font-weight:600;width:100%;text-align:center;">Tap Save as PDF, then attach to an email</div>
-  <button onclick="window.print()" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
+  ${PDF_SAVE_SCRIPT}<button onclick="wsSavePdf(this)" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save as PDF</button>
   <a href="mailto:?subject=${encodeURIComponent("Windscreen Repairs Bristol — Our Work")}" style="background:#fff;color:#1E3A5F;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;">✉️ Open Mail App</a>
   <button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;">✕ Close</button>
 </div>
