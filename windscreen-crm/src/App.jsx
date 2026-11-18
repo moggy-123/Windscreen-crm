@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B196 · 18 Nov 2026";
+const BUILD_NUMBER = "B197 · 18 Nov 2026";
 // Not VAT registered, so the "Apply 20% VAT" tickbox is hidden on invoices.
 // If you become VAT registered, change false to true and the tickbox comes back.
 const VAT_REGISTERED = false;
@@ -8979,7 +8979,7 @@ function AuthenticatedApp() {
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#93C5FD", background:"rgba(255,255,255,.12)", padding:"4px 9px", borderRadius:6, letterSpacing:"0.02em", whiteSpace:"nowrap" }}>{BUILD_NUMBER}</div>
+          <div onClick={() => { if (confirm("Check for a newer version of the app?")) updateAppNow(); }} style={{ fontSize:11, fontWeight:700, color:"#93C5FD", background:"rgba(255,255,255,.12)", padding:"4px 9px", borderRadius:6, letterSpacing:"0.02em", whiteSpace:"nowrap", cursor:"pointer" }}>{BUILD_NUMBER} ↻</div>
           <div style={{ width:10, height:10, borderRadius:"50%",
             background: syncStatus === "synced" ? "#22C55E" : syncStatus === "syncing" ? "#F59E0B" : "#9CA3AF",
             boxShadow: syncStatus === "synced" ? "0 0 6px #22C55E" : "none" }}
@@ -9025,6 +9025,7 @@ function AuthenticatedApp() {
 
       {view.screen==="newJob" && <JobForm data={data} prefill={view.prefill} onClose={() => setView({ screen:"jobs" })} />}
 
+      <UpdateNotice />
       {/* Bottom Nav */}
       <div className="crm-shell" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", background:"#fff", borderTop:"1px solid #E5E7EB", display:"flex", zIndex:50 }}>
         {tabs.map(t => {
@@ -9082,6 +9083,69 @@ function LoginScreen() {
           {loading ? "Signing in…" : "Sign In"}
         </button>
       </form>
+    </div>
+  );
+}
+
+// ── App updates ──────────────────────────────────────────────────────────────
+// Fetch the newest version: save any changes first, drop the stored copy of the app
+// (service worker + cached files), then load a fresh one from the website.
+// Customer data and photos waiting to upload are kept — they live separately.
+async function updateAppNow(setMsg) {
+  try {
+    setMsg && setMsg("Checking…");
+    try { await Promise.race([pushChangedOnly(loadData()), new Promise(r => setTimeout(r, 6000))]); } catch {}
+    setMsg && setMsg("Updating…");
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister().catch(() => {})));
+    }
+    if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k).catch(() => {}))); }
+  } catch { /* load the fresh copy anyway */ }
+  setTimeout(() => window.location.replace("/?fresh=" + Date.now()), 300);
+}
+// If a part of the app that loads later has gone after an update, reload once.
+if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", (e) => {
+    try { if (sessionStorage.getItem("wscrm_chunk_reload")) return; sessionStorage.setItem("wscrm_chunk_reload", "1"); } catch { return; }
+    e.preventDefault(); window.location.reload();
+  });
+}
+// "New version available" bar — every few minutes (and whenever the app comes back to
+// the front) it quietly checks the live site. If the app's code has changed, a bar appears.
+function currentScriptName() {
+  const sc = Array.from(document.querySelectorAll("script[type=module][src]")).map(x => x.getAttribute("src")).find(x => /\/assets\/index-.*\.js/.test(x || ""));
+  return sc ? sc.split("/").pop() : "";
+}
+async function newVersionWaiting() {
+  const mine = currentScriptName();
+  if (!mine) return false; // developer preview, nothing to compare
+  try {
+    const r = await fetch(`/index.html?v=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) return false;
+    const m = (await r.text()).match(/\/assets\/(index-[^"']+\.js)/);
+    return !!(m && m[1] !== mine);
+  } catch { return false; }
+}
+function UpdateNotice() {
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const check = async () => { if (alive && !document.hidden && await newVersionWaiting() && alive) setReady(true); };
+    const t0 = setTimeout(check, 4000);
+    const iv = setInterval(check, 5 * 60 * 1000);
+    const onVis = () => { if (!document.hidden) check(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { alive = false; clearTimeout(t0); clearInterval(iv); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
+  if (!ready || hidden) return null;
+  return (
+    <div style={{ position:"fixed", left:12, right:12, bottom:"calc(env(safe-area-inset-bottom, 0px) + 92px)", zIndex:9000, maxWidth:520, margin:"0 auto", background:"#1E3A5F", color:"#fff", borderRadius:14, padding:"11px 12px 11px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 8px 24px rgba(0,0,0,.25)" }}>
+      <div style={{ flex:1, fontSize:14, fontWeight:700 }}>✨ A new version of the app is ready</div>
+      <button type="button" onClick={() => updateAppNow(setBusy)} disabled={!!busy} style={{ background:"#F59E0B", color:"#fff", border:"none", borderRadius:10, padding:"9px 14px", fontWeight:800, fontSize:14, cursor:"pointer" }}>{busy || "Update"}</button>
+      <button type="button" onClick={() => setHidden(true)} aria-label="Later" style={{ background:"none", border:"none", color:"#93C5FD", fontSize:20, lineHeight:1, cursor:"pointer", padding:"0 2px" }}>×</button>
     </div>
   );
 }
