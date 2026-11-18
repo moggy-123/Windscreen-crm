@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B197 · 18 Nov 2026";
+const BUILD_NUMBER = "B198 · 18 Nov 2026";
 // Not VAT registered, so the "Apply 20% VAT" tickbox is hidden on invoices.
 // If you become VAT registered, change false to true and the tickbox comes back.
 const VAT_REGISTERED = false;
@@ -3567,7 +3567,9 @@ function JobsList({ data, setView, initialFilter }) {
 }
 
 // ── Photo Uploader ────────────────────────────────────────────────────────────
-function resizeImage(file, maxW = 800) {
+// stamp (optional): text burned into the bottom-left of the photo, e.g. "AB12 CDE · 18/11/2026",
+// so the picture still shows which car and when if it's forwarded on.
+function resizeImage(file, maxW = 800, stamp = "") {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = ev => {
@@ -3577,7 +3579,21 @@ function resizeImage(file, maxW = 800) {
         const canvas = document.createElement("canvas");
         canvas.width  = img.width  * scale;
         canvas.height = img.height * scale;
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        if (stamp) {
+          const size = Math.max(16, Math.round(Math.min(canvas.width, canvas.height) * 0.055));
+          ctx.font = `bold ${size}px Arial, Helvetica, sans-serif`;
+          const pad = Math.round(size * 0.45);
+          const textW = ctx.measureText(stamp).width;
+          const boxH = size + pad * 2;
+          const x = Math.round(size * 0.5), y = canvas.height - boxH - Math.round(size * 0.5);
+          ctx.fillStyle = "rgba(0,0,0,0.55)";
+          ctx.fillRect(x, y, textW + pad * 2, boxH);
+          ctx.fillStyle = "#FFFFFF";
+          ctx.textBaseline = "middle";
+          ctx.fillText(stamp, x + pad, y + boxH / 2);
+        }
         resolve(canvas.toDataURL("image/jpeg", 0.6));
       };
       img.src = ev.target.result;
@@ -3586,7 +3602,7 @@ function resizeImage(file, maxW = 800) {
   });
 }
 
-function PhotoUploader({ label, photos = [], onChange, jobId }) {
+function PhotoUploader({ label, photos = [], onChange, jobId, stampReg }) {
   const [loading, setLoading] = useState(false);
 
   async function handleFiles(e) {
@@ -3596,7 +3612,8 @@ function PhotoUploader({ label, photos = [], onChange, jobId }) {
     try {
       const newPhotos = [];
       for (const file of files) {
-        const dataUrl = await resizeImage(file);
+        const stamp = [stampReg ? String(stampReg).toUpperCase() : "", new Date().toLocaleDateString("en-GB")].filter(Boolean).join(" · ");
+        const dataUrl = await resizeImage(file, 800, stamp);
         const photoId = uid();
         // If clearly offline, save as pending immediately — no waiting, no risk of loss
         if (!navigator.onLine) {
@@ -3964,8 +3981,8 @@ function JobForm({ data, onClose, editJob, prefill }) {
       <Field label="Notes"><Input value={notes} onChange={setNotes} placeholder="Any notes…" /></Field>
       {editJob ? (
         <>
-          <PhotoUploader label="Before Photos" photos={photosBefore} onChange={setPhotosBefore} jobId={editJob.id} />
-          <PhotoUploader label="After Photos"  photos={photosAfter}  onChange={setPhotosAfter}  jobId={editJob.id} />
+          <PhotoUploader label="Before Photos" photos={photosBefore} onChange={setPhotosBefore} jobId={editJob.id} stampReg={custVehicles.find(v => v.id === vehicleId)?.reg} />
+          <PhotoUploader label="After Photos"  photos={photosAfter}  onChange={setPhotosAfter}  jobId={editJob.id} stampReg={custVehicles.find(v => v.id === vehicleId)?.reg} />
         </>
       ) : (
         <div style={{ fontSize:12, color:"#9CA3AF", textAlign:"center", margin:"4px 0 12px" }}>📷 You can add before/after photos once the job is saved</div>
