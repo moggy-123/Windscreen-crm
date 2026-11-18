@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B198 · 18 Nov 2026";
+const BUILD_NUMBER = "B199 · 18 Nov 2026";
 // Not VAT registered, so the "Apply 20% VAT" tickbox is hidden on invoices.
 // If you become VAT registered, change false to true and the tickbox comes back.
 const VAT_REGISTERED = false;
@@ -3077,7 +3077,7 @@ function SendReportModal({ data, inspection, onClose }) {
       const jobPhotoRow = (v) => {
         const p = includePhotos && v.bookedJobId ? jobPhotos[v.bookedJobId] : null;
         if (!p || !(p.before.length || p.after.length)) return "";
-        const col = (arr, label) => `<div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:700;color:#374151;text-transform:uppercase;margin-bottom:4px;">${label}</div>${arr.length ? arr.map(ph => `<img src="${ph.url || ph.pending}" style="display:block;width:100%;max-width:260px;height:160px;object-fit:cover;border-radius:6px;border:1px solid #D1D5DB;margin-bottom:4px;" />`).join("") : '<div style="font-size:11px;color:#9CA3AF;">No photo</div>'}</div>`;
+        const col = (arr, label) => `<div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:700;color:#374151;text-transform:uppercase;margin-bottom:4px;">${label}</div>${arr.length ? arr.map(ph => `<img src="${ph.url || ph.pending}" style="display:block;width:100%;max-width:260px;height:160px;object-fit:contain;background:#F3F4F6;border-radius:6px;border:1px solid #D1D5DB;margin-bottom:4px;" />`).join("") : '<div style="font-size:11px;color:#9CA3AF;">No photo</div>'}</div>`;
         return `
       <tr><td style="border-bottom:1px solid #E5E7EB;"></td><td colspan="3" style="padding:4px 12px 12px;border-bottom:1px solid #E5E7EB;"><div style="display:flex;gap:10px;">${col(p.before, "Before")}${col(p.after, "After")}</div></td></tr>`;
       };
@@ -4057,7 +4057,7 @@ function sendJobCard(job, customer, vehicle, invoice) {
     return `
       <h3 style="color:#1E3A5F;font-size:15px;margin:20px 0 10px;border-bottom:2px solid #F3F4F6;padding-bottom:6px;">${label}</h3>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
-        ${photos.map(p => `<img src="${p.url || p.pending}" style="width:160px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;" />`).join("")}
+        ${photos.map(p => `<img src="${p.url || p.pending}" style="width:160px;height:120px;object-fit:contain;background:#F3F4F6;border-radius:8px;border:1px solid #E5E7EB;" />`).join("")}
       </div>`;
   };
 
@@ -4222,7 +4222,7 @@ function buildDaySheetHtml(data, customer, dateISO, includePhotos, jobs) {
       <div style="flex:1;min-width:0;">
         <div style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;margin:0 0 6px;">${label}</div>
         ${photos && photos.length
-          ? photos.map(p => `<img src="${p.url || p.pending}" style="display:block;width:100%;height:190px;object-fit:cover;border-radius:6px;border:1px solid #D1D5DB;margin-bottom:6px;" />`).join("")
+          ? photos.map(p => `<img src="${p.url || p.pending}" style="display:block;width:100%;height:190px;object-fit:contain;background:#F3F4F6;border-radius:6px;border:1px solid #D1D5DB;margin-bottom:6px;" />`).join("")
           : '<div style="font-size:12px;color:#9CA3AF;padding:8px 0;">No photo</div>'}
       </div>`;
   const photoBlock = (job) => {
@@ -8399,8 +8399,8 @@ function openDemoDamageReport() {
 
 function openShowcaseWindow(jobs) {
   const cards = jobs.map(j => {
-    const beforeImgs = (j.photosBefore||[]).map(p => `<img src="${p.url||p.pending}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;" />`).join("");
-    const afterImgs  = (j.photosAfter||[]).map(p => `<img src="${p.url||p.pending}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;" />`).join("");
+    const beforeImgs = (j.photosBefore||[]).map(p => `<img src="${p.url||p.pending}" style="width:100%;aspect-ratio:4/3;object-fit:contain;background:#F3F4F6;border-radius:8px;" />`).join("");
+    const afterImgs  = (j.photosAfter||[]).map(p => `<img src="${p.url||p.pending}" style="width:100%;aspect-ratio:4/3;object-fit:contain;background:#F3F4F6;border-radius:8px;" />`).join("");
     return `
     <div style="border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:18px;page-break-inside:avoid;">
       <div style="font-size:13px;font-weight:700;color:#1E3A5F;margin-bottom:10px;">${j.jobType || "Windscreen Repair"}</div>
