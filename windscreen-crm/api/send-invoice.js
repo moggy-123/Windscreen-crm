@@ -78,17 +78,18 @@ async function addJobCardPages(pdfDoc, font, bold, jobCard, cardIndex, cardTotal
 
   async function drawPhotoSection(title, photos) {
     if (!photos || photos.length === 0) return;
-    newPageIfNeeded(30);
-    page.drawText(title, { x: LEFT, y, size: 12, font: bold, color: NAVY });
-    y -= 20;
-
     const cols = 2, gap = 10;
     const imgW = (RIGHT - LEFT - gap) / cols;
     const imgH = imgW * 0.72;
+    newPageIfNeeded(30 + imgH + 24); // keep the "Before"/"After" heading with its first photos
+    page.drawText(title, { x: LEFT, y, size: 12, font: bold, color: NAVY });
+    y -= 20;
+
     let col = 0;
 
+    const capH = 14; // room under each photo for its "Repair 1 · Chip…" caption
     for (const photo of photos) {
-      newPageIfNeeded(imgH + 10);
+      newPageIfNeeded(imgH + capH + 10);
       const x = LEFT + col * (imgW + gap);
       try {
         const res = await fetch(photo.url);
@@ -104,10 +105,20 @@ async function addJobCardPages(pdfDoc, font, bold, jobCard, cardIndex, cardTotal
         page.drawRectangle({ x, y: y - imgH, width: imgW, height: imgH, borderColor: GREY, borderWidth: 1 });
         page.drawText("Photo unavailable", { x: x + 10, y: y - imgH / 2, size: 9, font, color: GREY });
       }
+      if (photo.caption) {
+        const drawCap = (text) => {
+          // Shorten long captions to fit under the photo, ending with "..."
+          let base = text, cap = text;
+          while (base.length > 1 && bold.widthOfTextAtSize(cap, 9) > imgW) { base = base.slice(0, -1); cap = base.trimEnd() + "..."; }
+          page.drawText(cap, { x, y: y - imgH - 11, size: 9, font: bold, color: NAVY });
+        };
+        try { drawCap(String(photo.caption)); }
+        catch { try { drawCap(String(photo.caption).replace(/[^\x20-\x7E]/g, "-")); } catch {} }
+      }
       col++;
-      if (col >= cols) { col = 0; y -= imgH + gap; }
+      if (col >= cols) { col = 0; y -= imgH + capH + gap; }
     }
-    if (col !== 0) y -= imgH + gap;
+    if (col !== 0) y -= imgH + capH + gap;
     y -= 10;
   }
 
