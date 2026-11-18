@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B195 · 15 Nov 2026";
+const BUILD_NUMBER = "B196 · 18 Nov 2026";
 // Not VAT registered, so the "Apply 20% VAT" tickbox is hidden on invoices.
 // If you become VAT registered, change false to true and the tickbox comes back.
 const VAT_REGISTERED = false;
@@ -6790,6 +6790,13 @@ Windscreen Repairs (Bristol)
 function SettingsBalancesView({ data, setView }) {
   const tradeCustomers = (data.customers || []).filter(c => c.custType === "Trade").sort((a,b) => (a.company||"").localeCompare(b.company||"", undefined, { sensitivity:"base" }));
   const oneMonthAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().split("T")[0]; })();
+  // Statement emails open a Review Email box first, so a comment can be added before sending
+  const [composeFor, setComposeFor] = useState(null);
+  const [sendingStatement, setSendingStatement] = useState(false);
+  function openStatement(customer) {
+    if (!getRecipientEmail(customer, "receivesStatements")) { alert("This customer has no email address set to receive statements. Add one on their customer page first."); return; }
+    setComposeFor(customer);
+  }
 
   return (
     <div>
@@ -6797,6 +6804,22 @@ function SettingsBalancesView({ data, setView }) {
         <Btn variant="ghost" size="sm" onClick={() => setView({ screen:"settings" })}><Icon name="back" size={14} /> Back</Btn>
       </div>
       <h2 style={{ fontSize:18, fontWeight:800, color:"#1E3A5F", margin:"0 0 12px" }}>Outstanding & Overdue</h2>
+      {composeFor && (
+        <ComposeEmailModal
+          key={composeFor.id}
+          to={getRecipientEmail(composeFor, "receivesStatements")}
+          subject={`Statement of Account — ${composeFor.company || composeFor.companyContact || "Windscreen Repairs Bristol"}`}
+          defaultBody={`Please find our statement attached, showing a total outstanding balance of £${buildStatementRows(data, composeFor).totalOwed.toFixed(2)}.\n\nWindscreen Repairs (Bristol)\n07946 222246`}
+          sending={sendingStatement}
+          onSend={async (message) => {
+            setSendingStatement(true);
+            try { await emailStatementToCustomer(data, composeFor, message); setComposeFor(null); alert("Statement sent."); }
+            catch (e) { alert("Couldn't send the statement: " + (e?.message || e)); }
+            finally { setSendingStatement(false); }
+          }}
+          onClose={() => setComposeFor(null)}
+        />
+      )}
 
       <div style={{ background:"#fff", border:"1px solid #FCA5A5", borderRadius:12, padding:16, marginBottom:16 }}>
         <h3 style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:"#DC2626" }}>⚠️ Overdue (30+ Days)</h3>
@@ -6816,7 +6839,7 @@ function SettingsBalancesView({ data, setView }) {
                 <div style={{ fontSize:11, color:"#DC2626", fontWeight:600 }}>{overdueInvoices.length} overdue · {unpaid.length} unpaid total</div>
               </div>
               <span style={{ fontSize:14, fontWeight:800, color:"#92400E" }}>£{total.toFixed(2)}</span>
-              <button onClick={async () => { try { await emailStatementToCustomer(data, customer); alert("Statement sent."); } catch (e) { alert("Couldn't send the statement: " + (e?.message || e)); } }} style={{ background:"#DC2626", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>✉️ Statement</button>
+              <button onClick={() => openStatement(customer)} style={{ background:"#DC2626", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>✉️ Statement</button>
             </div>
           ));
         })()}
@@ -6839,7 +6862,7 @@ function SettingsBalancesView({ data, setView }) {
                 <div style={{ fontSize:11, color:"#9CA3AF" }}>{unpaid.length} unpaid invoice{unpaid.length===1?"":"s"}</div>
               </div>
               <span style={{ fontSize:14, fontWeight:800, color:"#92400E" }}>£{total.toFixed(2)}</span>
-              <button onClick={async () => { try { await emailStatementToCustomer(data, customer); alert("Statement sent."); } catch (e) { alert("Couldn't send the statement: " + (e?.message || e)); } }} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>✉️ Statement</button>
+              <button onClick={() => openStatement(customer)} style={{ background:"#1E3A5F", color:"#fff", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>✉️ Statement</button>
             </div>
           ));
         })()}
