@@ -81,7 +81,7 @@ const RETURN_VIEW_KEY = "wscrm_return_view";
 
 // Bump this every time a new version is shipped, so it's obvious from the app
 // itself (Home screen footer + Settings) whether a deploy actually landed.
-const BUILD_NUMBER = "B200 · 18 Nov 2026";
+const BUILD_NUMBER = "B201 · 18 Nov 2026";
 // Not VAT registered, so the "Apply 20% VAT" tickbox is hidden on invoices.
 // If you become VAT registered, change false to true and the tickbox comes back.
 const VAT_REGISTERED = false;
@@ -2692,6 +2692,15 @@ function VehicleDetail({ data, id, customerId, setView }) {
 }
 
 // ── Site Inspections ─────────────────────────────────────────────────────────
+// Caption for the nth before/after photo on a job — photo 1 goes with Repair 1, and so on
+// (so take them in the same order as the repairs). Photos beyond the number of repairs are "Extra photo".
+function photoCaption(job, i) {
+  const reps = job?.repairs?.length ? job.repairs : (job?.damageType ? [{ type: job.damageType, side: job.damageSide, position: job.damagePosition }] : []);
+  const r = reps[i];
+  if (!r) return reps.length ? "Extra photo" : `Photo ${i + 1}`;
+  const d = describeRepair(r) || r.type || "";
+  return `Repair ${i + 1}${d ? " · " + d : ""}`;
+}
 function describeRepair(r) {
   const base = [r.type, r.side, r.position].filter(Boolean).join(" · ");
   const flags = [];
@@ -4057,7 +4066,7 @@ function sendJobCard(job, customer, vehicle, invoice) {
     return `
       <h3 style="color:#1E3A5F;font-size:15px;margin:20px 0 10px;border-bottom:2px solid #F3F4F6;padding-bottom:6px;">${label}</h3>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
-        ${photos.map(p => `<img src="${p.url || p.pending}" style="width:160px;height:120px;object-fit:contain;background:#F3F4F6;border-radius:8px;border:1px solid #E5E7EB;" />`).join("")}
+        ${photos.map((p, i) => `<div class="pdf-keep" style="width:160px;page-break-inside:avoid;"><img src="${p.url || p.pending}" style="display:block;width:160px;height:120px;object-fit:contain;background:#F3F4F6;border-radius:8px;border:1px solid #E5E7EB;" /><div style="font-size:11px;font-weight:700;color:#1E3A5F;margin-top:3px;line-height:1.3;">${photoCaption(job, i)}</div></div>`).join("")}
       </div>`;
   };
 
@@ -4200,7 +4209,7 @@ function wsSavePdf(btn){
         image: { type: "jpeg", quality: 0.92 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"], avoid: ["tr", "img"] }
+        pagebreak: { mode: ["avoid-all", "css", "legacy"], avoid: ["tr", "img", ".pdf-keep"] }
       }).from(document.body).outputPdf("blob").then(function(blob){
         restore();
         window.__wsPdf = { blob: blob, name: name };
@@ -4270,17 +4279,17 @@ function buildDaySheetHtml(data, customer, dateISO, includePhotos, jobs) {
 
   // Photos: Before and After side by side, big enough to see the repair when printed.
   // Left out entirely when "Include photos" is switched off.
-  const photoCol = (photos, label) => `
+  const photoCol = (photos, label, job) => `
       <div style="flex:1;min-width:0;">
         <div style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;margin:0 0 6px;">${label}</div>
         ${photos && photos.length
-          ? photos.map(p => `<img src="${p.url || p.pending}" style="display:block;width:100%;height:190px;object-fit:contain;background:#F3F4F6;border-radius:6px;border:1px solid #D1D5DB;margin-bottom:6px;" />`).join("")
+          ? photos.map((p, i) => `<div class="pdf-keep" style="page-break-inside:avoid;margin-bottom:8px;"><img src="${p.url || p.pending}" style="display:block;width:100%;height:190px;object-fit:contain;background:#F3F4F6;border-radius:6px;border:1px solid #D1D5DB;" /><div style="font-size:11px;font-weight:700;color:#1E3A5F;margin-top:3px;line-height:1.3;">${photoCaption(job, i)}</div></div>`).join("")
           : '<div style="font-size:12px;color:#9CA3AF;padding:8px 0;">No photo</div>'}
       </div>`;
   const photoBlock = (job) => {
     if (!includePhotos) return "";
     if (!(job.photosBefore?.length || job.photosAfter?.length)) return "";
-    return `<div style="display:flex;gap:10px;margin-top:12px;page-break-inside:avoid;">${photoCol(job.photosBefore, "Before")}${photoCol(job.photosAfter, "After")}</div>`;
+    return `<div style="display:flex;gap:10px;margin-top:12px;page-break-inside:avoid;">${photoCol(job.photosBefore, "Before", job)}${photoCol(job.photosAfter, "After", job)}</div>`;
   };
 
   const isTrade = customer.custType === "Trade";
@@ -5065,8 +5074,8 @@ function JobDetail({ data, id, from, setView }) {
           repairCount: jReps.length,
           damageLines: jReps.map(r => describeRepair(r) || r.type).join(", "),
           notes: j.notes || "",
-          photosBefore: (j.photosBefore || []).filter(p => p.url).map(p => ({ url: p.url })),
-          photosAfter: (j.photosAfter || []).filter(p => p.url).map(p => ({ url: p.url })),
+          photosBefore: (j.photosBefore || []).map((p, i) => ({ url: p.url, caption: photoCaption(j, i) })).filter(p => p.url),
+          photosAfter: (j.photosAfter || []).map((p, i) => ({ url: p.url, caption: photoCaption(j, i) })).filter(p => p.url),
         };
       }) : null,
     };
